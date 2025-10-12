@@ -1,28 +1,22 @@
 # TODO
 
-## NA DZIŚ
-
-- [x] Walidacja wprowadzanych urządzeń
-- [x] Radio Cisco czy Juniper
-- [ ] Pingowanie urządzeń
-- [ ] Wyczyść listę
-- [ ] Usuń pojedyncze urządzenie
-- [ ] Ustawienia i autołączenie się z urządzeniem w celu pobrania konfiga
-
 ## Połączenie
 
-- [ ] Statyczne definiowanie hostów
+- [x] Statyczne definiowanie hostów
 - [ ] Dynamiczne definiowanie hostów (coś jak nmap)
-- [ ] Zaciąganie hostów z pliku
-- [ ] Auto-rozpoznawanie typu hosta (system operacyjny)
+- [x] Zaciąganie hostów z pliku
 - [ ] Automatyczne rozpoznawanie typu urządzenia
 - [ ] Ping hosta przed próbą logowania
-- [ ] Wielowątkowość — wiele połączeń naraz (wątki lub async)
+- [ ] Wielowątkowość — przy pobieraniu i wysyłaniu configa
+
+## Ustawienia
+
+- [ ] Typ połączenia
+- [ ] Timeout
 
 ## Konfiguracja
 
-- [ ] Tryb commit-ów jak w junos (przełącznik)
-- [ ] Parametry wyświetlane w czasie rzeczywistym
+- [ ] Wysyłanie configu dla pojedynczego urządzenia i dla wszystkich
 - [ ] Eksport konfiguracji do pliku
     - [ ] Eksport do playbook-a Ansible?
 - [ ] Import konfiguracji na urządzenie

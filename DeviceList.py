@@ -20,6 +20,9 @@ class DeviceList:
     def __len__(self):
         return len(self.devices)
 
+    def __getitem__(self, index):
+        return self.devices[index]
+
     def add_device(self, host: str, username: str, password: str, device_type: str):
         item = {
             "host": host,

@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt, QSize
+from PySide6.QtCore import Qt, QSize, QSettings
 from PySide6.QtWidgets import (
     QMainWindow,
     QHBoxLayout,
@@ -10,10 +10,12 @@ from PySide6.QtWidgets import (
     QLabel,
     QDialog,
     QFileDialog,
-    QMessageBox, QStyle,
+    QMessageBox,
+    QStyle,
 )
 from gui.AddDeviceDialog import AddDeviceDialog
 from DeviceList import DeviceList
+from gui.SettingsDialog import SettingsDialog
 
 
 class MainWindow(QMainWindow):
@@ -68,6 +70,8 @@ class MainWindow(QMainWindow):
 
         # === MENU BAR ===
         menubar = self.menuBar()
+
+        # Plik
         file_menu = menubar.addMenu("Plik")
 
         action_save = file_menu.addAction("Zapisz inventory")
@@ -76,10 +80,12 @@ class MainWindow(QMainWindow):
         action_load = file_menu.addAction("Wczytaj inventory")
         action_load.triggered.connect(self.load_inventory)
 
-        file_menu.addSeparator()
+        # Ustawienia
+        settings_action = menubar.addAction("Ustawienia")
+        settings_action.triggered.connect(self.open_settings_dialog)
 
-        action_exit = file_menu.addAction("Zamknij")
-        action_exit.triggered.connect(self.close)
+        self.settings = QSettings("WEEiA", "PyNetWizard")
+        self.connection_type = self.settings.value("connection_type", "ssh")
 
         # załaduj początkowe urządzenia
         self.refresh_device_buttons()
@@ -95,10 +101,24 @@ class MainWindow(QMainWindow):
         for dev in self.device_list.devices:
             btn = QPushButton(dev["host"])
             btn.setStyleSheet("padding: 8px; font-size: 13px;")
+            btn.setContextMenuPolicy(Qt.CustomContextMenu)
+
+            # Lewy klik
             btn.clicked.connect(lambda _, d=dev: self.show_device_details(d))
+
+            # Prawy klik
+            def open_context_menu(pos, d=dev, b=btn):
+                from PySide6.QtWidgets import QMenu
+
+                menu = QMenu()
+                remove_action = menu.addAction("Usuń urządzenie 🗑️")
+                action = menu.exec_(b.mapToGlobal(pos))
+                if action == remove_action:
+                    self.remove_device(d["host"])
+
+            btn.customContextMenuRequested.connect(open_context_menu)
             self.devices_layout.addWidget(btn)
 
-        # self.devices_layout.addStretch()
         self.devices_layout.setAlignment(Qt.AlignTop)
 
     def add_device_dialog(self):
@@ -108,6 +128,19 @@ class MainWindow(QMainWindow):
             if new_dev["host"]:  # minimalna walidacja
                 self.device_list.add_device(**new_dev)
                 self.refresh_device_buttons()
+
+    def remove_device(self, host: str):
+        reply = QMessageBox.question(
+            self,
+            "Potwierdzenie",
+            f"Czy na pewno chcesz usunąć urządzenie „{host}”?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply == QMessageBox.Yes:
+            self.device_list.remove_device(host)
+            self.refresh_device_buttons()
+            self.show_device_details(None)
 
     def clear_device_list(self):
         reply = QMessageBox.question(
@@ -122,10 +155,20 @@ class MainWindow(QMainWindow):
             self.refresh_device_buttons()
             self.show_device_details({})
 
-    def show_device_details(self, device: dict):
-        self.label_host.setText(f"Host: {device['host']}")
-        self.label_username.setText(f"Użytkownik: {device['username']}")
-        self.label_type.setText(f"Typ urządzenia: {device['device_type']}")
+    def show_device_details(self, device: dict | None):
+        if not device:
+            host = username = device_type = "-"
+        else:
+            try:
+                host = device["host"]
+                username = device["username"]
+                device_type = device["device_type"]
+            except KeyError as _:
+                host = username = device_type = "-"
+
+        self.label_host.setText(f"Host: {host}")
+        self.label_username.setText(f"Użytkownik: {username}")
+        self.label_type.setText(f"Typ urządzenia: {device_type}")
 
     def save_inventory(self):
         filename, _ = QFileDialog.getSaveFileName(
@@ -143,7 +186,17 @@ class MainWindow(QMainWindow):
         )
         if filename:
             self.device_list.load_from_file(filename)
+            self.refresh_device_buttons()
             QMessageBox.information(
                 self, "Wczytano", f"Załadowano inventory z {filename}"
             )
-            self.refresh_device_buttons()
+
+    # --- nowa metoda w MainWindow ---
+    def open_settings_dialog(self):
+        dialog = SettingsDialog(self, self.connection_type)
+        if dialog.exec() == QDialog.Accepted:
+            self.connection_type = dialog.get_connection_type()
+
+    def closeEvent(self, event):
+        self.settings.setValue("connection_type", self.connection_type)
+        super().closeEvent(event)
