@@ -10,8 +10,8 @@ if __name__ == "__main__":
 
     # Na sztywno dodajemy kilka urządzeń
     devices = DeviceList()
-    devices.add_device("192.168.1.1", "admin", "pass123", "cisco")
-    devices.add_device("192.168.1.2", "user", "secret", "juniper")
+    # devices.add_device("192.168.1.1", "admin", "pass123", "cisco")
+    # devices.add_device("192.168.1.2", "user", "secret", "juniper")
 
     window = MainWindow(devices)
     window.show()

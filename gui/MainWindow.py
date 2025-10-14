@@ -74,6 +74,9 @@ class MainWindow(QMainWindow):
         # Plik
         file_menu = menubar.addMenu("Plik")
 
+        action_scan = file_menu.addAction("Skanuj sieć")
+        action_scan.triggered.connect(self.scan_network)
+
         action_save = file_menu.addAction("Zapisz inventory")
         action_save.triggered.connect(self.save_inventory)
 
@@ -169,6 +172,30 @@ class MainWindow(QMainWindow):
         self.label_host.setText(f"Host: {host}")
         self.label_username.setText(f"Użytkownik: {username}")
         self.label_type.setText(f"Typ urządzenia: {device_type}")
+
+    def scan_network(self):
+        from gui.NetworkScanDialog import NetworkScanDialog
+        from gui.ScanResultsDialog import ScanResultsDialog
+
+        # zbierz istniejące hosty z device_list, żeby ich nie pokazywać ponownie
+        existing_hosts = [d.get("host") for d in self.device_list.devices]
+
+        dlg = NetworkScanDialog(self, exclude_hosts=existing_hosts)
+        if dlg.exec() == QDialog.Accepted:
+            results = dlg.get_results()
+            if not results:
+                return
+            res_dialog = ScanResultsDialog(results, self)
+            if res_dialog.exec() == QDialog.Accepted:
+                new_devices = res_dialog.get_selected_devices()
+                for dev in new_devices:
+                    # upewnij się, że nie dodajemy duplikatu (double-check)
+                    if any(
+                        d.get("host") == dev["host"] for d in self.device_list.devices
+                    ):
+                        continue
+                    self.device_list.add_device(**dev)
+                self.refresh_device_buttons()
 
     def save_inventory(self):
         filename, _ = QFileDialog.getSaveFileName(
