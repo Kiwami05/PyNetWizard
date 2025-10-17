@@ -12,6 +12,9 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
 )
 
+from devices.Device import Device
+from devices.Vendor import Vendor
+
 
 class AddDeviceDialog(QDialog):
     """Okienko do dodawania nowego urządzenia"""
@@ -72,14 +75,14 @@ class AddDeviceDialog(QDialog):
 
         self.accept()
 
-    def get_data(self):
-        device_type = "cisco" if self.radio_cisco.isChecked() else "juniper"
-        return {
-            "host": self.input_host.text().strip(),
-            "username": self.input_username.text().strip(),
-            "password": self.input_password.text(),
-            "device_type": device_type,
-        }
+    def get_data(self) -> Device:
+        vendor = Vendor.CISCO if self.radio_cisco.isChecked() else Vendor.JUNIPER
+        return Device(
+            self.input_host.text().strip(),
+            self.input_username.text().strip(),
+            self.input_password.text(),
+            vendor,
+        )
 
 
 def validate_host(host: str) -> bool:

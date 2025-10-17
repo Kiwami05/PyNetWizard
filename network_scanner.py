@@ -3,13 +3,14 @@ from PySide6.QtCore import QObject, Signal
 import nmap
 import time
 import json
-import os
+
 
 def get_local_ipv4s():
     """Zwraca set lokalnych IPv4, żeby je potem pominąć."""
     local_ips = set()
     try:
         import psutil
+
         for addrs in psutil.net_if_addrs().values():
             for a in addrs:
                 fam = getattr(a, "family", None)
@@ -19,6 +20,7 @@ def get_local_ipv4s():
     except Exception:
         try:
             import socket
+
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             s.connect(("8.8.8.8", 80))
             local_ips.add(s.getsockname()[0])
@@ -34,7 +36,12 @@ class NetworkScanner(QObject):
     finished = Signal(list)
     error = Signal(str)
 
-    def __init__(self, subnet: str, detailed: bool = False, exclude_hosts: list[str] | None = None):
+    def __init__(
+        self,
+        subnet: str,
+        detailed: bool = False,
+        exclude_hosts: list[str] | None = None,
+    ):
         super().__init__()
         self.subnet = subnet
         self.detailed = detailed
@@ -67,7 +74,11 @@ class NetworkScanner(QObject):
                 except Exception:
                     info = {}
 
-                mac = info.get("addresses", {}).get("mac", "") if isinstance(info, dict) else ""
+                mac = (
+                    info.get("addresses", {}).get("mac", "")
+                    if isinstance(info, dict)
+                    else ""
+                )
                 vendor = ""
                 device_type = ""
 
@@ -98,13 +109,15 @@ class NetworkScanner(QObject):
                 except Exception:
                     raw_info_jsonable = str(info)
 
-                results.append({
-                    "host": host,
-                    "mac": mac or "",
-                    "vendor": vendor or "",
-                    "device_type": device_type or "",
-                    "raw_info": raw_info_jsonable,
-                })
+                results.append(
+                    {
+                        "host": host,
+                        "mac": mac or "",
+                        "vendor": vendor or "",
+                        "device_type": device_type or "",
+                        "raw_info": raw_info_jsonable,
+                    }
+                )
                 time.sleep(0.01)
 
             self.finished.emit(results)

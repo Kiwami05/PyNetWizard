@@ -1,10 +1,20 @@
 from PySide6.QtCore import Qt, QThread
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QLineEdit,
-    QLabel, QPushButton, QProgressBar, QMessageBox, QCheckBox, QSpinBox
+    QDialog,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLineEdit,
+    QLabel,
+    QPushButton,
+    QProgressBar,
+    QMessageBox,
+    QCheckBox,
+    QSpinBox,
 )
 from network_scanner import NetworkScanner
-import os, ipaddress
+import os
+import ipaddress
+
 
 def is_privileged_user() -> bool:
     try:
@@ -15,10 +25,12 @@ def is_privileged_user() -> bool:
     try:
         if os.name == "nt":
             import ctypes
+
             return ctypes.windll.shell32.IsUserAnAdmin() != 0
     except Exception:
         pass
     return False
+
 
 class NetworkScanDialog(QDialog):
     def __init__(self, parent=None, exclude_hosts: list[str] | None = None):
@@ -46,11 +58,15 @@ class NetworkScanDialog(QDialog):
         layout.addLayout(row)
 
         # --- checkbox szczegółowego skanu ---
-        self.checkbox_detailed = QCheckBox("Szczegółowy skan (dłużej, wymaga uprawnień)")
+        self.checkbox_detailed = QCheckBox(
+            "Szczegółowy skan (dłużej, wymaga uprawnień)"
+        )
         privileged = is_privileged_user()
         self.checkbox_detailed.setEnabled(privileged)
         if not privileged:
-            self.checkbox_detailed.setToolTip("Szczegółowy skan wymaga uprawnień administratora/root.")
+            self.checkbox_detailed.setToolTip(
+                "Szczegółowy skan wymaga uprawnień administratora/root."
+            )
         layout.addWidget(self.checkbox_detailed)
 
         # --- spinner ---
@@ -89,8 +105,11 @@ class NetworkScanDialog(QDialog):
         self.progress.setRange(0, 0)  # spinner
 
         self.thread = QThread()
-        self.worker = NetworkScanner(subnet=subnet, detailed=self.checkbox_detailed.isChecked(),
-                                     exclude_hosts=list(self.exclude_hosts))
+        self.worker = NetworkScanner(
+            subnet=subnet,
+            detailed=self.checkbox_detailed.isChecked(),
+            exclude_hosts=list(self.exclude_hosts),
+        )
         self.worker.moveToThread(self.thread)
         self.thread.started.connect(self.worker.run)
         self.worker.finished.connect(self.on_finished)
@@ -115,7 +134,9 @@ class NetworkScanDialog(QDialog):
     def on_finished(self, results):
         self.results = results
         self.scanning = False
-        QMessageBox.information(self, "Skanowanie zakończone", f"Znaleziono {len(results)} hostów")
+        QMessageBox.information(
+            self, "Skanowanie zakończone", f"Znaleziono {len(results)} hostów"
+        )
         self.accept()
 
     def on_error(self, message):

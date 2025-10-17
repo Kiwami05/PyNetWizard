@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt, QSize, QSettings
+from PySide6.QtCore import Qt, QSettings
 from PySide6.QtWidgets import (
     QMainWindow,
     QHBoxLayout,
@@ -11,10 +11,10 @@ from PySide6.QtWidgets import (
     QDialog,
     QFileDialog,
     QMessageBox,
-    QStyle,
 )
 from gui.AddDeviceDialog import AddDeviceDialog
-from DeviceList import DeviceList
+from devices.DeviceList import DeviceList
+from devices.Device import Device
 from gui.SettingsDialog import SettingsDialog
 
 
@@ -102,7 +102,10 @@ class MainWindow(QMainWindow):
 
         # dodaj przyciski na nowo
         for dev in self.device_list.devices:
-            btn = QPushButton(dev["host"])
+            try:
+                btn = QPushButton(dev.host)
+            except AttributeError:
+                print(f"Skipping {dev!r}")
             btn.setStyleSheet("padding: 8px; font-size: 13px;")
             btn.setContextMenuPolicy(Qt.CustomContextMenu)
 
@@ -117,7 +120,7 @@ class MainWindow(QMainWindow):
                 remove_action = menu.addAction("Usuń urządzenie 🗑️")
                 action = menu.exec_(b.mapToGlobal(pos))
                 if action == remove_action:
-                    self.remove_device(d["host"])
+                    self.remove_device(d.host)
 
             btn.customContextMenuRequested.connect(open_context_menu)
             self.devices_layout.addWidget(btn)
@@ -128,8 +131,8 @@ class MainWindow(QMainWindow):
         dialog = AddDeviceDialog(self)
         if dialog.exec() == QDialog.Accepted:
             new_dev = dialog.get_data()
-            if new_dev["host"]:  # minimalna walidacja
-                self.device_list.add_device(**new_dev)
+            if new_dev.host:  # minimalna walidacja
+                self.device_list.add_device(new_dev)
                 self.refresh_device_buttons()
 
     def remove_device(self, host: str):
@@ -158,27 +161,27 @@ class MainWindow(QMainWindow):
             self.refresh_device_buttons()
             self.show_device_details({})
 
-    def show_device_details(self, device: dict | None):
+    def show_device_details(self, device: Device):
         if not device:
-            host = username = device_type = "-"
+            host = username = vendor = "-"
         else:
             try:
-                host = device["host"]
-                username = device["username"]
-                device_type = device["device_type"]
+                host = device.host
+                username = device.username
+                vendor = device.vendor.name.capitalize()
             except KeyError as _:
-                host = username = device_type = "-"
+                host = username = vendor = "-"
 
         self.label_host.setText(f"Host: {host}")
         self.label_username.setText(f"Użytkownik: {username}")
-        self.label_type.setText(f"Typ urządzenia: {device_type}")
+        self.label_type.setText(f"Typ urządzenia: {vendor}")
 
     def scan_network(self):
         from gui.NetworkScanDialog import NetworkScanDialog
         from gui.ScanResultsDialog import ScanResultsDialog
 
         # zbierz istniejące hosty z device_list, żeby ich nie pokazywać ponownie
-        existing_hosts = [d.get("host") for d in self.device_list.devices]
+        existing_hosts = [d.host for d in self.device_list.devices]
 
         dlg = NetworkScanDialog(self, exclude_hosts=existing_hosts)
         if dlg.exec() == QDialog.Accepted:
@@ -188,13 +191,11 @@ class MainWindow(QMainWindow):
             res_dialog = ScanResultsDialog(results, self)
             if res_dialog.exec() == QDialog.Accepted:
                 new_devices = res_dialog.get_selected_devices()
-                for dev in new_devices:
+                for dev in new_devices.devices:
                     # upewnij się, że nie dodajemy duplikatu (double-check)
-                    if any(
-                        d.get("host") == dev["host"] for d in self.device_list.devices
-                    ):
+                    if any(d.host == dev.host for d in self.device_list.devices):
                         continue
-                    self.device_list.add_device(**dev)
+                    self.device_list.add_device(dev)
                 self.refresh_device_buttons()
 
     def save_inventory(self):
