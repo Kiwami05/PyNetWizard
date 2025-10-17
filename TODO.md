@@ -3,16 +3,15 @@
 ## Połączenie
 
 - [x] Statyczne definiowanie hostów
-- [ ] Dynamiczne definiowanie hostów (coś jak nmap)
+- [x] Dynamiczne definiowanie hostów (coś jak nmap)
 - [x] Zaciąganie hostów z pliku
-- [ ] Automatyczne rozpoznawanie typu urządzenia
-- [ ] Ping hosta przed próbą logowania
-- [ ] Wielowątkowość — przy pobieraniu i wysyłaniu configa
+- [x] Automatyczne rozpoznawanie typu urządzenia
+- [x] Wielowątkowość — przy pobieraniu i wysyłaniu configa
 
 ## Ustawienia
 
-- [ ] Typ połączenia
-- [ ] Timeout
+- [x] Typ połączenia
+- [ ] Timeout?
 
 ## Konfiguracja
 
@@ -21,7 +20,7 @@
     - [ ] Eksport do playbook-a Ansible?
 - [ ] Import konfiguracji na urządzenie
     - [ ] Wersja rozszerzona — masowy import (konfig do playbooka Ansible i uruchamianie)
-- [ ] Modyfikacja interfejsu
+- [ ] Modyfikacja interfejsu sieciowego (Ethernet itd.)
 - [ ] Historia zmian
 
 ### Switch
