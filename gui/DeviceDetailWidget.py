@@ -3,6 +3,7 @@ from PySide6.QtWidgets import (
     QStackedWidget, QLabel, QPlainTextEdit, QFrame, QPushButton
 )
 from devices.DeviceType import DeviceType
+from gui.tabs.GlobalTab import GlobalTab
 
 
 class DeviceDetailWidget(QWidget):
@@ -43,7 +44,7 @@ class DeviceDetailWidget(QWidget):
 
         # --- Dummy podstrony ---
         self.pages = {
-            "GLOBAL": self._make_dummy_page("Global Settings"),
+            "GLOBAL": GlobalTab(),
             "ROUTING": self._make_dummy_page("Routing Configuration"),
             "INTERFACES": self._make_dummy_page("Interface Configuration"),
             "VLANs": self._make_dummy_page("VLAN Database"),
