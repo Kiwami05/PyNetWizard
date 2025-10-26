@@ -1,33 +1,42 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QListWidget,
-    QStackedWidget, QLabel, QPlainTextEdit, QFrame, QPushButton
+    QStackedWidget, QPlainTextEdit, QFrame, QPushButton, QLabel
 )
+from PySide6.QtCore import Qt
 from devices.DeviceType import DeviceType
 from gui.tabs.GlobalTab import GlobalTab
+from gui.tabs.RoutingTab import RoutingTab
+from gui.tabs.InterfacesTab import InterfacesTab
+from gui.tabs.VLANsTab import VLANsTab
+from gui.tabs.ACLTab import ACLTab
 
 
 class DeviceDetailWidget(QWidget):
     """
-    Dummy GUI sekcji konfiguracji urządzenia (styl Packet Tracera).
-    Na razie tylko układ zakładek + konsola logów.
+    Główny panel szczegółów urządzenia.
+    Zawiera dynamicznie zmieniane zakładki (GLOBAL / ROUTING / INTERFACES / VLANs / ACL)
+    oraz dolną konsolę logów.
     """
 
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        # === GŁÓWNY LAYOUT ===
         main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setSpacing(10)
 
-        # --- GÓRNY PANEL ---
+        # === GÓRNY PANEL (zakładki + widok treści) ===
         content_frame = QFrame()
         content_layout = QHBoxLayout(content_frame)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(10)
         main_layout.addWidget(content_frame, 4)
 
-        # === LEWA LISTA "KATEGORII" ===
+        # === LEWY PANEL: lista kategorii ===
         self.category_list = QListWidget()
         self.category_list.setStyleSheet("""
             QListWidget {
-                background-color: #f0f0f0;
+                background-color: #f5f5f5;
                 font-weight: bold;
                 border: 1px solid #aaa;
             }
@@ -38,33 +47,26 @@ class DeviceDetailWidget(QWidget):
         """)
         content_layout.addWidget(self.category_list, 1)
 
-        # === PRAWA STRONA – STOS WIDOKÓW ===
+        # === PRAWY PANEL: zawartość zakładek ===
         self.stack = QStackedWidget()
         content_layout.addWidget(self.stack, 3)
 
-        # --- Dummy podstrony ---
+        # --- Strony (tworzone raz, ale dodawane dynamicznie) ---
         self.pages = {
             "GLOBAL": GlobalTab(),
-            "ROUTING": self._make_dummy_page("Routing Configuration"),
-            "INTERFACES": self._make_dummy_page("Interface Configuration"),
-            "VLANs": self._make_dummy_page("VLAN Database"),
-            "ACL": self._make_dummy_page("Access Control Lists"),
+            "ROUTING": RoutingTab(),
+            "INTERFACES": InterfacesTab(),
+            "VLANs": VLANsTab(),
+            "ACL": ACLTab(),
         }
 
-        for page in self.pages.values():
-            self.stack.addWidget(page)
+        # Po kliknięciu w liście zmieniamy stronę
+        self.category_list.currentRowChanged.connect(self.stack.setCurrentIndex)
 
-        # Domyślnie pusty
-        self.category_list.addItem("No device selected")
-        self.stack.setCurrentIndex(0)
-
-        # --- Połączenie listy z widokiem ---
-        self.category_list.currentRowChanged.connect(self._switch_page)
-
-        # === DOLNY PANEL – "Konsola" ===
+        # === DOLNA KONSOLA ===
         self.console = QPlainTextEdit()
         self.console.setReadOnly(True)
-        self.console.setPlaceholderText("Equivalent IOS commands will appear here...")
+        self.console.setPlaceholderText("System log / command preview...")
         self.console.setStyleSheet("""
             QPlainTextEdit {
                 background-color: #111;
@@ -75,43 +77,32 @@ class DeviceDetailWidget(QWidget):
         """)
         main_layout.addWidget(self.console, 1)
 
-        # === PRZYKŁADOWY PRZYCISK TESTOWY ===
-        self.test_button = QPushButton("Wyślij testowe polecenie")
-        self.test_button.clicked.connect(self._append_test_command)
-        main_layout.addWidget(self.test_button)
+        # === Przykładowy przycisk testowy ===
+        self.btn_test = QPushButton("Symuluj wysłanie komendy")
+        self.btn_test.clicked.connect(lambda: self.append_console("> show running-config"))
+        main_layout.addWidget(self.btn_test)
 
-    # --- Pomocnicze metody ---
-    def _make_dummy_page(self, title: str) -> QWidget:
-        """Tworzy prostą stronę z nagłówkiem."""
-        page = QWidget()
-        layout = QVBoxLayout(page)
-        label = QLabel(f"<h3>{title}</h3><p>Tu znajdzie się konfiguracja dla sekcji {title}.</p>")
-        layout.addWidget(label)
-        layout.addStretch()
-        return page
+    # === Pomocnicze metody ===
 
-    def _switch_page(self, index: int):
-        """Zmienia widok w zależności od wybranej kategorii."""
-        if index < 0 or index >= self.stack.count():
-            return
-        self.stack.setCurrentIndex(index)
-
-    def _append_test_command(self):
-        """Dodaje testowy wpis do konsoli."""
-        self.console.appendPlainText("> show ip interface brief")
-        self.console.appendPlainText("Interface       IP-Address      OK? Method Status Protocol")
-        self.console.appendPlainText("Gig0/0          10.0.0.1        YES manual up     up\n")
+    def clear_stack(self):
+        """Usuwa wszystkie widgety ze stacka."""
+        while self.stack.count():
+            widget = self.stack.widget(0)
+            self.stack.removeWidget(widget)
 
     def show_for_device(self, device):
         """Aktualizuje zakładki w zależności od typu urządzenia."""
         self.category_list.clear()
-        self.stack.setCurrentIndex(0)
+        self.clear_stack()
 
         if not device:
             self.category_list.addItem("No device selected")
+            placeholder = QLabel("<i>No device selected</i>")
+            placeholder.setAlignment(Qt.AlignCenter)
+            self.stack.addWidget(placeholder)
             return
 
-        # Dobór zakładek wg typu urządzenia
+        # Ustal, które zakładki mają się pojawić
         if device.device_type == DeviceType.ROUTER:
             tabs = ["GLOBAL", "ROUTING", "INTERFACES"]
         elif device.device_type == DeviceType.SWITCH:
@@ -121,7 +112,13 @@ class DeviceDetailWidget(QWidget):
         else:
             tabs = ["GLOBAL"]
 
-        for tab in tabs:
-            self.category_list.addItem(tab)
+        # Utwórz dynamicznie listę + stack
+        for name in tabs:
+            self.category_list.addItem(name)
+            self.stack.addWidget(self.pages[name])
 
         self.category_list.setCurrentRow(0)
+
+    def append_console(self, text: str):
+        """Dodaje linię do globalnej konsoli."""
+        self.console.appendPlainText(text.strip())
