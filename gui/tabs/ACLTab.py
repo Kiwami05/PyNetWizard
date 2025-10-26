@@ -1,9 +1,19 @@
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTableWidget, QTableWidgetItem, QHeaderView, QLineEdit,
-    QFormLayout, QGroupBox, QPlainTextEdit, QComboBox, QMessageBox
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QLineEdit,
+    QFormLayout,
+    QGroupBox,
+    QPlainTextEdit,
+    QComboBox,
+    QMessageBox,
 )
-from PySide6.QtCore import Qt
 
 
 class ACLTab(QWidget):
@@ -61,7 +71,9 @@ class ACLTab(QWidget):
 
         # === Tabela reguł ===
         self.table = QTableWidget(0, 5)
-        self.table.setHorizontalHeaderLabels(["Action", "Protocol", "Source", "Wildcard", "Destination"])
+        self.table.setHorizontalHeaderLabels(
+            ["Action", "Protocol", "Source", "Wildcard", "Destination"]
+        )
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         main_layout.addWidget(self.table, 4)
 
@@ -99,7 +111,9 @@ class ACLTab(QWidget):
 
         self.current_acl = acl_num
         self._append_console(f"access-list {acl_num} selected.")
-        QMessageBox.information(self, "ACL selected", f"Using ACL {acl_num} for new rules.")
+        QMessageBox.information(
+            self, "ACL selected", f"Using ACL {acl_num} for new rules."
+        )
 
     def _dummy_add_rule(self):
         if not self.current_acl:
@@ -120,7 +134,9 @@ class ACLTab(QWidget):
         self.table.setItem(row, 3, QTableWidgetItem(wc))
         self.table.setItem(row, 4, QTableWidgetItem(dest))
 
-        cmd = f"access-list {self.current_acl} {action} {proto} {src} {wc} {dest}".strip()
+        cmd = (
+            f"access-list {self.current_acl} {action} {proto} {src} {wc} {dest}".strip()
+        )
         self._append_console(cmd)
 
         self.protocol.clear()

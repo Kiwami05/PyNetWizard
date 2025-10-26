@@ -6,8 +6,6 @@ from PySide6.QtWidgets import (
     QPushButton,
     QWidget,
     QScrollArea,
-    QFrame,
-    QLabel,
     QDialog,
     QFileDialog,
     QMessageBox,
@@ -26,7 +24,6 @@ class MainWindow(QMainWindow):
         self.resize(800, 500)
 
         self.device_list = device_list
-
 
         # === CENTRALNY WIDGET ===
         central = QWidget()
@@ -55,7 +52,7 @@ class MainWindow(QMainWindow):
         main_layout.addLayout(left_panel, 1)
 
         # === PRAWA STRONA: panel szczegółów ===
-        from gui.DeviceDetailWidget import DeviceDetailWidget
+
         self.detail_box = DeviceDetailWidget()
         main_layout.addWidget(self.detail_box, 2)
 

@@ -1,6 +1,14 @@
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-    QPushButton, QGroupBox, QFormLayout, QSpacerItem, QSizePolicy
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QGroupBox,
+    QFormLayout,
+    QSpacerItem,
+    QSizePolicy,
 )
 from PySide6.QtCore import Qt
 from devices.Vendor import Vendor
@@ -37,24 +45,33 @@ class GlobalTab(QWidget):
         main_layout.addLayout(form)
 
         # === NVRAM ===
-        nvram_box = self._make_box("NVRAM", [
-            ("Erase", self._dummy_action),
-            ("Save", self._dummy_action),
-        ])
+        nvram_box = self._make_box(
+            "NVRAM",
+            [
+                ("Erase", self._dummy_action),
+                ("Save", self._dummy_action),
+            ],
+        )
         main_layout.addWidget(nvram_box)
 
         # === Startup-config ===
-        startup_box = self._make_box("Startup Config", [
-            ("Load...", self._dummy_action),
-            ("Export...", self._dummy_action),
-        ])
+        startup_box = self._make_box(
+            "Startup Config",
+            [
+                ("Load...", self._dummy_action),
+                ("Export...", self._dummy_action),
+            ],
+        )
         main_layout.addWidget(startup_box)
 
         # === Running-config ===
-        running_box = self._make_box("Running Config", [
-            ("Export...", self._dummy_action),
-            ("Merge...", self._dummy_action),
-        ])
+        running_box = self._make_box(
+            "Running Config",
+            [
+                ("Export...", self._dummy_action),
+                ("Merge...", self._dummy_action),
+            ],
+        )
         main_layout.addWidget(running_box)
 
         # === Sync Config ===

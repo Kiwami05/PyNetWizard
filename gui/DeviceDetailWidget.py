@@ -1,6 +1,13 @@
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QListWidget,
-    QStackedWidget, QPlainTextEdit, QFrame, QPushButton, QLabel
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QListWidget,
+    QStackedWidget,
+    QPlainTextEdit,
+    QFrame,
+    QPushButton,
+    QLabel,
 )
 from PySide6.QtCore import Qt
 from devices.DeviceType import DeviceType
@@ -79,7 +86,9 @@ class DeviceDetailWidget(QWidget):
 
         # === Przykładowy przycisk testowy ===
         self.btn_test = QPushButton("Symuluj wysłanie komendy")
-        self.btn_test.clicked.connect(lambda: self.append_console("> show running-config"))
+        self.btn_test.clicked.connect(
+            lambda: self.append_console("> show running-config")
+        )
         main_layout.addWidget(self.btn_test)
 
     # === Pomocnicze metody ===

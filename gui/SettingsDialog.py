@@ -1,6 +1,14 @@
 from PySide6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QComboBox, QLabel, QPushButton,
-    QCheckBox, QSpinBox, QFileDialog, QLineEdit, QWidget
+    QDialog,
+    QVBoxLayout,
+    QHBoxLayout,
+    QComboBox,
+    QLabel,
+    QPushButton,
+    QCheckBox,
+    QSpinBox,
+    QFileDialog,
+    QLineEdit,
 )
 from PySide6.QtCore import QSettings
 
@@ -29,12 +37,16 @@ class SettingsDialog(QDialog):
         layout.addWidget(QLabel("Timeout (sekundy):"))
         layout.addWidget(self.spin_timeout)
 
-        self.chk_autosync = QCheckBox("Automatycznie pobieraj konfigurację po dodaniu urządzenia")
+        self.chk_autosync = QCheckBox(
+            "Automatycznie pobieraj konfigurację po dodaniu urządzenia"
+        )
         self.chk_autosync.setChecked(self.settings.value("autosync", "false") == "true")
         layout.addWidget(self.chk_autosync)
 
         self.chk_save_passwords = QCheckBox("Zapamiętuj hasła w bieżącej sesji")
-        self.chk_save_passwords.setChecked(self.settings.value("save_passwords", "false") == "true")
+        self.chk_save_passwords.setChecked(
+            self.settings.value("save_passwords", "false") == "true"
+        )
         layout.addWidget(self.chk_save_passwords)
 
         # --- Sekcja: Netmiko / logi ---
@@ -88,9 +100,15 @@ class SettingsDialog(QDialog):
         """Zapisuje ustawienia w QSettings"""
         self.settings.setValue("connection_type", self.combo_type.currentText())
         self.settings.setValue("timeout", self.spin_timeout.value())
-        self.settings.setValue("autosync", "true" if self.chk_autosync.isChecked() else "false")
-        self.settings.setValue("save_passwords", "true" if self.chk_save_passwords.isChecked() else "false")
-        self.settings.setValue("verbose", "true" if self.chk_verbose.isChecked() else "false")
+        self.settings.setValue(
+            "autosync", "true" if self.chk_autosync.isChecked() else "false"
+        )
+        self.settings.setValue(
+            "save_passwords", "true" if self.chk_save_passwords.isChecked() else "false"
+        )
+        self.settings.setValue(
+            "verbose", "true" if self.chk_verbose.isChecked() else "false"
+        )
         self.settings.setValue("theme", self.combo_theme.currentText())
         self.settings.setValue("log_path", self.edit_log_path.text())
 

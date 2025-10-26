@@ -1,9 +1,18 @@
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTableWidget, QTableWidgetItem, QHeaderView, QLineEdit,
-    QFormLayout, QGroupBox, QPlainTextEdit, QMessageBox
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QLineEdit,
+    QFormLayout,
+    QGroupBox,
+    QPlainTextEdit,
+    QMessageBox,
 )
-from PySide6.QtCore import Qt
 
 
 class InterfacesTab(QWidget):
@@ -52,7 +61,9 @@ class InterfacesTab(QWidget):
 
         # === Tabela interfejsów ===
         self.table = QTableWidget(0, 6)
-        self.table.setHorizontalHeaderLabels(["Name", "Description", "IP Address", "Mask", "Mode", "Status"])
+        self.table.setHorizontalHeaderLabels(
+            ["Name", "Description", "IP Address", "Mask", "Mode", "Status"]
+        )
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.cellClicked.connect(self._fill_form_from_table)
         main_layout.addWidget(self.table, 4)
@@ -73,7 +84,9 @@ class InterfacesTab(QWidget):
         self.btn_enable.clicked.connect(lambda: self._dummy_cmd("no shutdown"))
         self.btn_disable.clicked.connect(lambda: self._dummy_cmd("shutdown"))
         self.btn_trunk.clicked.connect(lambda: self._dummy_cmd("switchport mode trunk"))
-        self.btn_access.clicked.connect(lambda: self._dummy_cmd("switchport mode access"))
+        self.btn_access.clicked.connect(
+            lambda: self._dummy_cmd("switchport mode access")
+        )
 
         # === Dolna konsola logów ===
         self.console = QPlainTextEdit()
@@ -128,7 +141,13 @@ class InterfacesTab(QWidget):
         self._clear_fields()
 
     def _clear_fields(self):
-        for w in [self.intf_name, self.intf_desc, self.intf_ip, self.intf_mask, self.intf_mode]:
+        for w in [
+            self.intf_name,
+            self.intf_desc,
+            self.intf_ip,
+            self.intf_mask,
+            self.intf_mode,
+        ]:
             w.clear()
 
     def _fill_form_from_table(self, row, _col):

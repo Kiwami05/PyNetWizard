@@ -1,9 +1,19 @@
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTableWidget, QTableWidgetItem, QHeaderView, QLineEdit,
-    QFormLayout, QGroupBox, QPlainTextEdit, QMessageBox, QComboBox
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QLineEdit,
+    QFormLayout,
+    QGroupBox,
+    QPlainTextEdit,
+    QMessageBox,
+    QComboBox,
 )
-from PySide6.QtCore import Qt
 
 
 class VLANsTab(QWidget):
@@ -97,7 +107,9 @@ class VLANsTab(QWidget):
         self.table.setItem(row, 2, QTableWidgetItem(""))
 
         # aktualizuj listę VLAN-ów w comboboxie
-        if vlan_id not in [self.combo_vlan.itemText(i) for i in range(self.combo_vlan.count())]:
+        if vlan_id not in [
+            self.combo_vlan.itemText(i) for i in range(self.combo_vlan.count())
+        ]:
             self.combo_vlan.addItem(vlan_id)
 
         self._append_console(f"vlan {vlan_id}")
@@ -137,7 +149,9 @@ class VLANsTab(QWidget):
             if port not in ports_list:
                 ports_list.append(port)
                 self.table.setItem(row, 2, QTableWidgetItem(", ".join(ports_list)))
-                self._append_console(f"interface {port}\n switchport access vlan {vlan_id}\n exit")
+                self._append_console(
+                    f"interface {port}\n switchport access vlan {vlan_id}\n exit"
+                )
         self.port_name.clear()
 
     # === Helpers ===

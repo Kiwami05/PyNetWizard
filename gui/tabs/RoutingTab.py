@@ -1,9 +1,17 @@
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTabWidget, QGroupBox, QFormLayout, QLineEdit, QTableWidget,
-    QTableWidgetItem, QHeaderView, QPlainTextEdit
+    QWidget,
+    QVBoxLayout,
+    QLabel,
+    QPushButton,
+    QTabWidget,
+    QGroupBox,
+    QFormLayout,
+    QLineEdit,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QPlainTextEdit,
 )
-from PySide6.QtCore import Qt
 
 
 class RoutingTab(QWidget):
@@ -84,8 +92,12 @@ class RoutingTab(QWidget):
         layout.addWidget(QLabel("<b>RIPv2 Configuration</b>"))
         self.btn_rip_enable = QPushButton("Enable RIP")
         self.btn_rip_disable = QPushButton("Disable RIP")
-        self.btn_rip_enable.clicked.connect(lambda: self._append_console("> router rip\n version 2\n"))
-        self.btn_rip_disable.clicked.connect(lambda: self._append_console("> no router rip\n"))
+        self.btn_rip_enable.clicked.connect(
+            lambda: self._append_console("> router rip\n version 2\n")
+        )
+        self.btn_rip_disable.clicked.connect(
+            lambda: self._append_console("> no router rip\n")
+        )
         layout.addWidget(self.btn_rip_enable)
         layout.addWidget(self.btn_rip_disable)
 
