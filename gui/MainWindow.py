@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 from gui.AddDeviceDialog import AddDeviceDialog
 from devices.DeviceList import DeviceList
 from devices.Device import Device
+from gui.DeviceDetailWidget import DeviceDetailWidget
 from gui.SettingsDialog import SettingsDialog
 
 
@@ -25,6 +26,7 @@ class MainWindow(QMainWindow):
         self.resize(800, 500)
 
         self.device_list = device_list
+
 
         # === CENTRALNY WIDGET ===
         central = QWidget()
@@ -53,19 +55,8 @@ class MainWindow(QMainWindow):
         main_layout.addLayout(left_panel, 1)
 
         # === PRAWA STRONA: panel szczegółów ===
-        self.detail_box = QFrame()
-        self.detail_box.setFrameShape(QFrame.StyledPanel)
-        detail_layout = QVBoxLayout(self.detail_box)
-
-        self.label_host = QLabel("Host: -")
-        self.label_username = QLabel("Użytkownik: -")
-        self.label_type = QLabel("Typ urządzenia: -")
-
-        for lbl in (self.label_host, self.label_username, self.label_type):
-            lbl.setStyleSheet("font-size: 14px; margin: 5px;")
-            detail_layout.addWidget(lbl)
-
-        detail_layout.addStretch()
+        from gui.DeviceDetailWidget import DeviceDetailWidget
+        self.detail_box = DeviceDetailWidget()
         main_layout.addWidget(self.detail_box, 2)
 
         # === MENU BAR ===
@@ -162,19 +153,7 @@ class MainWindow(QMainWindow):
             self.show_device_details({})
 
     def show_device_details(self, device: Device):
-        if not device:
-            host = username = vendor = "-"
-        else:
-            try:
-                host = device.host
-                username = device.username
-                vendor = device.vendor.name.capitalize()
-            except KeyError as _:
-                host = username = vendor = "-"
-
-        self.label_host.setText(f"Host: {host}")
-        self.label_username.setText(f"Użytkownik: {username}")
-        self.label_type.setText(f"Typ urządzenia: {vendor}")
+        self.detail_box.show_for_device(device)
 
     def scan_network(self):
         from gui.NetworkScanDialog import NetworkScanDialog
