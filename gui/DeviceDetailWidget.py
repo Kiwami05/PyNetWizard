@@ -41,17 +41,17 @@ class DeviceDetailWidget(QWidget):
 
         # === LEWY PANEL: lista kategorii ===
         self.category_list = QListWidget()
-        self.category_list.setStyleSheet("""
-            QListWidget {
-                background-color: #f5f5f5;
-                font-weight: bold;
-                border: 1px solid #aaa;
-            }
-            QListWidget::item:selected {
-                background-color: #0078d7;
-                color: white;
-            }
-        """)
+        # self.category_list.setStyleSheet("""
+        #     QListWidget {
+        #         background-color: #f5f5f5;
+        #         font-weight: bold;
+        #         border: 1px solid #aaa;
+        #     }
+        #     QListWidget::item:selected {
+        #         background-color: #0078d7;
+        #         color: white;
+        #     }
+        # """)
         content_layout.addWidget(self.category_list, 1)
 
         # === PRAWY PANEL: zawartość zakładek ===
