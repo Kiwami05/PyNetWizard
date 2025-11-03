@@ -15,8 +15,12 @@ def is_hidden(path: Path) -> bool:
 
 
 for path in start_dir.rglob("*"):
-    if path.is_file() and path.suffix.lower() in allowed_exts and not is_hidden(
-            path) and path.name not in blacklisted_files:
+    if (
+        path.is_file()
+        and path.suffix.lower() in allowed_exts
+        and not is_hidden(path)
+        and path.name not in blacklisted_files
+    ):
         print(f"// {path}")
         try:
             print(path.read_text(encoding="utf-8"))

@@ -208,4 +208,5 @@ __marimo__/
 
 # My own
 inventory.json
+logs
 qcow2_images
