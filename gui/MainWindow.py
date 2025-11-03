@@ -12,6 +12,8 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QStatusBar,
 )
+
+from devices.ConnectionManager import ConnectionManager
 from gui.AddDeviceDialog import AddDeviceDialog
 from devices.DeviceList import DeviceList
 from devices.Device import Device
@@ -47,9 +49,6 @@ class MainWindow(QMainWindow):
 
         self.device_list = device_list
         self.current_device = None
-
-        # --- NOWE: mock ConnectionManager ---
-        self.connection_manager = MockConnectionManager()
 
         # === CENTRALNY WIDGET ===
         central = QWidget()
@@ -95,10 +94,14 @@ class MainWindow(QMainWindow):
 
         device_menu = menubar.addMenu("Urządzenie")
 
-        action_apply_current = device_menu.addAction("Zatwierdź konfigurację (bieżące urządzenie)")
+        action_apply_current = device_menu.addAction(
+            "Zatwierdź konfigurację (bieżące urządzenie)"
+        )
         action_apply_current.triggered.connect(self.apply_current_device)
 
-        action_apply_all = device_menu.addAction("Zatwierdź konfigurację (wszystkie urządzenia)")
+        action_apply_all = device_menu.addAction(
+            "Zatwierdź konfigurację (wszystkie urządzenia)"
+        )
         action_apply_all.triggered.connect(self.apply_all_devices)
 
         device_menu.addSeparator()
@@ -128,6 +131,13 @@ class MainWindow(QMainWindow):
         # --- ustawienia ---
         self.settings = QSettings("WEEiA", "PyNetWizard")
         self.connection_type = self.settings.value("connection_type", "ssh")
+
+        self.connection_manager = ConnectionManager(
+            connection_type=self.connection_type,
+            timeout=int(self.settings.value("timeout", 10)),
+            verbose=(self.settings.value("verbose", "false") == "true"),
+            log_path=self.settings.value("log_path", "./logs"),
+        )
 
         # --- inicjalne urządzenia ---
         self.refresh_device_buttons()
@@ -206,6 +216,15 @@ class MainWindow(QMainWindow):
         self.detail_box.show_for_device(device)
         self.update_status_bar()
 
+        # 🔸 Po wybraniu urządzenia — powiąż zakładkę GLOBAL z ConnectionManagerem
+        if device and "GLOBAL" in self.detail_box.pages:
+            try:
+                global_tab = self.detail_box.pages["GLOBAL"]
+                if hasattr(global_tab, "bind_device"):
+                    global_tab.bind_device(device, self.connection_manager)
+            except Exception as e:
+                print(f"[WARN] Nie udało się podpiąć GlobalTab: {e}")
+
     def scan_network(self):
         from gui.NetworkScanDialog import NetworkScanDialog
         from gui.ScanResultsDialog import ScanResultsDialog
@@ -245,6 +264,9 @@ class MainWindow(QMainWindow):
             QMessageBox.information(
                 self, "Wczytano", f"Załadowano inventory z {filename}"
             )
+        if self.device_list.devices:
+            first_device = self.device_list.devices[0]
+            self.detail_box.pages["GLOBAL"].bind_device(first_device, self.connection_manager)
 
     def open_settings_dialog(self):
         dialog = SettingsDialog(self, self.connection_type)
@@ -258,33 +280,42 @@ class MainWindow(QMainWindow):
             self.status_label.setText("Brak aktywnego urządzenia.")
             return
 
-        host = self.current_device.host
-        state = self.connection_manager.get_status(self.current_device)
-        color = {
-            "connected": "#0f0",
-            "disconnected": "#f00",
-            "error": "#ff9800",
-        }.get(state, "#ccc")
-
+        dev = self.current_device
+        alive = self.connection_manager.is_connected(dev)
+        color = "#0f0" if alive else "#f00"
+        state = "CONNECTED" if alive else "DISCONNECTED"
         time_str = QTime.currentTime().toString("HH:mm:ss")
+
         self.status_label.setText(
-            f"<b>{host}</b> — <span style='color:{color}'>{state.upper()}</span> | Last check: {time_str}"
+            f"<b>{dev.host}</b> — <span style='color:{color}'>{state}</span> | Last check: {time_str}"
         )
 
     def closeEvent(self, event):
+        for dev in list(self.connection_manager.sessions.keys()):
+            d = next((x for x in self.device_list.devices if x.host == dev), None)
+            if d:
+                self.connection_manager.disconnect(d)
         self.settings.setValue("connection_type", self.connection_type)
         super().closeEvent(event)
 
     # --- MOCKOWE FUNKCJE KONFIGURACYJNE ---
 
     def apply_current_device(self):
-        """Zatwierdza konfigurację dla bieżącego urządzenia (mock)."""
         if not self.current_device:
-            QMessageBox.information(self, "Brak urządzenia", "Nie wybrano żadnego urządzenia.")
+            QMessageBox.warning(self, "Brak urządzenia", "Nie wybrano urządzenia.")
             return
-        host = self.current_device.host
-        QMessageBox.information(self, "Zatwierdzono", f"Zatwierdzono konfigurację dla {host}.")
-        self.detail_box.append_console(f"[MOCK] Applied configuration for {host}")
+
+        dev = self.current_device
+        try:
+            if not self.connection_manager.connect(dev):
+                raise ConnectionError("Nie udało się nawiązać połączenia.")
+            output = self.connection_manager.send_config(dev, ["end", "write memory"])
+            self.detail_box.append_console(output)
+            QMessageBox.information(
+                self, "Zatwierdzono", f"Konfiguracja zapisana na {dev.host}."
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Błąd", str(e))
 
     def apply_all_devices(self):
         """Zatwierdza konfigurację dla wszystkich urządzeń (mock)."""
@@ -292,18 +323,28 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "Brak urządzeń", "Lista urządzeń jest pusta.")
             return
         hosts = [d.host for d in self.device_list.devices]
-        QMessageBox.information(self, "Zatwierdzono", "Zatwierdzono konfigurację dla wszystkich urządzeń.")
+        QMessageBox.information(
+            self, "Zatwierdzono", "Zatwierdzono konfigurację dla wszystkich urządzeń."
+        )
         for h in hosts:
             self.detail_box.append_console(f"[MOCK] Applied configuration for {h}")
 
     def sync_current_device(self):
-        """Odświeża konfigurację bieżącego urządzenia (mock)."""
         if not self.current_device:
             QMessageBox.warning(self, "Brak urządzenia", "Najpierw wybierz urządzenie.")
             return
-        host = self.current_device.host
-        QMessageBox.information(self, "Synchronizacja", f"Synchronizacja konfiguracji z {host} (mock).")
-        self.detail_box.append_console(f"[MOCK] Synced configuration for {host}")
+
+        dev = self.current_device
+        try:
+            if not self.connection_manager.connect(dev):
+                raise ConnectionError("Nie udało się połączyć.")
+            output = self.connection_manager.send_command(dev, "show running-config")
+            self.detail_box.append_console(output)
+            QMessageBox.information(
+                self, "Pobrano", f"Konfiguracja {dev.host} została pobrana."
+            )
+        except Exception as e:
+            QMessageBox.critical(self, "Błąd", str(e))
 
     def reset_current_device(self):
         """Resetuje zmiany dla bieżącego urządzenia (mock)."""
@@ -311,6 +352,7 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Brak urządzenia", "Najpierw wybierz urządzenie.")
             return
         host = self.current_device.host
-        QMessageBox.information(self, "Reset", f"Zmiany dla {host} zostały odrzucone (mock).")
+        QMessageBox.information(
+            self, "Reset", f"Zmiany dla {host} zostały odrzucone (mock)."
+        )
         self.detail_box.append_console(f"[MOCK] Discarded local changes for {host}")
-
