@@ -278,3 +278,17 @@ class GlobalTab(QWidget):
 
     def _append_log(self, text: str):
         self.console.appendPlainText(text.strip())
+
+    # ==============================================================
+    #                  API: export/import stanu
+    # ==============================================================
+
+    def export_state(self) -> dict:
+        return {
+            "hostname": self.hostname.text(),
+            "console": self.console.toPlainText(),
+        }
+
+    def import_state(self, data: dict):
+        self.hostname.setText(data.get("hostname", ""))
+        self.console.setPlainText(data.get("console", ""))

@@ -10,6 +10,8 @@ from PySide6.QtWidgets import (
     QLabel,
 )
 from PySide6.QtCore import Qt
+
+from devices.DeviceBuffer import DeviceBuffer
 from devices.DeviceType import DeviceType
 from gui.tabs.GlobalTab import GlobalTab
 from gui.tabs.RoutingTab import RoutingTab
@@ -27,6 +29,9 @@ class DeviceDetailWidget(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+
+        self.current_device = None
+        self.buffers: dict[str, DeviceBuffer] = {}
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(10, 10, 10, 10)
@@ -100,7 +105,14 @@ class DeviceDetailWidget(QWidget):
             self.stack.removeWidget(widget)
 
     def show_for_device(self, device):
-        """Aktualizuje zakładki w zależności od typu urządzenia."""
+        """Aktualizuje zakładki w zależności od typu urządzenia i przywraca stan z bufora."""
+        # 🆕 zapisz stan poprzedniego urządzenia
+        if self.current_device:
+            print(f"[INFO] Saving for {self.current_device}")
+            self.save_tab_state(self.current_device)
+
+        self.current_device = device
+        print(f"[INFO] Switching to {device} from {self.current_device}")
         self.category_list.clear()
         self.clear_stack()
 
@@ -121,13 +133,56 @@ class DeviceDetailWidget(QWidget):
         else:
             tabs = ["GLOBAL"]
 
-        # Utwórz dynamicznie listę + stack
         for name in tabs:
             self.category_list.addItem(name)
             self.stack.addWidget(self.pages[name])
 
         self.category_list.setCurrentRow(0)
 
+        # 🆕 wczytaj stan z bufora
+        self.load_tab_state(device)
+
     def append_console(self, text: str):
         """Dodaje linię do globalnej konsoli."""
         self.console.appendPlainText(text.strip())
+
+    # =====================================================
+    #        OBSŁUGA BUFORA (export/import zakładek)
+    # =====================================================
+
+    def save_tab_state(self, device):
+        """Zapisuje stan aktualnych zakładek do bufora."""
+        if not device:
+            return
+        buf = self.buffers.setdefault(device.host, DeviceBuffer())
+        for name, tab in self.pages.items():
+            if hasattr(tab, "export_state"):
+                try:
+                    buf.tabs[name] = tab.export_state()
+                    print(f"[INFO] Tab {name} saved.")
+                except Exception as e:
+                    print(f"[WARN] Nie zapisano stanu {name}: {e}")
+
+    def load_tab_state(self, device):
+        """Wczytuje stan zakładek z bufora lub resetuje zakładki, jeśli bufora brak."""
+        if not device:
+            return
+
+        buf = self.buffers.get(device.host)
+        if not buf:
+            # 🆕 brak bufora — wyczyść wszystkie taby
+            for name, tab in self.pages.items():
+                if hasattr(tab, "import_state"):
+                    try:
+                        tab.import_state({})  # pusta struktura
+                    except Exception:
+                        pass
+            return
+
+        # 🧠 bufor istnieje — przywróć stan
+        for name, tab in self.pages.items():
+            if name in buf.tabs and hasattr(tab, "import_state"):
+                try:
+                    tab.import_state(buf.tabs[name])
+                except Exception as e:
+                    print(f"[WARN] Nie wczytano stanu {name}: {e}")

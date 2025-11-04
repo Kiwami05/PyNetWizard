@@ -170,3 +170,23 @@ class InterfacesTab(QWidget):
 
     def _append_console(self, text):
         self.console.appendPlainText(text.strip())
+
+    def export_state(self):
+        rows = []
+        for r in range(self.table.rowCount()):
+            rows.append(
+                [
+                    self.table.item(r, c).text() if self.table.item(r, c) else ""
+                    for c in range(self.table.columnCount())
+                ]
+            )
+        return {"rows": rows, "console": self.console.toPlainText()}
+
+    def import_state(self, data):
+        self.table.setRowCount(0)
+        for row in data.get("rows", []):
+            r = self.table.rowCount()
+            self.table.insertRow(r)
+            for c, val in enumerate(row):
+                self.table.setItem(r, c, QTableWidgetItem(val))
+        self.console.setPlainText(data.get("console", ""))

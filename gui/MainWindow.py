@@ -194,6 +194,7 @@ class MainWindow(QMainWindow):
         )
         if reply == QMessageBox.Yes:
             self.device_list.remove_device(host)
+            self.clear_device_buffer(host)
             self.refresh_device_buttons()
             self.show_device_details(None)
 
@@ -207,6 +208,7 @@ class MainWindow(QMainWindow):
         )
         if reply == QMessageBox.Yes:
             self.device_list.clear()
+            self.clear_device_buffer()
             self.refresh_device_buttons()
             self.show_device_details(None)
 
@@ -260,13 +262,16 @@ class MainWindow(QMainWindow):
         )
         if filename:
             self.device_list.load_from_file(filename)
+            self.clear_device_buffer()
             self.refresh_device_buttons()
             QMessageBox.information(
                 self, "Wczytano", f"Załadowano inventory z {filename}"
             )
         if self.device_list.devices:
             first_device = self.device_list.devices[0]
-            self.detail_box.pages["GLOBAL"].bind_device(first_device, self.connection_manager)
+            self.detail_box.pages["GLOBAL"].bind_device(
+                first_device, self.connection_manager
+            )
 
     def open_settings_dialog(self):
         dialog = SettingsDialog(self, self.connection_type)
@@ -356,3 +361,12 @@ class MainWindow(QMainWindow):
             self, "Reset", f"Zmiany dla {host} zostały odrzucone (mock)."
         )
         self.detail_box.append_console(f"[MOCK] Discarded local changes for {host}")
+
+    def clear_device_buffer(self, host: str | None = None):
+        """Usuwa bufor danego urządzenia lub wszystkie bufory."""
+        if not hasattr(self.detail_box, "buffers"):
+            return
+        if host is None:
+            self.detail_box.buffers.clear()
+        else:
+            self.detail_box.buffers.pop(host, None)
