@@ -108,11 +108,9 @@ class DeviceDetailWidget(QWidget):
         """Aktualizuje zakładki w zależności od typu urządzenia i przywraca stan z bufora."""
         # 🆕 zapisz stan poprzedniego urządzenia
         if self.current_device:
-            print(f"[INFO] Saving for {self.current_device}")
             self.save_tab_state(self.current_device)
 
         self.current_device = device
-        print(f"[INFO] Switching to {device} from {self.current_device}")
         self.category_list.clear()
         self.clear_stack()
 
@@ -159,7 +157,6 @@ class DeviceDetailWidget(QWidget):
             if hasattr(tab, "export_state"):
                 try:
                     buf.tabs[name] = tab.export_state()
-                    print(f"[INFO] Tab {name} saved.")
                 except Exception as e:
                     print(f"[WARN] Nie zapisano stanu {name}: {e}")
 

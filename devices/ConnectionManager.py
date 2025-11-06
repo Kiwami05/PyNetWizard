@@ -1,4 +1,3 @@
-# devices/ConnectionManager.py
 from netmiko import (
     ConnectHandler,
     NetmikoTimeoutException,
@@ -8,11 +7,14 @@ from devices.Device import Device
 from devices.Vendor import Vendor
 import logging
 import os
+import tempfile
 
 
 class ConnectionManager:
     """
     Klasa zarządzająca połączeniami SSH/Telnet do urządzeń sieciowych.
+    Automatycznie obsługuje problemy z dostępem do plików logów (np. po wcześniejszym
+    uruchomieniu jako root).
     """
 
     def __init__(
@@ -22,16 +24,49 @@ class ConnectionManager:
         self.connection_type = connection_type
         self.timeout = int(timeout)
         self.verbose = verbose
+
+        # --- Tworzenie katalogu logów ---
         os.makedirs(log_path, exist_ok=True)
         self.log_path = log_path
 
+        # --- Przygotowanie ścieżki głównego pliku logów ---
+        logfile = os.path.join(log_path, "netmiko.log")
+
+        # 🧩 Sprawdź, czy plik logu istnieje i czy jest zapisywalny
+        if os.path.exists(logfile) and not os.access(logfile, os.W_OK):
+            try:
+                # Jeśli nie możemy pisać — zmień nazwę (zachowaj oryginał)
+                new_name = logfile + ".old"
+                os.rename(logfile, new_name)
+                print(f"[WARN] Brak uprawnień do {logfile}, przeniesiono do {new_name}")
+            except Exception:
+                # Jeśli rename się nie uda — utwórz nowy log w katalogu tymczasowym
+                tmp_log = os.path.join(
+                    tempfile.gettempdir(), f"netmiko_{os.getuid()}.log"
+                )
+                print(f"[WARN] Nie można pisać do {logfile}, używam {tmp_log}")
+                logfile = tmp_log
+
+        # 🧩 Jeśli pliku nie ma, spróbuj utworzyć nowy (w razie błędu fallback do /tmp)
+        try:
+            open(logfile, "a").close()
+        except Exception:
+            tmp_log = os.path.join(tempfile.gettempdir(), f"netmiko_{os.getuid()}.log")
+            print(f"[WARN] Nie udało się utworzyć {logfile}, fallback do {tmp_log}")
+            logfile = tmp_log
+
+        # --- Konfiguracja loggera ---
         logging.basicConfig(
-            filename=os.path.join(log_path, "netmiko.log"),
+            filename=logfile,
             level=logging.DEBUG if verbose else logging.INFO,
             format="%(asctime)s [%(levelname)s] %(message)s",
         )
+        logging.info("=== PyNetWizard session started ===")
 
-    # --- Główne API ---
+    # ==============================================================
+    #                        GŁÓWNE API
+    # ==============================================================
+
     def connect(self, device: Device) -> bool:
         """Nawiązuje połączenie i zapisuje sesję."""
         if device.host in self.sessions:
@@ -63,7 +98,7 @@ class ConnectionManager:
             logging.info(f"[DISCONNECTED] {device.host}")
 
     def is_connected(self, device: Device) -> bool:
-        """Sprawdza, czy połączenie istnieje."""
+        """Sprawdza, czy połączenie istnieje i działa."""
         conn = self.sessions.get(device.host)
         if not conn:
             return False
@@ -93,8 +128,12 @@ class ConnectionManager:
         conn.save_config()
         return output.strip()
 
-    # --- Pomocnicze ---
+    # ==============================================================
+    #                        POMOCNICZE
+    # ==============================================================
+
     def _device_to_netmiko(self, device: Device) -> dict:
+        """Mapuje obiekt Device na parametry Netmiko ConnectHandler."""
         if device.vendor == Vendor.CISCO:
             platform = "cisco_ios"
         elif device.vendor == Vendor.JUNIPER:
@@ -110,11 +149,18 @@ class ConnectionManager:
             "username": device.username,
             "password": device.password,
             "timeout": self.timeout,
-            "secret": device.password,  # jeśli enable = to samo hasło
-            "session_log": os.path.join(self.log_path, f"{device.host}_session.txt"),
+            "secret": device.password,  # enable
         }
 
-        if self.connection_type == "telnet":
-            params["device_type"] = f"{platform}_telnet"
+        # --- Bezpieczne tworzenie logu sesji (może być w /tmp jeśli katalog logów niedostępny)
+        session_log = os.path.join(self.log_path, f"{device.host}_session.txt")
+        try:
+            open(session_log, "a").close()
+        except Exception:
+            tmp_log = os.path.join(tempfile.gettempdir(), f"{device.host}_session.txt")
+            print(f"[WARN] Nie można pisać do {session_log}, używam {tmp_log}")
+            session_log = tmp_log
+
+        params["session_log"] = session_log
 
         return params
