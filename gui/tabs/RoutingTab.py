@@ -185,3 +185,23 @@ class RoutingTab(QWidget):
     def _append_console(self, text):
         """Dodaje wiersz do dolnego loga."""
         self.console.appendPlainText(text.strip())
+
+    def export_state(self):
+        routes = []
+        for r in range(self.static_table.rowCount()):
+            routes.append(
+                [
+                    self.static_table.item(r, c).text()
+                    for c in range(self.static_table.columnCount())
+                ]
+            )
+        return {"routes": routes, "console": self.console.toPlainText()}
+
+    def import_state(self, data):
+        self.static_table.setRowCount(0)
+        for row in data.get("routes", []):
+            r = self.static_table.rowCount()
+            self.static_table.insertRow(r)
+            for c, val in enumerate(row):
+                self.static_table.setItem(r, c, QTableWidgetItem(val))
+        self.console.setPlainText(data.get("console", ""))

@@ -157,3 +157,25 @@ class ACLTab(QWidget):
 
     def _append_console(self, text: str):
         self.console.appendPlainText(text.strip())
+
+    def export_state(self):
+        rules = []
+        for r in range(self.table.rowCount()):
+            rules.append(
+                [self.table.item(r, c).text() for c in range(self.table.columnCount())]
+            )
+        return {
+            "acl": self.current_acl,
+            "rules": rules,
+            "console": self.console.toPlainText(),
+        }
+
+    def import_state(self, data):
+        self.current_acl = data.get("acl", None)
+        self.table.setRowCount(0)
+        for row in data.get("rules", []):
+            r = self.table.rowCount()
+            self.table.insertRow(r)
+            for c, val in enumerate(row):
+                self.table.setItem(r, c, QTableWidgetItem(val))
+        self.console.setPlainText(data.get("console", ""))
