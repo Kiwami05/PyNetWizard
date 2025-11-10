@@ -8,5 +8,4 @@ dependencies = [
     "netmiko>=4.6.0",
     "pyside6>=6.9.3",
     "python-nmap>=0.7.1",
-    "ruff>=0.13.3",
 ]
