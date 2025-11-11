@@ -1,9 +1,21 @@
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTableWidget, QTableWidgetItem, QHeaderView, QLineEdit,
-    QFormLayout, QGroupBox, QPlainTextEdit, QMessageBox, QComboBox
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QLineEdit,
+    QFormLayout,
+    QGroupBox,
+    QPlainTextEdit,
+    QMessageBox,
+    QComboBox,
 )
-from PySide6.QtCore import Qt
+
+from services.parsed_config import ParsedConfig
 
 
 class VLANsTab(QWidget):
@@ -97,7 +109,9 @@ class VLANsTab(QWidget):
         self.table.setItem(row, 2, QTableWidgetItem(""))
 
         # aktualizuj listę VLAN-ów w comboboxie
-        if vlan_id not in [self.combo_vlan.itemText(i) for i in range(self.combo_vlan.count())]:
+        if vlan_id not in [
+            self.combo_vlan.itemText(i) for i in range(self.combo_vlan.count())
+        ]:
             self.combo_vlan.addItem(vlan_id)
 
         self._append_console(f"vlan {vlan_id}")
@@ -137,7 +151,9 @@ class VLANsTab(QWidget):
             if port not in ports_list:
                 ports_list.append(port)
                 self.table.setItem(row, 2, QTableWidgetItem(", ".join(ports_list)))
-                self._append_console(f"interface {port}\n switchport access vlan {vlan_id}\n exit")
+                self._append_console(
+                    f"interface {port}\n switchport access vlan {vlan_id}\n exit"
+                )
         self.port_name.clear()
 
     # === Helpers ===
@@ -149,3 +165,40 @@ class VLANsTab(QWidget):
 
     def _append_console(self, text: str):
         self.console.appendPlainText(text.strip())
+
+    def export_state(self):
+        rows = []
+        for r in range(self.table.rowCount()):
+            rows.append(
+                [
+                    self.table.item(r, c).text() if self.table.item(r, c) else ""
+                    for c in range(self.table.columnCount())
+                ]
+            )
+        combo = [self.combo_vlan.itemText(i) for i in range(self.combo_vlan.count())]
+        return {"rows": rows, "combo": combo, "console": self.console.toPlainText()}
+
+    def import_state(self, data):
+        self.table.setRowCount(0)
+        for row in data.get("rows", []):
+            r = self.table.rowCount()
+            self.table.insertRow(r)
+            for c, val in enumerate(row):
+                self.table.setItem(r, c, QTableWidgetItem(val))
+        self.combo_vlan.clear()
+        self.combo_vlan.addItems(data.get("combo", []))
+        self.console.setPlainText(data.get("console", ""))
+
+    def sync_from_config(self, conf: ParsedConfig):
+        self.table.setRowCount(0)
+        self.combo_vlan.clear()
+        vids = sorted(conf.vlans.items.keys(), key=lambda x: int(x))
+        for vid in vids:
+            v = conf.vlans.items[vid]
+            r = self.table.rowCount()
+            self.table.insertRow(r)
+            self.table.setItem(r, 0, QTableWidgetItem(vid))
+            self.table.setItem(r, 1, QTableWidgetItem(v.get("name", "")))
+            self.table.setItem(r, 2, QTableWidgetItem(", ".join(v.get("ports", []))))
+            self.combo_vlan.addItem(vid)
+        self.console.appendPlainText("[SYNC] VLANs updated from running-config.")

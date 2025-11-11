@@ -1,9 +1,20 @@
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTableWidget, QTableWidgetItem, QHeaderView, QLineEdit,
-    QFormLayout, QGroupBox, QPlainTextEdit, QMessageBox
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QLineEdit,
+    QFormLayout,
+    QGroupBox,
+    QPlainTextEdit,
+    QMessageBox,
 )
-from PySide6.QtCore import Qt
+
+from services.parsed_config import ParsedConfig
 
 
 class InterfacesTab(QWidget):
@@ -52,7 +63,9 @@ class InterfacesTab(QWidget):
 
         # === Tabela interfejsów ===
         self.table = QTableWidget(0, 6)
-        self.table.setHorizontalHeaderLabels(["Name", "Description", "IP Address", "Mask", "Mode", "Status"])
+        self.table.setHorizontalHeaderLabels(
+            ["Name", "Description", "IP Address", "Mask", "Mode", "Status"]
+        )
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.cellClicked.connect(self._fill_form_from_table)
         main_layout.addWidget(self.table, 4)
@@ -73,7 +86,9 @@ class InterfacesTab(QWidget):
         self.btn_enable.clicked.connect(lambda: self._dummy_cmd("no shutdown"))
         self.btn_disable.clicked.connect(lambda: self._dummy_cmd("shutdown"))
         self.btn_trunk.clicked.connect(lambda: self._dummy_cmd("switchport mode trunk"))
-        self.btn_access.clicked.connect(lambda: self._dummy_cmd("switchport mode access"))
+        self.btn_access.clicked.connect(
+            lambda: self._dummy_cmd("switchport mode access")
+        )
 
         # === Dolna konsola logów ===
         self.console = QPlainTextEdit()
@@ -128,7 +143,13 @@ class InterfacesTab(QWidget):
         self._clear_fields()
 
     def _clear_fields(self):
-        for w in [self.intf_name, self.intf_desc, self.intf_ip, self.intf_mask, self.intf_mode]:
+        for w in [
+            self.intf_name,
+            self.intf_desc,
+            self.intf_ip,
+            self.intf_mask,
+            self.intf_mode,
+        ]:
             w.clear()
 
     def _fill_form_from_table(self, row, _col):
@@ -151,3 +172,36 @@ class InterfacesTab(QWidget):
 
     def _append_console(self, text):
         self.console.appendPlainText(text.strip())
+
+    def export_state(self):
+        rows = []
+        for r in range(self.table.rowCount()):
+            rows.append(
+                [
+                    self.table.item(r, c).text() if self.table.item(r, c) else ""
+                    for c in range(self.table.columnCount())
+                ]
+            )
+        return {"rows": rows, "console": self.console.toPlainText()}
+
+    def import_state(self, data):
+        self.table.setRowCount(0)
+        for row in data.get("rows", []):
+            r = self.table.rowCount()
+            self.table.insertRow(r)
+            for c, val in enumerate(row):
+                self.table.setItem(r, c, QTableWidgetItem(val))
+        self.console.setPlainText(data.get("console", ""))
+
+    def sync_from_config(self, conf: ParsedConfig):
+        self.table.setRowCount(0)
+        for name, data in conf.interfaces.items.items():
+            r = self.table.rowCount()
+            self.table.insertRow(r)
+            self.table.setItem(r, 0, QTableWidgetItem(name))
+            self.table.setItem(r, 1, QTableWidgetItem(data.get("description", "")))
+            self.table.setItem(r, 2, QTableWidgetItem(data.get("ip", "")))
+            self.table.setItem(r, 3, QTableWidgetItem(data.get("mask", "")))
+            self.table.setItem(r, 4, QTableWidgetItem(data.get("mode", "")))
+            self.table.setItem(r, 5, QTableWidgetItem(data.get("status", "up")))
+        self.console.appendPlainText("[SYNC] Interfaces updated from running-config.")

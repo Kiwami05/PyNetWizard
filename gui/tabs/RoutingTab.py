@@ -1,9 +1,19 @@
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-    QTabWidget, QGroupBox, QFormLayout, QLineEdit, QTableWidget,
-    QTableWidgetItem, QHeaderView, QPlainTextEdit
+    QWidget,
+    QVBoxLayout,
+    QLabel,
+    QPushButton,
+    QTabWidget,
+    QGroupBox,
+    QFormLayout,
+    QLineEdit,
+    QTableWidget,
+    QTableWidgetItem,
+    QHeaderView,
+    QPlainTextEdit,
 )
-from PySide6.QtCore import Qt
+
+from services.parsed_config import ParsedConfig
 
 
 class RoutingTab(QWidget):
@@ -84,8 +94,12 @@ class RoutingTab(QWidget):
         layout.addWidget(QLabel("<b>RIPv2 Configuration</b>"))
         self.btn_rip_enable = QPushButton("Enable RIP")
         self.btn_rip_disable = QPushButton("Disable RIP")
-        self.btn_rip_enable.clicked.connect(lambda: self._append_console("> router rip\n version 2\n"))
-        self.btn_rip_disable.clicked.connect(lambda: self._append_console("> no router rip\n"))
+        self.btn_rip_enable.clicked.connect(
+            lambda: self._append_console("> router rip\n version 2\n")
+        )
+        self.btn_rip_disable.clicked.connect(
+            lambda: self._append_console("> no router rip\n")
+        )
         layout.addWidget(self.btn_rip_enable)
         layout.addWidget(self.btn_rip_disable)
 
@@ -173,3 +187,48 @@ class RoutingTab(QWidget):
     def _append_console(self, text):
         """Dodaje wiersz do dolnego loga."""
         self.console.appendPlainText(text.strip())
+
+    def export_state(self):
+        routes = []
+        for r in range(self.static_table.rowCount()):
+            routes.append(
+                [
+                    self.static_table.item(r, c).text()
+                    for c in range(self.static_table.columnCount())
+                ]
+            )
+        return {"routes": routes, "console": self.console.toPlainText()}
+
+    def import_state(self, data):
+        self.static_table.setRowCount(0)
+        for row in data.get("routes", []):
+            r = self.static_table.rowCount()
+            self.static_table.insertRow(r)
+            for c, val in enumerate(row):
+                self.static_table.setItem(r, c, QTableWidgetItem(val))
+        self.console.setPlainText(data.get("console", ""))
+
+    def sync_from_config(self, conf: ParsedConfig):
+        # STATIC
+        self.static_table.setRowCount(0)
+        for route in conf.routing.static:
+            r = self.static_table.rowCount()
+            self.static_table.insertRow(r)
+            self.static_table.setItem(r, 0, QTableWidgetItem(route["dest"]))
+            self.static_table.setItem(r, 1, QTableWidgetItem(route["mask"]))
+            self.static_table.setItem(r, 2, QTableWidgetItem(route["nh"]))
+
+        # RIP
+        # (minimalnie — pokażemy w logu)
+        if conf.routing.rip_networks:
+            self._append_console(
+                "[SYNC] RIP networks: " + ", ".join(conf.routing.rip_networks)
+            )
+
+        # OSPF
+        for o in conf.routing.ospf:
+            self._append_console(
+                f"[SYNC] OSPF {o['process']} net {o['network']} {o['wildcard']} area {o['area']}"
+            )
+
+        self.console.appendPlainText("[SYNC] Routing updated from running-config.")
