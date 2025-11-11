@@ -1,3 +1,6 @@
+from services.parsed_config import ParsedConfig
+
+
 class DeviceBuffer:
     """
     Przechowuje stan GUI i konfiguracji dla jednego urządzenia.
@@ -12,6 +15,7 @@ class DeviceBuffer:
 
         # dane zakładek (każda tab przechowuje własny podzbiór)
         self.tabs = {}  # np. {"GLOBAL": {...}, "INTERFACES": {...}}
+        self.config: ParsedConfig | None = None   # 🆕 ostatnio pobrany i sparsowany config
 
     def export_all(self) -> dict:
         """Zwraca stan całego bufora jako dict (do ewentualnego zapisu JSON)."""

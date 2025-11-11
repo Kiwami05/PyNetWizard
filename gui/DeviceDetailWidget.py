@@ -18,6 +18,7 @@ from gui.tabs.RoutingTab import RoutingTab
 from gui.tabs.InterfacesTab import InterfacesTab
 from gui.tabs.VLANsTab import VLANsTab
 from gui.tabs.ACLTab import ACLTab
+from services.parsed_config import ParsedConfig
 
 
 class DeviceDetailWidget(QWidget):
@@ -183,3 +184,20 @@ class DeviceDetailWidget(QWidget):
                     tab.import_state(buf.tabs[name])
                 except Exception as e:
                     print(f"[WARN] Nie wczytano stanu {name}: {e}")
+
+    def sync_tabs_from_config(self, conf: ParsedConfig):
+        # Zapisz w buforze urządzenia
+        buf = self.buffers.setdefault(self.current_device.host, DeviceBuffer())
+        buf.hostname = conf.hostname or buf.hostname
+        buf.logs = (buf.logs or "") + "\n[SYNC] Config applied to tabs."
+        buf.tabs.setdefault("GLOBAL", {})
+        buf.config = conf  # 🆕
+
+        # Rozsyłanie do aktywnych tabów, tylko tych które istnieją teraz w stacku
+        for idx in range(self.stack.count()):
+            widget = self.stack.widget(idx)
+            if hasattr(widget, "sync_from_config"):
+                try:
+                    widget.sync_from_config(conf)
+                except Exception as e:
+                    self.append_console(f"[WARN] Tab sync failed: {e}")

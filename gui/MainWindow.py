@@ -19,6 +19,7 @@ from devices.DeviceList import DeviceList
 from devices.Device import Device
 from gui.SettingsDialog import SettingsDialog
 from gui.DeviceDetailWidget import DeviceDetailWidget
+from services.config_sync import ConfigSyncService
 
 
 # --- MOCK ConnectionManager ---
@@ -138,6 +139,8 @@ class MainWindow(QMainWindow):
             verbose=(self.settings.value("verbose", "false") == "true"),
             log_path=self.settings.value("log_path", "./logs"),
         )
+
+        self.config_sync = ConfigSyncService(self.connection_manager)
 
         # --- inicjalne urządzenia ---
         self.refresh_device_buttons()
@@ -343,11 +346,15 @@ class MainWindow(QMainWindow):
         try:
             if not self.connection_manager.connect(dev):
                 raise ConnectionError("Nie udało się połączyć.")
-            output = self.connection_manager.send_command(dev, "show running-config")
-            self.detail_box.append_console(output)
-            QMessageBox.information(
-                self, "Pobrano", f"Konfiguracja {dev.host} została pobrana."
-            )
+            # 🆕 pobranie + parsowanie
+            conf = self.config_sync.fetch_and_parse(dev)
+
+            # 🆕 rozesłanie do tabów
+            self.detail_box.sync_tabs_from_config(conf)
+
+            # 🧾 konsola globalna + status
+            self.detail_box.append_console(f"[SYNC] Hostname: {conf.hostname or '-'}")
+            QMessageBox.information(self, "Pobrano", f"Konfiguracja {dev.host} zsynchronizowana z zakładkami.")
         except Exception as e:
             QMessageBox.critical(self, "Błąd", str(e))
 

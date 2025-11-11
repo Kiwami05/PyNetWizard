@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 
 from devices.Device import Device
+from services.parsed_config import ParsedConfig
 
 
 class GlobalTab(QWidget):
@@ -292,3 +293,12 @@ class GlobalTab(QWidget):
     def import_state(self, data: dict):
         self.hostname.setText(data.get("hostname", ""))
         self.console.setPlainText(data.get("console", ""))
+
+    def sync_from_config(self, conf: ParsedConfig):
+        # Ustaw hostname
+        if conf.hostname:
+            self.hostname.setText(conf.hostname)
+        # Podgląd — kilka pierwszych linii jako log
+        if conf.raw_running:
+            head = "\n".join(conf.raw_running.splitlines()[:10])
+            self._append_log("[SYNC] Snapshot running-config (head):\n" + head)

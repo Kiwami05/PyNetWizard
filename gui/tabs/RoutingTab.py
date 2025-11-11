@@ -13,6 +13,8 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
 )
 
+from services.parsed_config import ParsedConfig
+
 
 class RoutingTab(QWidget):
     """
@@ -205,3 +207,25 @@ class RoutingTab(QWidget):
             for c, val in enumerate(row):
                 self.static_table.setItem(r, c, QTableWidgetItem(val))
         self.console.setPlainText(data.get("console", ""))
+
+
+    def sync_from_config(self, conf: ParsedConfig):
+        # STATIC
+        self.static_table.setRowCount(0)
+        for route in conf.routing.static:
+            r = self.static_table.rowCount()
+            self.static_table.insertRow(r)
+            self.static_table.setItem(r, 0, QTableWidgetItem(route["dest"]))
+            self.static_table.setItem(r, 1, QTableWidgetItem(route["mask"]))
+            self.static_table.setItem(r, 2, QTableWidgetItem(route["nh"]))
+
+        # RIP
+        # (minimalnie — pokażemy w logu)
+        if conf.routing.rip_networks:
+            self._append_console("[SYNC] RIP networks: " + ", ".join(conf.routing.rip_networks))
+
+        # OSPF
+        for o in conf.routing.ospf:
+            self._append_console(f"[SYNC] OSPF {o['process']} net {o['network']} {o['wildcard']} area {o['area']}")
+
+        self.console.appendPlainText("[SYNC] Routing updated from running-config.")

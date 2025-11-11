@@ -15,6 +15,8 @@ from PySide6.QtWidgets import (
     QComboBox,
 )
 
+from services.parsed_config import ParsedConfig
+
 
 class VLANsTab(QWidget):
     """
@@ -186,3 +188,17 @@ class VLANsTab(QWidget):
         self.combo_vlan.clear()
         self.combo_vlan.addItems(data.get("combo", []))
         self.console.setPlainText(data.get("console", ""))
+
+    def sync_from_config(self, conf: ParsedConfig):
+        self.table.setRowCount(0)
+        self.combo_vlan.clear()
+        vids = sorted(conf.vlans.items.keys(), key=lambda x: int(x))
+        for vid in vids:
+            v = conf.vlans.items[vid]
+            r = self.table.rowCount()
+            self.table.insertRow(r)
+            self.table.setItem(r, 0, QTableWidgetItem(vid))
+            self.table.setItem(r, 1, QTableWidgetItem(v.get("name","")))
+            self.table.setItem(r, 2, QTableWidgetItem(", ".join(v.get("ports",[]))))
+            self.combo_vlan.addItem(vid)
+        self.console.appendPlainText("[SYNC] VLANs updated from running-config.")
