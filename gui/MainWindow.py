@@ -110,8 +110,11 @@ class MainWindow(QMainWindow):
         action_sync = device_menu.addAction("Odśwież konfigurację (Sync)")
         action_sync.triggered.connect(self.sync_current_device)
 
-        action_reset = device_menu.addAction("Resetuj zmiany (mock)")
-        action_reset.triggered.connect(self.reset_current_device)
+        action_reset_one = device_menu.addAction("Resetuj zmiany (bieżące urządzenie)")
+        action_reset_one.triggered.connect(self.reset_current_device)
+
+        action_reset_all = device_menu.addAction("Resetuj zmiany (wszystkie urządzenia)")
+        action_reset_all.triggered.connect(self.reset_all_devices)
 
         settings_action = menubar.addAction("Ustawienia")
         settings_action.triggered.connect(self.open_settings_dialog)
@@ -359,15 +362,66 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "Błąd", str(e))
 
     def reset_current_device(self):
-        """Resetuje zmiany dla bieżącego urządzenia (mock)."""
+        """Przywraca ostatni snapshot (bez pobierania z urządzenia)."""
         if not self.current_device:
             QMessageBox.warning(self, "Brak urządzenia", "Najpierw wybierz urządzenie.")
             return
-        host = self.current_device.host
-        QMessageBox.information(
-            self, "Reset", f"Zmiany dla {host} zostały odrzucone (mock)."
+
+        dev = self.current_device
+        buf = self.detail_box.buffers.get(dev.host)
+        if not buf or not buf.config:
+            QMessageBox.information(
+                self, "Brak danych",
+                "Nie można przywrócić — brak zapisanego snapshotu (urządzenie nie było synchronizowane)."
+            )
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "Potwierdzenie",
+            f"Czy na pewno chcesz odrzucić zmiany dla {dev.host} i przywrócić ostatni snapshot?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
         )
-        self.detail_box.append_console(f"[MOCK] Discarded local changes for {host}")
+        if reply == QMessageBox.No:
+            return
+
+        self.detail_box.current_device = dev
+        self.detail_box.restore_from_snapshot()
+        QMessageBox.information(self, "Przywrócono", f"Przywrócono stan {dev.host} z ostatniego synca.")
+        self.detail_box.append_console(f"[RESET] Przywrócono snapshot dla {dev.host}")
+
+    def reset_all_devices(self):
+        """Przywraca snapshot dla wszystkich urządzeń, które go posiadają."""
+        if not self.device_list.devices:
+            QMessageBox.information(self, "Brak urządzeń", "Lista urządzeń jest pusta.")
+            return
+
+        reply = QMessageBox.question(
+            self,
+            "Potwierdzenie",
+            "Czy na pewno chcesz przywrócić snapshoty dla wszystkich urządzeń?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        if reply == QMessageBox.No:
+            return
+
+        count = 0
+        for dev in self.device_list.devices:
+            buf = self.detail_box.buffers.get(dev.host)
+            if buf and buf.config:
+                count += 1
+                # Nie musimy otwierać wizualnie każdego — wystarczy zapisać stan bufora
+                self.detail_box.current_device = dev
+                self.detail_box.restore_from_snapshot()
+
+        QMessageBox.information(
+            self,
+            "Zakończono",
+            f"Przywrócono snapshoty dla {count} urządzeń (jeśli były dostępne)."
+        )
+        self.detail_box.append_console(f"[RESET ALL] Przywrócono {count} urządzeń.")
 
     def clear_device_buffer(self, host: str | None = None):
         """Usuwa bufor danego urządzenia lub wszystkie bufory."""

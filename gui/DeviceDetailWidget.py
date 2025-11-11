@@ -191,7 +191,7 @@ class DeviceDetailWidget(QWidget):
         buf.hostname = conf.hostname or buf.hostname
         buf.logs = (buf.logs or "") + "\n[SYNC] Config applied to tabs."
         buf.tabs.setdefault("GLOBAL", {})
-        buf.config = conf  # 🆕
+        buf.config = conf  # zawsze aktualny snapshot
 
         # Rozsyłanie do aktywnych tabów, tylko tych które istnieją teraz w stacku
         for idx in range(self.stack.count()):
@@ -201,3 +201,14 @@ class DeviceDetailWidget(QWidget):
                     widget.sync_from_config(conf)
                 except Exception as e:
                     self.append_console(f"[WARN] Tab sync failed: {e}")
+
+    def restore_from_snapshot(self):
+        """Przywraca stan tabów z ostatniego pobranego configu (buf.config)."""
+        if not self.current_device:
+            return
+        buf = self.buffers.get(self.current_device.host)
+        if not buf or not buf.config:
+            self.append_console("[INFO] Brak zapisanego snapshotu dla tego urządzenia.")
+            return
+        self.append_console("[RESET] Przywracanie konfiguracji z ostatniego synca...")
+        self.sync_tabs_from_config(buf.config)
