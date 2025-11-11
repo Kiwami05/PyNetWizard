@@ -1,27 +1,37 @@
 import re
-from services.parsed_config import ParsedConfig, ParsedInterfaces, ParsedVLANs, ParsedRouting, ParsedACLs
+from services.parsed_config import (
+    ParsedConfig,
+    ParsedInterfaces,
+    ParsedVLANs,
+    ParsedRouting,
+    ParsedACLs,
+)
 
-_HOST_RE = re.compile(r'^\s*hostname\s+(\S+)', re.M)
-_INT_START = re.compile(r'^\s*interface\s+(\S+)', re.M)
-_DESC_RE = re.compile(r'^\s*description\s+(.+)$', re.M)
-_IP_RE = re.compile(r'^\s*ip\s+address\s+(\S+)\s+(\S+)', re.M)
-_NO_SWITCHPORT = re.compile(r'^\s*no\s+switchport', re.M)
-_MODE_ACCESS = re.compile(r'^\s*switchport\s+mode\s+access', re.M)
-_MODE_TRUNK = re.compile(r'^\s*switchport\s+mode\s+trunk', re.M)
-_SHUT = re.compile(r'^\s*shutdown', re.M)
+_HOST_RE = re.compile(r"^\s*hostname\s+(\S+)", re.M)
+_INT_START = re.compile(r"^\s*interface\s+(\S+)", re.M)
+_DESC_RE = re.compile(r"^\s*description\s+(.+)$", re.M)
+_IP_RE = re.compile(r"^\s*ip\s+address\s+(\S+)\s+(\S+)", re.M)
+_NO_SWITCHPORT = re.compile(r"^\s*no\s+switchport", re.M)
+_MODE_ACCESS = re.compile(r"^\s*switchport\s+mode\s+access", re.M)
+_MODE_TRUNK = re.compile(r"^\s*switchport\s+mode\s+trunk", re.M)
+_SHUT = re.compile(r"^\s*shutdown", re.M)
 
-_VLAN_BLOCK = re.compile(r'(?ms)^\s*vlan\s+(\d+)\s*(.*?)^\s*exit\b')
-_VLAN_NAME = re.compile(r'^\s*name\s+(.+)$', re.M)
-_INT_ACCESS_VLAN = re.compile(r'^\s*switchport\s+access\s+vlan\s+(\d+)', re.M)
+_VLAN_BLOCK = re.compile(r"(?ms)^\s*vlan\s+(\d+)\s*(.*?)^\s*exit\b")
+_VLAN_NAME = re.compile(r"^\s*name\s+(.+)$", re.M)
+_INT_ACCESS_VLAN = re.compile(r"^\s*switchport\s+access\s+vlan\s+(\d+)", re.M)
 
-_STATIC_ROUTE = re.compile(r'^\s*ip\s+route\s+(\S+)\s+(\S+)\s+(\S+)', re.M)
-_RIP = re.compile(r'(?ms)^\s*router\s+rip\s*(.*?)^(?:!\s*|router\s|\Z)')
-_RIP_NETWORK = re.compile(r'^\s*network\s+(\S+)', re.M)
+_STATIC_ROUTE = re.compile(r"^\s*ip\s+route\s+(\S+)\s+(\S+)\s+(\S+)", re.M)
+_RIP = re.compile(r"(?ms)^\s*router\s+rip\s*(.*?)^(?:!\s*|router\s|\Z)")
+_RIP_NETWORK = re.compile(r"^\s*network\s+(\S+)", re.M)
 
-_OSPF = re.compile(r'(?ms)^\s*router\s+ospf\s+(\d+)\s*(.*?)^(?:!\s*|router\s|\Z)')
-_OSPF_NET = re.compile(r'^\s*network\s+(\S+)\s+(\S+)\s+area\s+(\S+)', re.M)
+_OSPF = re.compile(r"(?ms)^\s*router\s+ospf\s+(\d+)\s*(.*?)^(?:!\s*|router\s|\Z)")
+_OSPF_NET = re.compile(r"^\s*network\s+(\S+)\s+(\S+)\s+area\s+(\S+)", re.M)
 
-_ACL = re.compile(r'^\s*access-list\s+(\d+)\s+(permit|deny)\s+(\S+)\s+(\S+)(?:\s+(\S+))?(?:\s+(\S+))?', re.M)
+_ACL = re.compile(
+    r"^\s*access-list\s+(\d+)\s+(permit|deny)\s+(\S+)\s+(\S+)(?:\s+(\S+))?(?:\s+(\S+))?",
+    re.M,
+)
+
 
 def parse(raw_running: str) -> ParsedConfig:
     cfg = ParsedConfig(vendor="CISCO", raw_running=raw_running)
@@ -43,7 +53,8 @@ def parse(raw_running: str) -> ParsedConfig:
 
         info = {"description": "", "ip": "", "mask": "", "mode": "", "status": "up"}
         d = _DESC_RE.search(block)
-        if d: info["description"] = d.group(1).strip()
+        if d:
+            info["description"] = d.group(1).strip()
         ipm = _IP_RE.search(block)
         if ipm:
             info["ip"] = ipm.group(1)
@@ -80,7 +91,7 @@ def parse(raw_running: str) -> ParsedConfig:
             start = raw_running.find(f"interface {ifname}")
             end = raw_running.find("interface ", start + 1)
             if start != -1:
-                block = raw_running[start: end if end != -1 else len(raw_running)]
+                block = raw_running[start : end if end != -1 else len(raw_running)]
                 m = _INT_ACCESS_VLAN.search(block)
                 if m and m.group(1) == vlan_id:
                     vlans.items[vlan_id]["ports"].append(short)
@@ -89,7 +100,9 @@ def parse(raw_running: str) -> ParsedConfig:
     # Routing
     routing = ParsedRouting()
     for sm in _STATIC_ROUTE.finditer(raw_running):
-        routing.static.append({"dest": sm.group(1), "mask": sm.group(2), "nh": sm.group(3)})
+        routing.static.append(
+            {"dest": sm.group(1), "mask": sm.group(2), "nh": sm.group(3)}
+        )
     rm = _RIP.search(raw_running)
     if rm:
         for net in _RIP_NETWORK.findall(rm.group(1)):
@@ -97,18 +110,30 @@ def parse(raw_running: str) -> ParsedConfig:
     for om in _OSPF.finditer(raw_running):
         pid, block = om.group(1), om.group(2)
         for nm in _OSPF_NET.finditer(block):
-            routing.ospf.append({"process": pid, "network": nm.group(1), "wildcard": nm.group(2), "area": nm.group(3)})
+            routing.ospf.append(
+                {
+                    "process": pid,
+                    "network": nm.group(1),
+                    "wildcard": nm.group(2),
+                    "area": nm.group(3),
+                }
+            )
     cfg.routing = routing
 
     # ACLs
     acls = ParsedACLs()
     for am in _ACL.finditer(raw_running):
         acl, action, proto, src, wc, dest = am.groups()
-        acls.rules.append({
-            "acl": acl,
-            "action": action, "protocol": proto,
-            "src": src, "wildcard": (wc or ""), "dest": (dest or "any")
-        })
+        acls.rules.append(
+            {
+                "acl": acl,
+                "action": action,
+                "protocol": proto,
+                "src": src,
+                "wildcard": (wc or ""),
+                "dest": (dest or "any"),
+            }
+        )
     cfg.acls = acls
 
     return cfg

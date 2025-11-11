@@ -113,7 +113,9 @@ class MainWindow(QMainWindow):
         action_reset_one = device_menu.addAction("Resetuj zmiany (bieżące urządzenie)")
         action_reset_one.triggered.connect(self.reset_current_device)
 
-        action_reset_all = device_menu.addAction("Resetuj zmiany (wszystkie urządzenia)")
+        action_reset_all = device_menu.addAction(
+            "Resetuj zmiany (wszystkie urządzenia)"
+        )
         action_reset_all.triggered.connect(self.reset_all_devices)
 
         settings_action = menubar.addAction("Ustawienia")
@@ -357,7 +359,11 @@ class MainWindow(QMainWindow):
 
             # 🧾 konsola globalna + status
             self.detail_box.append_console(f"[SYNC] Hostname: {conf.hostname or '-'}")
-            QMessageBox.information(self, "Pobrano", f"Konfiguracja {dev.host} zsynchronizowana z zakładkami.")
+            QMessageBox.information(
+                self,
+                "Pobrano",
+                f"Konfiguracja {dev.host} zsynchronizowana z zakładkami.",
+            )
         except Exception as e:
             QMessageBox.critical(self, "Błąd", str(e))
 
@@ -371,8 +377,9 @@ class MainWindow(QMainWindow):
         buf = self.detail_box.buffers.get(dev.host)
         if not buf or not buf.config:
             QMessageBox.information(
-                self, "Brak danych",
-                "Nie można przywrócić — brak zapisanego snapshotu (urządzenie nie było synchronizowane)."
+                self,
+                "Brak danych",
+                "Nie można przywrócić — brak zapisanego snapshotu (urządzenie nie było synchronizowane).",
             )
             return
 
@@ -388,7 +395,9 @@ class MainWindow(QMainWindow):
 
         self.detail_box.current_device = dev
         self.detail_box.restore_from_snapshot()
-        QMessageBox.information(self, "Przywrócono", f"Przywrócono stan {dev.host} z ostatniego synca.")
+        QMessageBox.information(
+            self, "Przywrócono", f"Przywrócono stan {dev.host} z ostatniego synca."
+        )
         self.detail_box.append_console(f"[RESET] Przywrócono snapshot dla {dev.host}")
 
     def reset_all_devices(self):
@@ -419,7 +428,7 @@ class MainWindow(QMainWindow):
         QMessageBox.information(
             self,
             "Zakończono",
-            f"Przywrócono snapshoty dla {count} urządzeń (jeśli były dostępne)."
+            f"Przywrócono snapshoty dla {count} urządzeń (jeśli były dostępne).",
         )
         self.detail_box.append_console(f"[RESET ALL] Przywrócono {count} urządzeń.")
 

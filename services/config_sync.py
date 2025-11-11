@@ -4,8 +4,10 @@ from devices.Device import Device
 from services.parsed_config import ParsedConfig
 from services.parsers import cisco_ios
 
+
 class SyncableTab(Protocol):
     def sync_from_config(self, conf: ParsedConfig) -> None: ...
+
 
 class ConfigSyncService:
     def __init__(self, connection_manager):

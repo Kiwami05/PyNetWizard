@@ -208,7 +208,6 @@ class RoutingTab(QWidget):
                 self.static_table.setItem(r, c, QTableWidgetItem(val))
         self.console.setPlainText(data.get("console", ""))
 
-
     def sync_from_config(self, conf: ParsedConfig):
         # STATIC
         self.static_table.setRowCount(0)
@@ -222,10 +221,14 @@ class RoutingTab(QWidget):
         # RIP
         # (minimalnie — pokażemy w logu)
         if conf.routing.rip_networks:
-            self._append_console("[SYNC] RIP networks: " + ", ".join(conf.routing.rip_networks))
+            self._append_console(
+                "[SYNC] RIP networks: " + ", ".join(conf.routing.rip_networks)
+            )
 
         # OSPF
         for o in conf.routing.ospf:
-            self._append_console(f"[SYNC] OSPF {o['process']} net {o['network']} {o['wildcard']} area {o['area']}")
+            self._append_console(
+                f"[SYNC] OSPF {o['process']} net {o['network']} {o['wildcard']} area {o['area']}"
+            )
 
         self.console.appendPlainText("[SYNC] Routing updated from running-config.")

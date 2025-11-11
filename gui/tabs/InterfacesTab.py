@@ -193,16 +193,15 @@ class InterfacesTab(QWidget):
                 self.table.setItem(r, c, QTableWidgetItem(val))
         self.console.setPlainText(data.get("console", ""))
 
-
     def sync_from_config(self, conf: ParsedConfig):
         self.table.setRowCount(0)
         for name, data in conf.interfaces.items.items():
             r = self.table.rowCount()
             self.table.insertRow(r)
             self.table.setItem(r, 0, QTableWidgetItem(name))
-            self.table.setItem(r, 1, QTableWidgetItem(data.get("description","")))
-            self.table.setItem(r, 2, QTableWidgetItem(data.get("ip","")))
-            self.table.setItem(r, 3, QTableWidgetItem(data.get("mask","")))
-            self.table.setItem(r, 4, QTableWidgetItem(data.get("mode","")))
-            self.table.setItem(r, 5, QTableWidgetItem(data.get("status","up")))
+            self.table.setItem(r, 1, QTableWidgetItem(data.get("description", "")))
+            self.table.setItem(r, 2, QTableWidgetItem(data.get("ip", "")))
+            self.table.setItem(r, 3, QTableWidgetItem(data.get("mask", "")))
+            self.table.setItem(r, 4, QTableWidgetItem(data.get("mode", "")))
+            self.table.setItem(r, 5, QTableWidgetItem(data.get("status", "up")))
         self.console.appendPlainText("[SYNC] Interfaces updated from running-config.")

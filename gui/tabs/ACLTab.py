@@ -182,7 +182,6 @@ class ACLTab(QWidget):
                 self.table.setItem(r, c, QTableWidgetItem(val))
         self.console.setPlainText(data.get("console", ""))
 
-
     def sync_from_config(self, conf: ParsedConfig):
         self.table.setRowCount(0)
         for r in conf.acls.rules:
@@ -191,6 +190,6 @@ class ACLTab(QWidget):
             self.table.setItem(row, 0, QTableWidgetItem(r["action"]))
             self.table.setItem(row, 1, QTableWidgetItem(r["protocol"]))
             self.table.setItem(row, 2, QTableWidgetItem(r["src"]))
-            self.table.setItem(row, 3, QTableWidgetItem(r.get("wildcard","")))
-            self.table.setItem(row, 4, QTableWidgetItem(r.get("dest","any")))
+            self.table.setItem(row, 3, QTableWidgetItem(r.get("wildcard", "")))
+            self.table.setItem(row, 4, QTableWidgetItem(r.get("dest", "any")))
         self.console.appendPlainText("[SYNC] ACLs updated from running-config.")
