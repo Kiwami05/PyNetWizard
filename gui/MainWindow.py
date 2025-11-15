@@ -322,7 +322,9 @@ class MainWindow(QMainWindow):
         # musimy mieć snapshot, bo GlobalTab delta porównuje z conf
         buf = self.detail_box.buffers.get(dev.host)
         if not buf or not buf.config:
-            QMessageBox.information(self, "Brak snapshotu", "Najpierw wykonaj Sync dla tego urządzenia.")
+            QMessageBox.information(
+                self, "Brak snapshotu", "Najpierw wykonaj Sync dla tego urządzenia."
+            )
             return
 
         try:
@@ -343,11 +345,15 @@ class MainWindow(QMainWindow):
 
             # 3) Po sukcesie wyczyść pendingi w aktywnych tabach
             self.detail_box.clear_pending_commands_current()
-            self.detail_box.append_console(f"[APPLY] Wysłano {len(cmds)} komend do {dev.host}")
+            self.detail_box.append_console(
+                f"[APPLY] Wysłano {len(cmds)} komend do {dev.host}"
+            )
 
             # 4) (Mocno zalecane) Odśwież snapshot i UI – jedna prawda
             self.sync_current_device()
-            QMessageBox.information(self, "Zatwierdzono", f"Konfiguracja zapisana na {dev.host}.")
+            QMessageBox.information(
+                self, "Zatwierdzono", f"Konfiguracja zapisana na {dev.host}."
+            )
         except Exception as e:
             QMessageBox.critical(self, "Błąd", str(e))
 
@@ -400,7 +406,9 @@ class MainWindow(QMainWindow):
                 errors.append(f"{dev.host}: {e}")
 
         if applied == 0 and not errors:
-            QMessageBox.information(self, "Brak zmian", "Nie znaleziono zmian do wysłania.")
+            QMessageBox.information(
+                self, "Brak zmian", "Nie znaleziono zmian do wysłania."
+            )
             return
 
         msg = f"Zastosowano zmiany na {applied} urządzeniach."

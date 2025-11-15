@@ -245,7 +245,11 @@ class DeviceDetailWidget(QWidget):
         tabs_data = buf.tabs or {}
         # Zapisane pendingi z tabów
         for name, data in tabs_data.items():
-            if isinstance(data, dict) and "pending_cmds" in data and isinstance(data["pending_cmds"], list):
+            if (
+                isinstance(data, dict)
+                and "pending_cmds" in data
+                and isinstance(data["pending_cmds"], list)
+            ):
                 cmds.extend([c for c in data["pending_cmds"] if isinstance(c, str)])
         # GlobalTab delta hostname – potrzebuje conf snapshotu + zapisanej wartości hostname z bufora tabów
         conf = buf.config

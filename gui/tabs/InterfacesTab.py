@@ -7,90 +7,129 @@ from PySide6.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QHeaderView,
-    QLineEdit,
-    QFormLayout,
-    QGroupBox,
     QPlainTextEdit,
-    QMessageBox,
+    QLineEdit,
+    QCheckBox,
+    QComboBox,
+    QSpinBox,
 )
+from PySide6.QtCore import Qt
 
+import ipaddress
 from services.parsed_config import ParsedConfig
+
+
+# ================================================================
+#                    WALIDACJE + KONWERSJE MASK
+# ================================================================
+
+
+def is_valid_ip(addr: str) -> bool:
+    try:
+        ipaddress.ip_address(addr)
+        return True
+    except Exception:
+        return False
+
+
+def set_error_style(widget, message: str):
+    widget.setToolTip(message)
+    widget.setStyleSheet("border: 1px solid red;")
+
+
+def clear_error_style(widget):
+    widget.setToolTip("")
+    widget.setStyleSheet("")
+
+
+def cidr_to_mask(cidr: int) -> str:
+    cidr = max(0, min(32, int(cidr)))
+    bits = "1" * cidr + "0" * (32 - cidr)
+    return ".".join(str(int(bits[i : i + 8], 2)) for i in range(0, 32, 8))
+
+
+def mask_to_cidr(mask: str) -> int:
+    try:
+        parts = [int(p) for p in mask.split(".")]
+        if len(parts) != 4 or any(p < 0 or p > 255 for p in parts):
+            return 0
+        bits = "".join(f"{p:08b}" for p in parts)
+        if "01" in bits:  # maski muszą mieć blok 1...10...0
+            return 0
+        return bits.count("1")
+    except Exception:
+        return 0
+
+
+# ================================================================
+#                         KLASA TABA
+# ================================================================
 
 
 class InterfacesTab(QWidget):
     """
-    Dummy zakładka INTERFACES — styl Packet Tracera.
-    Zawiera tabelę interfejsów, podstawowe pola IP i tryb portu.
+    Packet Tracer-style:
+    - tabela jest jedynym miejscem edycji,
+    - każdy element to widget,
+    - zmiany natychmiast generują pending commands,
+    - maska jako CIDR, ale wysyłana do IOS w formacie kropkowym.
     """
+
+    COL_NAME = 0
+    COL_DESC = 1
+    COL_IP = 2
+    COL_MASK = 3
+    COL_MODE = 4
+    COL_STATUS = 5
 
     def __init__(self, parent=None):
         super().__init__(parent)
+
+        self.pending_cmds: list[str] = []
+        self._loading: bool = False  # blokuje eventy podczas sync/import
+
+        # ============================================================
+        #                           UI
+        # ============================================================
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(20, 15, 20, 15)
         main_layout.setSpacing(10)
 
-        # === Nagłówek ===
         main_layout.addWidget(QLabel("<h2>Interface Configuration</h2>"))
 
-        # === Górny formularz: dodanie interfejsu ===
-        add_box = QGroupBox("Add / Edit Interface")
-        form = QFormLayout(add_box)
-        self.intf_name = QLineEdit()
-        self.intf_desc = QLineEdit()
-        self.intf_ip = QLineEdit()
-        self.intf_mask = QLineEdit()
-        self.intf_mode = QLineEdit()
-        self.intf_name.setPlaceholderText("e.g. GigabitEthernet0/0")
-        self.intf_ip.setPlaceholderText("e.g. 192.168.1.1")
-        self.intf_mask.setPlaceholderText("e.g. 255.255.255.0")
-        self.intf_mode.setPlaceholderText("access / trunk / routed")
-        form.addRow("Name:", self.intf_name)
-        form.addRow("Description:", self.intf_desc)
-        form.addRow("IP Address:", self.intf_ip)
-        form.addRow("Subnet Mask:", self.intf_mask)
-        form.addRow("Mode:", self.intf_mode)
-
-        btn_row = QHBoxLayout()
-        btn_add = QPushButton("Add / Update")
-        btn_clear = QPushButton("Clear")
-        btn_add.clicked.connect(self._dummy_add_intf)
-        btn_clear.clicked.connect(self._clear_fields)
-        btn_row.addWidget(btn_add)
-        btn_row.addWidget(btn_clear)
-        form.addRow(btn_row)
-        main_layout.addWidget(add_box)
-
-        # === Tabela interfejsów ===
+        # --- Tabela interfejsów ---
         self.table = QTableWidget(0, 6)
         self.table.setHorizontalHeaderLabels(
-            ["Name", "Description", "IP Address", "Mask", "Mode", "Status"]
+            ["Name", "Description", "IP Address", "Mask (/CIDR)", "Mode", "Status"]
         )
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        self.table.cellClicked.connect(self._fill_form_from_table)
+
         main_layout.addWidget(self.table, 4)
 
-        # === Przyciski operacyjne ===
-        btns_box = QHBoxLayout()
+        # --- Przyciski operacyjne ---
+        btns = QHBoxLayout()
         self.btn_enable = QPushButton("Enable")
         self.btn_disable = QPushButton("Disable")
         self.btn_trunk = QPushButton("Set Trunk")
         self.btn_access = QPushButton("Set Access")
 
-        for b in (self.btn_enable, self.btn_disable, self.btn_trunk, self.btn_access):
-            btns_box.addWidget(b)
-        btns_box.addStretch()
-        main_layout.addLayout(btns_box)
-
-        # Dummy connections
-        self.btn_enable.clicked.connect(lambda: self._dummy_cmd("no shutdown"))
-        self.btn_disable.clicked.connect(lambda: self._dummy_cmd("shutdown"))
-        self.btn_trunk.clicked.connect(lambda: self._dummy_cmd("switchport mode trunk"))
+        self.btn_enable.clicked.connect(lambda: self._cmd_on_selected("no shutdown"))
+        self.btn_disable.clicked.connect(lambda: self._cmd_on_selected("shutdown"))
+        self.btn_trunk.clicked.connect(
+            lambda: self._cmd_on_selected("switchport mode trunk")
+        )
         self.btn_access.clicked.connect(
-            lambda: self._dummy_cmd("switchport mode access")
+            lambda: self._cmd_on_selected("switchport mode access")
         )
 
-        # === Dolna konsola logów ===
+        for b in (self.btn_enable, self.btn_disable, self.btn_trunk, self.btn_access):
+            btns.addWidget(b)
+        btns.addStretch()
+
+        main_layout.addLayout(btns)
+
+        # --- Dolna konsola ---
         self.console = QPlainTextEdit()
         self.console.setReadOnly(True)
         self.console.setPlaceholderText("Interface commands preview...")
@@ -104,104 +143,300 @@ class InterfacesTab(QWidget):
         """)
         main_layout.addWidget(self.console, 2)
 
-    # === Dummy actions ===
-    def _dummy_add_intf(self):
-        name = self.intf_name.text().strip()
-        desc = self.intf_desc.text().strip()
-        ip = self.intf_ip.text().strip()
-        mask = self.intf_mask.text().strip()
-        mode = self.intf_mode.text().strip()
-        if not name:
-            QMessageBox.warning(self, "Błąd", "Pole 'Name' jest wymagane.")
+    # ================================================================
+    #                       TWORZENIE WIERSZA
+    # ================================================================
+
+    def _create_interface_row(self, name, desc, ip, cidr_str, mode, status):
+        row = self.table.rowCount()
+        self.table.insertRow(row)
+
+        # ==== NAME ====
+        item_name = QTableWidgetItem(name)
+        item_name.setFlags(item_name.flags() & ~Qt.ItemIsEditable)
+        self.table.setItem(row, self.COL_NAME, item_name)
+
+        # ==== DESC ====
+        edit_desc = QLineEdit(desc)
+        edit_desc.setToolTip("Opis interfejsu (opcjonalny).")
+        edit_desc.setProperty("iface", name)
+        edit_desc.editingFinished.connect(self._on_desc_changed)
+        self.table.setCellWidget(row, self.COL_DESC, edit_desc)
+
+        # ==== IP ====
+        edit_ip = QLineEdit(ip)
+        edit_ip.setToolTip("Adres IPv4 (np. 192.168.1.1).")
+        edit_ip.setProperty("iface", name)
+        edit_ip.editingFinished.connect(self._on_ip_changed)
+        self.table.setCellWidget(row, self.COL_IP, edit_ip)
+
+        # ==== MASK (CIDR) ====
+        spin_mask = QSpinBox()
+        spin_mask.setRange(0, 32)
+        spin_mask.setValue(int(cidr_str))
+        spin_mask.setToolTip(
+            "Maska w formacie CIDR (0–32). Do IOS trafia maska kropkowa."
+        )
+        spin_mask.setProperty("iface", name)
+        spin_mask.valueChanged.connect(self._on_mask_changed)
+        self.table.setCellWidget(row, self.COL_MASK, spin_mask)
+
+        # ==== MODE ====
+        combo_mode = QComboBox()
+        combo_mode.addItems(["access", "trunk", "routed"])
+        combo_mode.setToolTip("Typ portu: access / trunk / routed.")
+        if mode in ("access", "trunk", "routed"):
+            combo_mode.setCurrentText(mode)
+        combo_mode.setProperty("iface", name)
+        combo_mode.currentTextChanged.connect(self._on_mode_changed)
+        self.table.setCellWidget(row, self.COL_MODE, combo_mode)
+
+        # ==== STATUS ====
+        chk_status = QCheckBox("up")
+        chk_status.setToolTip("Stan interfejsu: zaznaczone = up, odznaczone = down.")
+        chk_status.setChecked(status.lower() != "down")
+        chk_status.setProperty("iface", name)
+        chk_status.toggled.connect(self._on_status_changed)
+        self.table.setCellWidget(row, self.COL_STATUS, chk_status)
+
+    def _find_row(self, iface):
+        for r in range(self.table.rowCount()):
+            item = self.table.item(r, self.COL_NAME)
+            if item and item.text() == iface:
+                return r
+        return -1
+
+    # ================================================================
+    #                   HANDLERY ZMIAN (AUTO-COMMANDS)
+    # ================================================================
+
+    def _on_desc_changed(self):
+        if self._loading:
             return
 
-        # jeśli istnieje, aktualizuj
-        row = self._find_interface_row(name)
-        if row is None:
-            row = self.table.rowCount()
-            self.table.insertRow(row)
-        self.table.setItem(row, 0, QTableWidgetItem(name))
-        self.table.setItem(row, 1, QTableWidgetItem(desc))
-        self.table.setItem(row, 2, QTableWidgetItem(ip))
-        self.table.setItem(row, 3, QTableWidgetItem(mask))
-        self.table.setItem(row, 4, QTableWidgetItem(mode))
-        self.table.setItem(row, 5, QTableWidgetItem("up"))
+        w = self.sender()
+        iface = w.property("iface")
+        desc = w.text().strip()
 
-        # symulacja komend
-        self._append_console(f"interface {name}")
-        if desc:
-            self._append_console(f" description {desc}")
-        if ip and mask:
-            self._append_console(f" ip address {ip} {mask}")
-        if mode:
-            if mode.lower() in ["access", "trunk"]:
-                self._append_console(f" switchport mode {mode.lower()}")
-            elif mode.lower() == "routed":
-                self._append_console(" no switchport")
-        self._append_console(" no shutdown\n")
+        cmds = [f"interface {iface}"]
+        cmds.append(f" description {desc}" if desc else " no description")
+        cmds.append(" exit")
 
-        self._clear_fields()
+        self._enqueue(cmds)
 
-    def _clear_fields(self):
-        for w in [
-            self.intf_name,
-            self.intf_desc,
-            self.intf_ip,
-            self.intf_mask,
-            self.intf_mode,
-        ]:
-            w.clear()
+    def _on_ip_changed(self):
+        if self._loading:
+            return
 
-    def _fill_form_from_table(self, row, _col):
-        """Kliknięcie w tabeli – wypełnia formularz."""
-        self.intf_name.setText(self.table.item(row, 0).text())
-        self.intf_desc.setText(self.table.item(row, 1).text())
-        self.intf_ip.setText(self.table.item(row, 2).text())
-        self.intf_mask.setText(self.table.item(row, 3).text())
-        self.intf_mode.setText(self.table.item(row, 4).text())
+        w = self.sender()
+        iface = w.property("iface")
 
-    def _find_interface_row(self, name):
-        for row in range(self.table.rowCount()):
-            if self.table.item(row, 0) and self.table.item(row, 0).text() == name:
-                return row
-        return None
+        ip = w.text().strip()
 
-    def _dummy_cmd(self, cmd):
-        """Symuluje wpisanie komendy."""
-        self._append_console(cmd)
+        if ip and not is_valid_ip(ip):
+            set_error_style(w, "Niepoprawny adres IPv4!")
+            return
+        else:
+            clear_error_style(w)
 
-    def _append_console(self, text):
-        self.console.appendPlainText(text.strip())
+        self._update_ip_mask(iface)
+
+    def _on_mask_changed(self, _val):
+        if self._loading:
+            return
+        w = self.sender()
+        iface = w.property("iface")
+        self._update_ip_mask(iface)
+
+    def _update_ip_mask(self, iface: str):
+        row = self._find_row(iface)
+        if row == -1:
+            return
+
+        ip_w = self.table.cellWidget(row, self.COL_IP)
+        mask_w = self.table.cellWidget(row, self.COL_MASK)
+
+        if not isinstance(ip_w, QLineEdit) or not isinstance(mask_w, QSpinBox):
+            return
+
+        ip = ip_w.text().strip()
+        cidr = mask_w.value()
+
+        cmds = [f"interface {iface}"]
+
+        if not ip or cidr == 0:
+            cmds.append(" no ip address")
+        else:
+            mask = cidr_to_mask(cidr)
+            cmds.append(f" ip address {ip} {mask}")
+
+        cmds.append(" exit")
+        self._enqueue(cmds)
+
+    def _on_mode_changed(self, mode: str):
+        if self._loading:
+            return
+
+        w = self.sender()
+        iface = w.property("iface")
+        mode = mode.lower()
+
+        cmds = [f"interface {iface}"]
+
+        if mode == "access":
+            cmds.append(" switchport mode access")
+        elif mode == "trunk":
+            cmds.append(" switchport mode trunk")
+        elif mode == "routed":
+            cmds.append(" no switchport")
+        else:
+            return
+
+        cmds.append(" exit")
+        self._enqueue(cmds)
+
+    def _on_status_changed(self, is_up: bool):
+        if self._loading:
+            return
+
+        w = self.sender()
+        iface = w.property("iface")
+
+        cmds = [f"interface {iface}"]
+        cmds.append(" no shutdown" if is_up else " shutdown")
+        cmds.append(" exit")
+
+        self._enqueue(cmds)
+
+    # ================================================================
+    #                   PRZYCISKI Enable/Trunk/etc
+    # ================================================================
+
+    def _cmd_on_selected(self, cmd: str):
+        row = self.table.currentRow()
+        if row == -1:
+            self.console.appendPlainText(
+                f"[WARN] Brak zaznaczonego interfejsu ({cmd})."
+            )
+            return
+
+        iface = self.table.item(row, self.COL_NAME).text()
+        self._enqueue([f"interface {iface}", cmd, "exit"])
+
+    # ================================================================
+    #                        BUFORY / PENDING CMDS
+    # ================================================================
+
+    def _enqueue(self, cmds: list[str]):
+        for c in cmds:
+            self.console.appendPlainText(c)
+        self.pending_cmds.extend(cmds)
+
+    def get_pending_commands(self, clear=False) -> list[str]:
+        cmds = list(self.pending_cmds)
+        if clear:
+            self.pending_cmds.clear()
+        return cmds
+
+    def clear_pending_commands(self):
+        self.pending_cmds.clear()
+
+    # ================================================================
+    #                        EXPORT / IMPORT
+    # ================================================================
 
     def export_state(self):
         rows = []
         for r in range(self.table.rowCount()):
-            rows.append(
-                [
-                    self.table.item(r, c).text() if self.table.item(r, c) else ""
-                    for c in range(self.table.columnCount())
-                ]
-            )
-        return {"rows": rows, "console": self.console.toPlainText()}
+            name = self.table.item(r, self.COL_NAME).text()
 
-    def import_state(self, data):
-        self.table.setRowCount(0)
-        for row in data.get("rows", []):
-            r = self.table.rowCount()
-            self.table.insertRow(r)
-            for c, val in enumerate(row):
-                self.table.setItem(r, c, QTableWidgetItem(val))
-        self.console.setPlainText(data.get("console", ""))
+            desc = self.table.cellWidget(r, self.COL_DESC).text()
+            ip = self.table.cellWidget(r, self.COL_IP).text()
+            cidr = self.table.cellWidget(r, self.COL_MASK).value()
+            mode = self.table.cellWidget(r, self.COL_MODE).currentText()
+            status = (
+                "up"
+                if self.table.cellWidget(r, self.COL_STATUS).isChecked()
+                else "down"
+            )
+
+            rows.append([name, desc, ip, str(cidr), mode, status])
+
+        return {
+            "rows": rows,
+            "console": self.console.toPlainText(),
+            "pending_cmds": list(self.pending_cmds),
+        }
+
+    def import_state(self, data: dict):
+        self._loading = True
+        try:
+            self.table.setRowCount(0)
+            for row in data.get("rows", []):
+                name, desc, ip, cidr, mode, status = row
+                self._create_interface_row(name, desc, ip, cidr, mode, status)
+
+            self.console.setPlainText(data.get("console", ""))
+            self.pending_cmds = list(data.get("pending_cmds", []))
+        finally:
+            self._loading = False
+
+    # ================================================================
+    #                      SYNC Z PARSED CONFIG
+    # ================================================================
 
     def sync_from_config(self, conf: ParsedConfig):
-        self.table.setRowCount(0)
-        for name, data in conf.interfaces.items.items():
-            r = self.table.rowCount()
-            self.table.insertRow(r)
-            self.table.setItem(r, 0, QTableWidgetItem(name))
-            self.table.setItem(r, 1, QTableWidgetItem(data.get("description", "")))
-            self.table.setItem(r, 2, QTableWidgetItem(data.get("ip", "")))
-            self.table.setItem(r, 3, QTableWidgetItem(data.get("mask", "")))
-            self.table.setItem(r, 4, QTableWidgetItem(data.get("mode", "")))
-            self.table.setItem(r, 5, QTableWidgetItem(data.get("status", "up")))
-        self.console.appendPlainText("[SYNC] Interfaces updated from running-config.")
+        self._loading = True
+        try:
+            self.table.setRowCount(0)
+
+            for name, data in conf.interfaces.items.items():
+                desc = data.get("description", "")
+                ip = data.get("ip", "")
+                mask = data.get("mask", "")
+                cidr = mask_to_cidr(mask) if mask else 0
+                mode = (data.get("mode", "") or "").lower()
+                status = data.get("status", "")
+
+                self._create_interface_row(
+                    name=name,
+                    desc=desc,
+                    ip=ip,
+                    cidr_str=str(cidr),
+                    mode=mode,
+                    status=status,
+                )
+
+            self.pending_cmds.clear()
+            self.console.appendPlainText(
+                "[SYNC] Interfaces updated from running-config."
+            )
+        finally:
+            self._loading = False
+
+    # ================================================================
+    #        KOMPATYBILNOŚĆ: JEŚLI COŚ JESZCZE WOŁA add_interface...
+    # ================================================================
+
+    def add_interface_to_table(self, name, desc, ip, mask, mode):
+        try:
+            if "." in str(mask):
+                cidr = mask_to_cidr(mask)
+            else:
+                cidr = int(mask)
+        except Exception:
+            cidr = 0
+
+        row = self._find_row(name)
+        if row == -1:
+            self._create_interface_row(name, desc, ip, str(cidr), mode, "up")
+            return
+
+        self._loading = True
+        try:
+            self.table.cellWidget(row, self.COL_DESC).setText(desc)
+            self.table.cellWidget(row, self.COL_IP).setText(ip)
+            self.table.cellWidget(row, self.COL_MASK).setValue(cidr)
+            self.table.cellWidget(row, self.COL_MODE).setCurrentText(mode)
+        finally:
+            self._loading = False
