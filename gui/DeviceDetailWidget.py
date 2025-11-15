@@ -212,3 +212,53 @@ class DeviceDetailWidget(QWidget):
             return
         self.append_console("[RESET] Przywracanie konfiguracji z ostatniego synca...")
         self.sync_tabs_from_config(buf.config)
+
+    def collect_pending_commands_current(self, conf: ParsedConfig) -> list[str]:
+        """Zbiera pending z aktualnie widocznych tabów; zapisuje stan do bufora."""
+        if not self.current_device:
+            return []
+        # najpierw zapisz stan tabów do bufora (żeby pending_cmds trafiły do buffer.tabs)
+        self.save_tab_state(self.current_device)
+
+        cmds: list[str] = []
+        for idx in range(self.stack.count()):
+            w = self.stack.widget(idx)
+            if hasattr(w, "get_pending_commands"):
+                cmds.extend(w.get_pending_commands(clear=False))  # na razie nie czyść
+        # GlobalTab — delta hostname
+        g = self.pages.get("GLOBAL")
+        if g and hasattr(g, "build_pending_from_form"):
+            cmds.extend(g.build_pending_from_form(conf))
+        return cmds
+
+    def clear_pending_commands_current(self):
+        for idx in range(self.stack.count()):
+            w = self.stack.widget(idx)
+            if hasattr(w, "clear_pending_commands"):
+                w.clear_pending_commands()
+
+    def collect_pending_commands_from_buffer(self, host: str) -> list[str]:
+        buf = self.buffers.get(host)
+        if not buf:
+            return []
+        cmds: list[str] = []
+        tabs_data = buf.tabs or {}
+        # Zapisane pendingi z tabów
+        for name, data in tabs_data.items():
+            if isinstance(data, dict) and "pending_cmds" in data and isinstance(data["pending_cmds"], list):
+                cmds.extend([c for c in data["pending_cmds"] if isinstance(c, str)])
+        # GlobalTab delta hostname – potrzebuje conf snapshotu + zapisanej wartości hostname z bufora tabów
+        conf = buf.config
+        global_data = tabs_data.get("GLOBAL", {})
+        ui_host = (global_data.get("hostname", "") or "").strip()
+        if conf and ui_host and ui_host != (conf.hostname or ""):
+            cmds.append(f"hostname {ui_host}")
+        return [c.strip() for c in cmds if isinstance(c, str) and c.strip()]
+
+    def clear_pending_commands_in_buffer(self, host: str):
+        buf = self.buffers.get(host)
+        if not buf:
+            return
+        for name, data in (buf.tabs or {}).items():
+            if isinstance(data, dict) and "pending_cmds" in data:
+                data["pending_cmds"] = []

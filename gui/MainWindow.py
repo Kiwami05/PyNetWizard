@@ -319,28 +319,94 @@ class MainWindow(QMainWindow):
             return
 
         dev = self.current_device
+        # musimy mieć snapshot, bo GlobalTab delta porównuje z conf
+        buf = self.detail_box.buffers.get(dev.host)
+        if not buf or not buf.config:
+            QMessageBox.information(self, "Brak snapshotu", "Najpierw wykonaj Sync dla tego urządzenia.")
+            return
+
         try:
             if not self.connection_manager.connect(dev):
                 raise ConnectionError("Nie udało się nawiązać połączenia.")
-            output = self.connection_manager.send_config(dev, ["end", "write memory"])
+
+            # 1) Zbierz pending z aktualnych tabów
+            cmds = self.detail_box.collect_pending_commands_current(buf.config)
+            cmds = [c.strip() for c in cmds if c.strip()]
+
+            if not cmds:
+                QMessageBox.information(self, "Brak zmian", "Nie ma nic do wysłania.")
+                return
+
+            # 2) Wyślij
+            output = self.connection_manager.send_config(dev, cmds)
             self.detail_box.append_console(output)
-            QMessageBox.information(
-                self, "Zatwierdzono", f"Konfiguracja zapisana na {dev.host}."
-            )
+
+            # 3) Po sukcesie wyczyść pendingi w aktywnych tabach
+            self.detail_box.clear_pending_commands_current()
+            self.detail_box.append_console(f"[APPLY] Wysłano {len(cmds)} komend do {dev.host}")
+
+            # 4) (Mocno zalecane) Odśwież snapshot i UI – jedna prawda
+            self.sync_current_device()
+            QMessageBox.information(self, "Zatwierdzono", f"Konfiguracja zapisana na {dev.host}.")
         except Exception as e:
             QMessageBox.critical(self, "Błąd", str(e))
 
     def apply_all_devices(self):
-        """Zatwierdza konfigurację dla wszystkich urządzeń (mock)."""
         if not self.device_list.devices:
             QMessageBox.information(self, "Brak urządzeń", "Lista urządzeń jest pusta.")
             return
-        hosts = [d.host for d in self.device_list.devices]
-        QMessageBox.information(
-            self, "Zatwierdzono", "Zatwierdzono konfigurację dla wszystkich urządzeń."
-        )
-        for h in hosts:
-            self.detail_box.append_console(f"[MOCK] Applied configuration for {h}")
+
+        applied = 0
+        errors = []
+
+        # Upewnij się, że bieżący stan GUI jest w buforze
+        if self.current_device:
+            self.detail_box.save_tab_state(self.current_device)
+
+        for dev in self.device_list.devices:
+            buf = self.detail_box.buffers.get(dev.host)
+            if not buf or not buf.config:
+                # brak snapshotu → pomiń, albo (opcjonalnie) zrób sync automatycznie
+                continue
+
+            try:
+                cmds = self.detail_box.collect_pending_commands_from_buffer(dev.host)
+                if not cmds:
+                    continue
+
+                if not self.connection_manager.connect(dev):
+                    raise ConnectionError("Nie udało się nawiązać połączenia.")
+
+                output = self.connection_manager.send_config(dev, cmds)
+                self.detail_box.append_console(f"[APPLY ALL:{dev.host}] {output}")
+
+                self.detail_box.clear_pending_commands_in_buffer(dev.host)
+                applied += 1
+
+                # (Opcjonalnie) szybki resync każdego urządzenia:
+                # Tu można pominąć dla wydajności, a zrobić zbiorczy komunikat,
+                # ale najczyściej: po apply — sync, żeby snapshot pasował.
+                if dev == self.current_device:
+                    self.sync_current_device()  # pokaże od razu aktualizację
+                else:
+                    # light-weight: pobierz i zaktualizuj tylko snapshot, bez przełączania UI
+                    try:
+                        conf = self.config_sync.fetch_and_parse(dev)
+                        buf.config = conf
+                    except Exception:
+                        pass
+
+            except Exception as e:
+                errors.append(f"{dev.host}: {e}")
+
+        if applied == 0 and not errors:
+            QMessageBox.information(self, "Brak zmian", "Nie znaleziono zmian do wysłania.")
+            return
+
+        msg = f"Zastosowano zmiany na {applied} urządzeniach."
+        if errors:
+            msg += "\nBłędy:\n- " + "\n- ".join(errors)
+        QMessageBox.information(self, "Zakończono", msg)
 
     def sync_current_device(self):
         if not self.current_device:
