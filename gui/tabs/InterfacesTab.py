@@ -10,7 +10,6 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QLineEdit,
     QCheckBox,
-    QComboBox,
     QSpinBox,
 )
 from PySide6.QtCore import Qt
@@ -22,7 +21,6 @@ from services.parsed_config import ParsedConfig
 # ================================================================
 #                    WALIDACJE + KONWERSJE MASK
 # ================================================================
-
 
 def is_valid_ip(addr: str) -> bool:
     try:
@@ -45,7 +43,7 @@ def clear_error_style(widget):
 def cidr_to_mask(cidr: int) -> str:
     cidr = max(0, min(32, int(cidr)))
     bits = "1" * cidr + "0" * (32 - cidr)
-    return ".".join(str(int(bits[i : i + 8], 2)) for i in range(0, 32, 8))
+    return ".".join(str(int(bits[i:i + 8], 2)) for i in range(0, 32, 8))
 
 
 def mask_to_cidr(mask: str) -> int:
@@ -65,22 +63,19 @@ def mask_to_cidr(mask: str) -> int:
 #                         KLASA TABA
 # ================================================================
 
-
 class InterfacesTab(QWidget):
     """
-    Packet Tracer-style:
+    Bazowy tab interfejsów (bez trybu portu).
     - tabela jest jedynym miejscem edycji,
-    - każdy element to widget,
-    - zmiany natychmiast generują pending commands,
-    - maska jako CIDR, ale wysyłana do IOS w formacie kropkowym.
+    - zmiany generują pending commands,
+    - maska jako CIDR, ale do IOS leci w formacie kropkowym.
     """
 
     COL_NAME = 0
     COL_DESC = 1
     COL_IP = 2
     COL_MASK = 3
-    COL_MODE = 4
-    COL_STATUS = 5
+    COL_STATUS = 4
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -99,31 +94,27 @@ class InterfacesTab(QWidget):
         main_layout.addWidget(QLabel("<h2>Interface Configuration</h2>"))
 
         # --- Tabela interfejsów ---
-        self.table = QTableWidget(0, 6)
+        self.table = QTableWidget(0, 5)
         self.table.setHorizontalHeaderLabels(
-            ["Name", "Description", "IP Address", "Mask (/CIDR)", "Mode", "Status"]
+            ["Name", "Description", "IP Address", "Mask (/CIDR)", "Status"]
         )
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
         main_layout.addWidget(self.table, 4)
 
-        # --- Przyciski operacyjne ---
+        # --- Przyciski operacyjne (Enable/Disable) ---
         btns = QHBoxLayout()
         self.btn_enable = QPushButton("Enable")
         self.btn_disable = QPushButton("Disable")
-        self.btn_trunk = QPushButton("Set Trunk")
-        self.btn_access = QPushButton("Set Access")
 
-        self.btn_enable.clicked.connect(lambda: self._cmd_on_selected("no shutdown"))
-        self.btn_disable.clicked.connect(lambda: self._cmd_on_selected("shutdown"))
-        self.btn_trunk.clicked.connect(
-            lambda: self._cmd_on_selected("switchport mode trunk")
+        self.btn_enable.clicked.connect(
+            lambda: self._cmd_on_selected("no shutdown")
         )
-        self.btn_access.clicked.connect(
-            lambda: self._cmd_on_selected("switchport mode access")
+        self.btn_disable.clicked.connect(
+            lambda: self._cmd_on_selected("shutdown")
         )
 
-        for b in (self.btn_enable, self.btn_disable, self.btn_trunk, self.btn_access):
+        for b in (self.btn_enable, self.btn_disable):
             btns.addWidget(b)
         btns.addStretch()
 
@@ -147,7 +138,7 @@ class InterfacesTab(QWidget):
     #                       TWORZENIE WIERSZA
     # ================================================================
 
-    def _create_interface_row(self, name, desc, ip, cidr_str, mode, status):
+    def _create_interface_row(self, name, desc, ip, cidr_str, status):
         row = self.table.rowCount()
         self.table.insertRow(row)
 
@@ -174,26 +165,14 @@ class InterfacesTab(QWidget):
         spin_mask = QSpinBox()
         spin_mask.setRange(0, 32)
         spin_mask.setValue(int(cidr_str))
-        spin_mask.setToolTip(
-            "Maska w formacie CIDR (0–32). Do IOS trafia maska kropkowa."
-        )
+        spin_mask.setToolTip("Maska w formacie CIDR (0–32). Do IOS trafia maska kropkowa.")
         spin_mask.setProperty("iface", name)
         spin_mask.valueChanged.connect(self._on_mask_changed)
         self.table.setCellWidget(row, self.COL_MASK, spin_mask)
 
-        # ==== MODE ====
-        combo_mode = QComboBox()
-        combo_mode.addItems(["access", "trunk", "routed"])
-        combo_mode.setToolTip("Typ portu: access / trunk / routed.")
-        if mode in ("access", "trunk", "routed"):
-            combo_mode.setCurrentText(mode)
-        combo_mode.setProperty("iface", name)
-        combo_mode.currentTextChanged.connect(self._on_mode_changed)
-        self.table.setCellWidget(row, self.COL_MODE, combo_mode)
-
         # ==== STATUS ====
         chk_status = QCheckBox("up")
-        chk_status.setToolTip("Stan interfejsu: zaznaczone = up, odznaczone = down.")
+        chk_status.setToolTip("Stan interfejsu: zaznaczone = up (no shutdown), odznaczone = down (shutdown).")
         chk_status.setChecked(status.lower() != "down")
         chk_status.setProperty("iface", name)
         chk_status.toggled.connect(self._on_status_changed)
@@ -273,28 +252,6 @@ class InterfacesTab(QWidget):
         cmds.append(" exit")
         self._enqueue(cmds)
 
-    def _on_mode_changed(self, mode: str):
-        if self._loading:
-            return
-
-        w = self.sender()
-        iface = w.property("iface")
-        mode = mode.lower()
-
-        cmds = [f"interface {iface}"]
-
-        if mode == "access":
-            cmds.append(" switchport mode access")
-        elif mode == "trunk":
-            cmds.append(" switchport mode trunk")
-        elif mode == "routed":
-            cmds.append(" no switchport")
-        else:
-            return
-
-        cmds.append(" exit")
-        self._enqueue(cmds)
-
     def _on_status_changed(self, is_up: bool):
         if self._loading:
             return
@@ -309,15 +266,13 @@ class InterfacesTab(QWidget):
         self._enqueue(cmds)
 
     # ================================================================
-    #                   PRZYCISKI Enable/Trunk/etc
+    #                   PRZYCISKI Enable/Disable
     # ================================================================
 
     def _cmd_on_selected(self, cmd: str):
         row = self.table.currentRow()
         if row == -1:
-            self.console.appendPlainText(
-                f"[WARN] Brak zaznaczonego interfejsu ({cmd})."
-            )
+            self.console.appendPlainText(f"[WARN] Brak zaznaczonego interfejsu ({cmd}).")
             return
 
         iface = self.table.item(row, self.COL_NAME).text()
@@ -353,14 +308,11 @@ class InterfacesTab(QWidget):
             desc = self.table.cellWidget(r, self.COL_DESC).text()
             ip = self.table.cellWidget(r, self.COL_IP).text()
             cidr = self.table.cellWidget(r, self.COL_MASK).value()
-            mode = self.table.cellWidget(r, self.COL_MODE).currentText()
             status = (
-                "up"
-                if self.table.cellWidget(r, self.COL_STATUS).isChecked()
-                else "down"
+                "up" if self.table.cellWidget(r, self.COL_STATUS).isChecked() else "down"
             )
 
-            rows.append([name, desc, ip, str(cidr), mode, status])
+            rows.append([name, desc, ip, str(cidr), status])
 
         return {
             "rows": rows,
@@ -373,8 +325,8 @@ class InterfacesTab(QWidget):
         try:
             self.table.setRowCount(0)
             for row in data.get("rows", []):
-                name, desc, ip, cidr, mode, status = row
-                self._create_interface_row(name, desc, ip, cidr, mode, status)
+                name, desc, ip, cidr, status = row
+                self._create_interface_row(name, desc, ip, cidr, status)
 
             self.console.setPlainText(data.get("console", ""))
             self.pending_cmds = list(data.get("pending_cmds", []))
@@ -395,7 +347,6 @@ class InterfacesTab(QWidget):
                 ip = data.get("ip", "")
                 mask = data.get("mask", "")
                 cidr = mask_to_cidr(mask) if mask else 0
-                mode = (data.get("mode", "") or "").lower()
                 status = data.get("status", "")
 
                 self._create_interface_row(
@@ -403,14 +354,11 @@ class InterfacesTab(QWidget):
                     desc=desc,
                     ip=ip,
                     cidr_str=str(cidr),
-                    mode=mode,
                     status=status,
                 )
 
             self.pending_cmds.clear()
-            self.console.appendPlainText(
-                "[SYNC] Interfaces updated from running-config."
-            )
+            self.console.appendPlainText("[SYNC] Interfaces updated from running-config.")
         finally:
             self._loading = False
 
@@ -418,18 +366,19 @@ class InterfacesTab(QWidget):
     #        KOMPATYBILNOŚĆ: JEŚLI COŚ JESZCZE WOŁA add_interface...
     # ================================================================
 
-    def add_interface_to_table(self, name, desc, ip, mask, mode):
+    def add_interface_to_table(self, name, desc, ip, mask, mode=None):
+        """Zachowana dla zgodności; 'mode' ignorujemy w bazowym tabie."""
         try:
-            if "." in str(mask):
+            if mask and "." in str(mask):
                 cidr = mask_to_cidr(mask)
             else:
-                cidr = int(mask)
+                cidr = int(mask) if mask not in (None, "") else 0
         except Exception:
             cidr = 0
 
         row = self._find_row(name)
         if row == -1:
-            self._create_interface_row(name, desc, ip, str(cidr), mode, "up")
+            self._create_interface_row(name, desc, ip, str(cidr), "up")
             return
 
         self._loading = True
@@ -437,6 +386,5 @@ class InterfacesTab(QWidget):
             self.table.cellWidget(row, self.COL_DESC).setText(desc)
             self.table.cellWidget(row, self.COL_IP).setText(ip)
             self.table.cellWidget(row, self.COL_MASK).setValue(cidr)
-            self.table.cellWidget(row, self.COL_MODE).setCurrentText(mode)
         finally:
             self._loading = False
