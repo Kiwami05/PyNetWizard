@@ -9,7 +9,7 @@ from PySide6.QtCore import Qt
 
 from gui.tabs.InterfacesTab import InterfacesTab
 from services.parsed_config import ParsedConfig
-from gui.tabs.InterfacesTab import cidr_to_mask, mask_to_cidr  # wykorzystujemy helpery
+from gui.tabs.InterfacesTab import mask_to_cidr  # wykorzystujemy helpery
 
 
 class SwitchInterfacesTab(InterfacesTab):
@@ -48,6 +48,7 @@ class SwitchInterfacesTab(InterfacesTab):
         item_name = self.table.item(row, self.COL_NAME)
         if not item_name:
             from PySide6.QtWidgets import QTableWidgetItem
+
             item_name = QTableWidgetItem(name)
             item_name.setFlags(item_name.flags() & ~Qt.ItemIsEditable)
             self.table.setItem(row, self.COL_NAME, item_name)
@@ -70,7 +71,9 @@ class SwitchInterfacesTab(InterfacesTab):
         spin_mask = QSpinBox()
         spin_mask.setRange(0, 32)
         spin_mask.setValue(int(cidr_str))
-        spin_mask.setToolTip("Maska w formacie CIDR (0–32). Do IOS trafia maska kropkowa.")
+        spin_mask.setToolTip(
+            "Maska w formacie CIDR (0–32). Do IOS trafia maska kropkowa."
+        )
         spin_mask.setProperty("iface", name)
         spin_mask.valueChanged.connect(self._on_mask_changed)
         self.table.setCellWidget(row, self.COL_MASK, spin_mask)
@@ -88,7 +91,9 @@ class SwitchInterfacesTab(InterfacesTab):
 
         # STATUS
         chk_status = QCheckBox("up")
-        chk_status.setToolTip("Stan interfejsu: zaznaczone = up (no shutdown), odznaczone = down (shutdown).")
+        chk_status.setToolTip(
+            "Stan interfejsu: zaznaczone = up (no shutdown), odznaczone = down (shutdown)."
+        )
         chk_status.setChecked(status.lower() != "down")
         chk_status.setProperty("iface", name)
         chk_status.toggled.connect(self._on_status_changed)
@@ -141,7 +146,9 @@ class SwitchInterfacesTab(InterfacesTab):
             cidr = mask_w.value() if isinstance(mask_w, QSpinBox) else 0
             mode = mode_w.currentText() if isinstance(mode_w, QComboBox) else ""
             status = (
-                "up" if isinstance(status_w, QCheckBox) and status_w.isChecked() else "down"
+                "up"
+                if isinstance(status_w, QCheckBox) and status_w.isChecked()
+                else "down"
             )
 
             rows.append([name, desc, ip, str(cidr), mode, status])
@@ -188,7 +195,9 @@ class SwitchInterfacesTab(InterfacesTab):
                 )
 
             self.pending_cmds.clear()
-            self.console.appendPlainText("[SYNC] Switch interfaces updated from running-config.")
+            self.console.appendPlainText(
+                "[SYNC] Switch interfaces updated from running-config."
+            )
         finally:
             self._loading = False
 

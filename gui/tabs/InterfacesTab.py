@@ -22,6 +22,7 @@ from services.parsed_config import ParsedConfig
 #                    WALIDACJE + KONWERSJE MASK
 # ================================================================
 
+
 def is_valid_ip(addr: str) -> bool:
     try:
         ipaddress.ip_address(addr)
@@ -43,7 +44,7 @@ def clear_error_style(widget):
 def cidr_to_mask(cidr: int) -> str:
     cidr = max(0, min(32, int(cidr)))
     bits = "1" * cidr + "0" * (32 - cidr)
-    return ".".join(str(int(bits[i:i + 8], 2)) for i in range(0, 32, 8))
+    return ".".join(str(int(bits[i : i + 8], 2)) for i in range(0, 32, 8))
 
 
 def mask_to_cidr(mask: str) -> int:
@@ -62,6 +63,7 @@ def mask_to_cidr(mask: str) -> int:
 # ================================================================
 #                         KLASA TABA
 # ================================================================
+
 
 class InterfacesTab(QWidget):
     """
@@ -107,12 +109,8 @@ class InterfacesTab(QWidget):
         self.btn_enable = QPushButton("Enable")
         self.btn_disable = QPushButton("Disable")
 
-        self.btn_enable.clicked.connect(
-            lambda: self._cmd_on_selected("no shutdown")
-        )
-        self.btn_disable.clicked.connect(
-            lambda: self._cmd_on_selected("shutdown")
-        )
+        self.btn_enable.clicked.connect(lambda: self._cmd_on_selected("no shutdown"))
+        self.btn_disable.clicked.connect(lambda: self._cmd_on_selected("shutdown"))
 
         for b in (self.btn_enable, self.btn_disable):
             btns.addWidget(b)
@@ -165,14 +163,18 @@ class InterfacesTab(QWidget):
         spin_mask = QSpinBox()
         spin_mask.setRange(0, 32)
         spin_mask.setValue(int(cidr_str))
-        spin_mask.setToolTip("Maska w formacie CIDR (0–32). Do IOS trafia maska kropkowa.")
+        spin_mask.setToolTip(
+            "Maska w formacie CIDR (0–32). Do IOS trafia maska kropkowa."
+        )
         spin_mask.setProperty("iface", name)
         spin_mask.valueChanged.connect(self._on_mask_changed)
         self.table.setCellWidget(row, self.COL_MASK, spin_mask)
 
         # ==== STATUS ====
         chk_status = QCheckBox("up")
-        chk_status.setToolTip("Stan interfejsu: zaznaczone = up (no shutdown), odznaczone = down (shutdown).")
+        chk_status.setToolTip(
+            "Stan interfejsu: zaznaczone = up (no shutdown), odznaczone = down (shutdown)."
+        )
         chk_status.setChecked(status.lower() != "down")
         chk_status.setProperty("iface", name)
         chk_status.toggled.connect(self._on_status_changed)
@@ -272,7 +274,9 @@ class InterfacesTab(QWidget):
     def _cmd_on_selected(self, cmd: str):
         row = self.table.currentRow()
         if row == -1:
-            self.console.appendPlainText(f"[WARN] Brak zaznaczonego interfejsu ({cmd}).")
+            self.console.appendPlainText(
+                f"[WARN] Brak zaznaczonego interfejsu ({cmd})."
+            )
             return
 
         iface = self.table.item(row, self.COL_NAME).text()
@@ -309,7 +313,9 @@ class InterfacesTab(QWidget):
             ip = self.table.cellWidget(r, self.COL_IP).text()
             cidr = self.table.cellWidget(r, self.COL_MASK).value()
             status = (
-                "up" if self.table.cellWidget(r, self.COL_STATUS).isChecked() else "down"
+                "up"
+                if self.table.cellWidget(r, self.COL_STATUS).isChecked()
+                else "down"
             )
 
             rows.append([name, desc, ip, str(cidr), status])
@@ -358,7 +364,9 @@ class InterfacesTab(QWidget):
                 )
 
             self.pending_cmds.clear()
-            self.console.appendPlainText("[SYNC] Interfaces updated from running-config.")
+            self.console.appendPlainText(
+                "[SYNC] Interfaces updated from running-config."
+            )
         finally:
             self._loading = False
 
