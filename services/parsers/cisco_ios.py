@@ -72,6 +72,9 @@ def parse(raw_running: str) -> ParsedConfig:
 
     # VLANs (z sekcji "vlan X")
     vlans = ParsedVLANs()
+    # ==============================================================
+    # 1. VLANy z sekcji 'vlan X'
+    # ==============================================================
     for vm in _VLAN_BLOCK.finditer(raw_running):
         vid = vm.group(1)
         block = vm.group(2)
@@ -80,6 +83,28 @@ def parse(raw_running: str) -> ParsedConfig:
         if nm:
             name = nm.group(1).strip()
         vlans.items.setdefault(vid, {"name": name, "ports": []})
+
+    # ==============================================================
+    # 2. VLANy z interfejsów SVI (interface VlanX)
+    # ==============================================================
+    import re
+    for svi in re.findall(r'^interface\s+Vlan(\d+)', raw_running, re.M):
+        vlans.items.setdefault(svi, {"name": "", "ports": []})
+
+    # ==============================================================
+    # 3. VLANy z switchport access vlan X
+    # ==============================================================
+    for ifname, data in ifaces.items.items():
+        short = ifname.replace("GigabitEthernet", "Gi")
+        start = raw_running.find(f"interface {ifname}")
+        end = raw_running.find("interface ", start + 1)
+        block = raw_running[start:end if end != -1 else len(raw_running)]
+
+        m = _INT_ACCESS_VLAN.search(block)
+        if m:
+            vid = m.group(1)
+            vlans.items.setdefault(vid, {"name": "", "ports": []})
+            vlans.items[vid]["ports"].append(short)
     # przypięcia portów po śladach w interfejsach
     for ifname, data in ifaces.items.items():
         # heurystyka aliasu: Gi0/1 itd.
