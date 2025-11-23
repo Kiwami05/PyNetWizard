@@ -70,9 +70,13 @@ class ScanResultsDialog(QDialog):
             self.table.setCellWidget(row, 1, combo)
 
             # Typ urządzenia
-            item_type = QTableWidgetItem(dtype or "-")
-            item_type.setFlags(item_type.flags() & ~Qt.ItemIsEditable)
-            self.table.setItem(row, 2, item_type)
+            combo_type = QComboBox()
+            combo_type.addItems([dt.name.title() for dt in DeviceType])
+            if dtype:
+                for dt in DeviceType:
+                    if dt.name.lower() == dtype.lower():
+                        combo_type.setCurrentText(dt.name.title())
+            self.table.setCellWidget(row, 2, combo_type)
 
             # Login + hasło
             user_edit = QLineEdit()
@@ -133,9 +137,9 @@ class ScanResultsDialog(QDialog):
             combo = self.table.cellWidget(row, 1)
             vendor_enum = Vendor[combo.currentText().upper()]
 
-            dtype_item = self.table.item(row, 2)
-            dtype_str = dtype_item.text().lower() if dtype_item else ""
-            device_type = None
+            combo = self.table.cellWidget(row, 2)
+            dtype_str = combo.currentText().upper()
+            device_type = DeviceType[dtype_str]
             for dt in DeviceType:
                 if dt.name.lower() == dtype_str:
                     device_type = dt

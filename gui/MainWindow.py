@@ -171,13 +171,12 @@ class MainWindow(QMainWindow):
 
                 menu = QMenu()
                 remove_action = menu.addAction("Usuń urządzenie 🗑️")
-                toggle_action = menu.addAction("Przełącz połączenie (mock) 🔄")
+                edit_action = menu.addAction("Edytuj urządzenie ✏️")
                 action = menu.exec_(b.mapToGlobal(pos))
                 if action == remove_action:
                     self.remove_device(d.host)
-                elif action == toggle_action:
-                    self.connection_manager.toggle_status(d.host)
-                    self.update_status_bar()
+                elif action == edit_action:
+                    self.edit_device_dialog(d)
 
             btn.customContextMenuRequested.connect(open_context_menu)
             self.devices_layout.addWidget(btn)
@@ -514,3 +513,37 @@ class MainWindow(QMainWindow):
             self.detail_box.buffers.clear()
         else:
             self.detail_box.buffers.pop(host, None)
+
+    def edit_device_dialog(self, device):
+        from gui.AddDeviceDialog import AddDeviceDialog
+        dlg = AddDeviceDialog(self)
+
+        # wypełnij istniejącymi danymi
+        dlg.input_host.setText(device.host)
+        dlg.input_username.setText(device.username)
+        dlg.input_password.setText(device.password)
+
+        # vendor
+        if device.vendor.name == "CISCO":
+            dlg.radio_cisco.setChecked(True)
+        else:
+            dlg.radio_juniper.setChecked(True)
+
+        # typ urządzenia
+        dlg.combo_devtype.setCurrentText(device.device_type.name.title())
+
+        if dlg.exec():
+            new_device = dlg.get_data()
+            # aktualizacja obiektu
+            device.host = new_device.host
+            device.username = new_device.username
+            device.password = new_device.password
+            device.vendor = new_device.vendor
+            device.device_type = new_device.device_type
+
+            self.device_list.sort_devices()
+            self.refresh_device_buttons()
+            # odśwież widok jeśli edytowaliśmy aktualnie wybrane urządzenie
+            if self.current_device == device:
+                self.show_device_details(device)
+
