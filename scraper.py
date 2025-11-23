@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 from pathlib import Path
 
 # katalog startowy
@@ -6,7 +7,7 @@ start_dir = Path(".")
 # lista dozwolonych rozszerzeń (małe litery, z kropką)
 allowed_exts = [".py"]
 
-blacklisted_files = ["printer.py", "tester.py"]
+blacklisted_files = ["scraper.py"]
 
 
 def is_hidden(path: Path) -> bool:

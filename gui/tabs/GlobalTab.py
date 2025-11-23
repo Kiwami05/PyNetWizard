@@ -302,3 +302,17 @@ class GlobalTab(QWidget):
         if conf.raw_running:
             head = "\n".join(conf.raw_running.splitlines()[:10])
             self._append_log("[SYNC] Snapshot running-config (head):\n" + head)
+
+    def build_pending_from_form(self, conf):
+        cmds = []
+        ui_host = (self.hostname.text() or "").strip()
+        if ui_host and ui_host != (conf.hostname or ""):
+            cmds.append(f"hostname {ui_host}")
+        return cmds
+
+    def get_pending_commands(self, clear: bool = False):
+        # GlobalTab pending pochodzi wyłącznie z różnicy hostname
+        return []
+
+    def clear_pending_commands(self):
+        pass
