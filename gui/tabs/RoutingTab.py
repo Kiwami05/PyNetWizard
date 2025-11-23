@@ -1,4 +1,3 @@
-# gui/tabs/RoutingTab.py
 from PySide6.QtWidgets import (
     QWidget,
     QVBoxLayout,
