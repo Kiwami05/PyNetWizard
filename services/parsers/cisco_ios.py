@@ -88,7 +88,8 @@ def parse(raw_running: str) -> ParsedConfig:
     # 2. VLANy z interfejsów SVI (interface VlanX)
     # ==============================================================
     import re
-    for svi in re.findall(r'^interface\s+Vlan(\d+)', raw_running, re.M):
+
+    for svi in re.findall(r"^interface\s+Vlan(\d+)", raw_running, re.M):
         vlans.items.setdefault(svi, {"name": "", "ports": []})
 
     # ==============================================================
@@ -98,7 +99,7 @@ def parse(raw_running: str) -> ParsedConfig:
         short = ifname.replace("GigabitEthernet", "Gi")
         start = raw_running.find(f"interface {ifname}")
         end = raw_running.find("interface ", start + 1)
-        block = raw_running[start:end if end != -1 else len(raw_running)]
+        block = raw_running[start : end if end != -1 else len(raw_running)]
 
         m = _INT_ACCESS_VLAN.search(block)
         if m:
