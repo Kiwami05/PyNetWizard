@@ -17,8 +17,10 @@ from devices.ConnectionManager import ConnectionManager
 from gui.AddDeviceDialog import AddDeviceDialog
 from devices.DeviceList import DeviceList
 from devices.Device import Device
+from gui.ConfigHistoryDialog import ConfigHistoryDialog
 from gui.SettingsDialog import SettingsDialog
 from gui.DeviceDetailWidget import DeviceDetailWidget
+from services.config_history import save_snapshot
 from services.config_sync import ConfigSyncService
 
 
@@ -109,6 +111,15 @@ class MainWindow(QMainWindow):
 
         action_sync = device_menu.addAction("Odśwież konfigurację (Sync)")
         action_sync.triggered.connect(self.sync_current_device)
+
+
+        device_menu.addSeparator()
+
+        action_history = device_menu.addAction("Historia konfiguracji")
+        action_history.triggered.connect(self.open_config_history_dialog)
+
+        device_menu.addSeparator()
+
 
         action_reset_one = device_menu.addAction("Resetuj zmiany (bieżące urządzenie)")
         action_reset_one.triggered.connect(self.reset_current_device)
@@ -430,6 +441,15 @@ class MainWindow(QMainWindow):
             # 🆕 rozesłanie do tabów
             self.detail_box.sync_tabs_from_config(conf)
 
+            # 🆕 zapis snapshotu do historii (raw_running)
+            try:
+                if conf.raw_running:
+                    save_snapshot(dev, conf.raw_running, kind="running")
+            except Exception:
+                # nie chcemy wywracać całego SYNC-a przez problem z dyskiem
+                pass
+
+
             # 🧾 konsola globalna + status
             self.detail_box.append_console(f"[SYNC] Hostname: {conf.hostname or '-'}")
             QMessageBox.information(
@@ -547,3 +567,25 @@ class MainWindow(QMainWindow):
             if self.current_device == device:
                 self.show_device_details(device)
 
+    def open_config_history_dialog(self):
+        """
+        Otwiera dialog historii konfiguracji dla bieżącego urządzenia.
+        Porównanie odbywa się względem ostatniego snapshotu (buf.config.raw_running),
+        jeśli jest dostępny.
+        """
+        if not self.current_device:
+            QMessageBox.information(
+                self,
+                "Brak urządzenia",
+                "Najpierw wybierz urządzenie z listy po lewej.",
+            )
+            return
+
+        dev = self.current_device
+        buf = self.detail_box.buffers.get(dev.host)
+        current_raw = ""
+        if buf and getattr(buf, "config", None) and buf.config.raw_running:
+            current_raw = buf.config.raw_running
+
+        dlg = ConfigHistoryDialog(dev, current_raw, self)
+        dlg.exec()
