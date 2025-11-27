@@ -9,7 +9,8 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QRadioButton,
     QLabel,
-    QHBoxLayout, QComboBox,
+    QHBoxLayout,
+    QComboBox,
 )
 
 from devices.Device import Device
@@ -89,7 +90,7 @@ class AddDeviceDialog(QDialog):
             self.input_username.text().strip(),
             self.input_password.text(),
             vendor,
-            device_type
+            device_type,
         )
 
 

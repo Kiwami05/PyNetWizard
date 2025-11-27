@@ -2,7 +2,6 @@ import os
 import datetime
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List
 from devices.Device import Device
 
 
@@ -74,8 +73,6 @@ def list_snapshots(device: Device) -> list[ConfigSnapshot]:
 
     snaps = []
     for file in p.glob("*.txt"):
-        name = file.name
-
         # Najpierw oddzielamy rozszerzenie
         stem = file.stem  # np. '20250211_203322_running'
         parts = stem.split("_")
@@ -86,8 +83,8 @@ def list_snapshots(device: Device) -> list[ConfigSnapshot]:
             ts = datetime.datetime.fromtimestamp(file.stat().st_mtime)
         else:
             # Pierwsze dwa segmenty to timestamp
-            ts_str = "_".join(parts[:2])     # '20250211_203322'
-            kind = "_".join(parts[2:])       # 'running'
+            ts_str = "_".join(parts[:2])  # '20250211_203322'
+            kind = "_".join(parts[2:])  # 'running'
 
             try:
                 ts = datetime.datetime.strptime(ts_str, "%Y%m%d_%H%M%S")

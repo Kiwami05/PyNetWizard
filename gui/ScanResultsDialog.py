@@ -11,7 +11,8 @@ from PySide6.QtWidgets import (
     QComboBox,
     QLineEdit,
     QMessageBox,
-    QHeaderView, QMenu,
+    QHeaderView,
+    QMenu,
 )
 
 from gui.RawDataDialog import RawDataDialog

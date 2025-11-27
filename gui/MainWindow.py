@@ -18,6 +18,7 @@ from gui.AddDeviceDialog import AddDeviceDialog
 from devices.DeviceList import DeviceList
 from devices.Device import Device
 from gui.ConfigHistoryDialog import ConfigHistoryDialog
+from gui.LogViewerDialog import LogViewerDialog
 from gui.SettingsDialog import SettingsDialog
 from gui.DeviceDetailWidget import DeviceDetailWidget
 from services.config_history import save_snapshot
@@ -112,14 +113,12 @@ class MainWindow(QMainWindow):
         action_sync = device_menu.addAction("Odśwież konfigurację (Sync)")
         action_sync.triggered.connect(self.sync_current_device)
 
-
         device_menu.addSeparator()
 
         action_history = device_menu.addAction("Historia konfiguracji")
         action_history.triggered.connect(self.open_config_history_dialog)
 
         device_menu.addSeparator()
-
 
         action_reset_one = device_menu.addAction("Resetuj zmiany (bieżące urządzenie)")
         action_reset_one.triggered.connect(self.reset_current_device)
@@ -128,6 +127,9 @@ class MainWindow(QMainWindow):
             "Resetuj zmiany (wszystkie urządzenia)"
         )
         action_reset_all.triggered.connect(self.reset_all_devices)
+
+        action_log_viewer = menubar.addAction("Przeglądaj logi")
+        action_log_viewer.triggered.connect(self.open_log_viewer)
 
         settings_action = menubar.addAction("Ustawienia")
         settings_action.triggered.connect(self.open_settings_dialog)
@@ -449,7 +451,6 @@ class MainWindow(QMainWindow):
                 # nie chcemy wywracać całego SYNC-a przez problem z dyskiem
                 pass
 
-
             # 🧾 konsola globalna + status
             self.detail_box.append_console(f"[SYNC] Hostname: {conf.hostname or '-'}")
             QMessageBox.information(
@@ -536,6 +537,7 @@ class MainWindow(QMainWindow):
 
     def edit_device_dialog(self, device):
         from gui.AddDeviceDialog import AddDeviceDialog
+
         dlg = AddDeviceDialog(self)
 
         # wypełnij istniejącymi danymi
@@ -588,4 +590,8 @@ class MainWindow(QMainWindow):
             current_raw = buf.config.raw_running
 
         dlg = ConfigHistoryDialog(dev, current_raw, self)
+        dlg.exec()
+
+    def open_log_viewer(self):
+        dlg = LogViewerDialog(self)
         dlg.exec()

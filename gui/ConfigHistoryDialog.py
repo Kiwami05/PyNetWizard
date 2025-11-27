@@ -262,8 +262,7 @@ class ConfigHistoryDialog(QDialog):
             QMessageBox.warning(
                 self,
                 "Błędy usuwania",
-                "Niektórych plików nie udało się usunąć:\n- "
-                + "\n- ".join(errors),
+                "Niektórych plików nie udało się usunąć:\n- " + "\n- ".join(errors),
             )
 
     # ==========================================================
@@ -302,9 +301,8 @@ class ConfigHistoryDialog(QDialog):
 #           FUNKCJA BUDUJĄCA HTML SIDE-BY-SIDE
 # ==========================================================
 
-def build_side_by_side_diff_html(
-    left_text: str, right_text: str
-) -> Tuple[str, str]:
+
+def build_side_by_side_diff_html(left_text: str, right_text: str) -> Tuple[str, str]:
     """
     Zwraca parę (left_html, right_html) z zakolorowanym diffem.
     Kolory:
@@ -370,14 +368,10 @@ def build_side_by_side_diff_html(
                 left_out.append(fmt_line("", "", "#d9ffd9"))
 
     left_html = (
-        "<html><body style='margin:4px;'>"
-        + "".join(left_out)
-        + "</body></html>"
+        "<html><body style='margin:4px;'>" + "".join(left_out) + "</body></html>"
     )
     right_html = (
-        "<html><body style='margin:4px;'>"
-        + "".join(right_out)
-        + "</body></html>"
+        "<html><body style='margin:4px;'>" + "".join(right_out) + "</body></html>"
     )
 
     return left_html, right_html
