@@ -1,3 +1,5 @@
+import shutil
+
 from PySide6.QtCore import Qt, QThread
 from PySide6.QtWidgets import (
     QDialog,
@@ -30,6 +32,10 @@ def is_privileged_user() -> bool:
     except Exception:
         pass
     return False
+
+
+def is_nmap_installed() -> bool:
+    return shutil.which("nmap") is not None
 
 
 class NetworkScanDialog(QDialog):
@@ -92,6 +98,17 @@ class NetworkScanDialog(QDialog):
     def start_scan(self):
         network = self.input_network.text().strip()
         mask = self.input_mask.value()
+        # --- sprawdzamy czy nmap istnieje ---
+        if not is_nmap_installed():
+            QMessageBox.critical(
+                self,
+                "Brak nmap",
+                "Nie można wykonać skanowania, ponieważ program <b>nmap</b> "
+                "nie jest zainstalowany lub nie znajduje się w zmiennej PATH.<br><br>"
+                "Zainstaluj nmap i spróbuj ponownie."
+            )
+            return
+
         try:
             ipaddress.IPv4Network(f"{network}/{mask}", strict=False)
         except ValueError:
