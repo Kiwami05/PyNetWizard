@@ -125,4 +125,3 @@ class NetworkScanner(QObject):
             self.finished.emit(results)
         except Exception as e:
             self.error.emit(f"{type(e).__name__}: {str(e)}")
-

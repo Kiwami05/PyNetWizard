@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 #  BLOKI LOGÓW (multiline entries)
 # ============================================
 
+
 class LogEntry:
     def __init__(self, level: str, lines: list[str]):
         self.level = level
@@ -31,6 +32,7 @@ class LogEntry:
 # ============================================
 #  GŁÓWNY DIALOG
 # ============================================
+
 
 class LogViewerDialog(QDialog):
     """
@@ -239,7 +241,6 @@ class LogViewerDialog(QDialog):
         html = ["<html><body style='font-family: monospace; white-space: pre;'>"]
 
         for entry in self._entries:
-
             # --- filtr poziomu ---
             if entry.level not in allowed:
                 continue

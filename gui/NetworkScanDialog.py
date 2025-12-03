@@ -105,7 +105,7 @@ class NetworkScanDialog(QDialog):
                 "Brak nmap",
                 "Nie można wykonać skanowania, ponieważ program <b>nmap</b> "
                 "nie jest zainstalowany lub nie znajduje się w zmiennej PATH.<br><br>"
-                "Zainstaluj nmap i spróbuj ponownie."
+                "Zainstaluj nmap i spróbuj ponownie.",
             )
             return
 
