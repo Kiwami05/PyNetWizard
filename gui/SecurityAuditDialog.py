@@ -144,9 +144,7 @@ class SecurityAuditDialog(QDialog):
     # ======================================================
 
     def _update_source_label(self):
-        text = (
-            f"<b>Źródło konfiguracji:</b> {self.current_source_label}"
-        )
+        text = f"<b>Źródło konfiguracji:</b> {self.current_source_label}"
         self.lbl_source.setText(text)
 
     def _load_from_device(self):

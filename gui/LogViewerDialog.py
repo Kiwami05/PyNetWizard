@@ -259,8 +259,8 @@ class LogViewerDialog(QDialog):
 
             # --- escape HTML ---
             escaped_lines = [
-                l.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-                for l in entry.lines
+                line.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                for line in entry.lines
             ]
             combined = "\n".join(escaped_lines)
 
