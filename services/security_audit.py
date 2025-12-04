@@ -342,7 +342,6 @@ def rule_aaa_new_model(pc: ParsedConfig) -> List[SecurityFinding]:
 
 def rule_vty_telnet(pc: ParsedConfig) -> List[SecurityFinding]:
     findings = []
-    import re
 
     for block in pc.vty_blocks:
         text = "\n".join(block.lines).lower()
@@ -481,7 +480,6 @@ def rule_exec_timeout(pc: ParsedConfig) -> List[SecurityFinding]:
 
 def rule_console_password(pc: ParsedConfig) -> List[SecurityFinding]:
     findings = []
-    import re
 
     for block in pc.console_blocks:
         has_password = any(
@@ -662,7 +660,6 @@ def rule_acl_unused(pc: ParsedConfig) -> List[SecurityFinding]:
     findings = []
 
     # proste wyciąganie nazw/numerów ACL
-    import re
 
     acl_names: set[str] = set()
 
