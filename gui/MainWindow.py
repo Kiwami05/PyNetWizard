@@ -19,6 +19,7 @@ from devices.DeviceList import DeviceList
 from devices.Device import Device
 from gui.ConfigHistoryDialog import ConfigHistoryDialog
 from gui.LogViewerDialog import LogViewerDialog
+from gui.SecurityAuditDialog import SecurityAuditDialog
 from gui.SettingsDialog import SettingsDialog
 from gui.DeviceDetailWidget import DeviceDetailWidget
 from services.config_history import save_snapshot
@@ -128,8 +129,13 @@ class MainWindow(QMainWindow):
         )
         action_reset_all.triggered.connect(self.reset_all_devices)
 
-        action_log_viewer = menubar.addAction("Przeglądaj logi")
+        action_log_viewer = menubar.addAction("Logi")
         action_log_viewer.triggered.connect(self.open_log_viewer)
+
+        tools_menu = menubar.addMenu("Narzędzia")
+
+        action_security_audit = tools_menu.addAction("Audyt bezpieczeństwa…")
+        action_security_audit.triggered.connect(self.open_security_audit_dialog)
 
         settings_action = menubar.addAction("Ustawienia")
         settings_action.triggered.connect(self.open_settings_dialog)
@@ -594,4 +600,28 @@ class MainWindow(QMainWindow):
 
     def open_log_viewer(self):
         dlg = LogViewerDialog(self)
+        dlg.exec()
+
+    def open_security_audit_dialog(self):
+        """
+        Otwiera dialog audytu bezpieczeństwa.
+        Jako źródło konfiguracji przekazuje, jeśli dostępne:
+        raw_running z bufora bieżącego urządzenia.
+        """
+        current_device_name = ""
+        current_config_text = ""
+
+        if getattr(self, "current_device", None) is not None:
+            dev = self.current_device
+            current_device_name = getattr(dev, "host", "") or getattr(dev, "name", "")
+
+            buf = self.detail_box.buffers.get(dev.host)
+            if buf and getattr(buf, "config", None) and buf.config.raw_running:
+                current_config_text = buf.config.raw_running
+
+        dlg = SecurityAuditDialog(
+            self,
+            current_device_name=current_device_name,
+            current_config_text=current_config_text,
+        )
         dlg.exec()
