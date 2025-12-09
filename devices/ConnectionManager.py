@@ -17,7 +17,9 @@ class ConnectionManager:
     Obsługuje poprawnie Cisco ASA/ASAv (pager 0, odmienne prompty).
     """
 
-    def __init__(self, connection_type="ssh", timeout=10, log_path="./logs", verbose=False):
+    def __init__(
+        self, connection_type="ssh", timeout=10, log_path="./logs", verbose=False
+    ):
         self.sessions: dict[str, ConnectHandler] = {}
         self.connection_type = connection_type
         self.timeout = int(timeout)
@@ -37,7 +39,9 @@ class ConnectionManager:
                 os.rename(logfile, new_name)
                 print(f"[WARN] Brak uprawnień do {logfile}, przeniesiono do {new_name}")
             except Exception:
-                tmp_log = os.path.join(tempfile.gettempdir(), f"netmiko_{os.getuid()}.log")
+                tmp_log = os.path.join(
+                    tempfile.gettempdir(), f"netmiko_{os.getuid()}.log"
+                )
                 print(f"[WARN] Nie można pisać do {logfile}, używam {tmp_log}")
                 logfile = tmp_log
 
@@ -199,7 +203,9 @@ class ConnectionManager:
             "password": device.password,
             "timeout": self.timeout,
             "secret": device.password,  # enable password
-            "global_delay_factor": 2 if device.device_type == DeviceType.FIREWALL else 1,
+            "global_delay_factor": 2
+            if device.device_type == DeviceType.FIREWALL
+            else 1,
         }
 
         # Log sesji
