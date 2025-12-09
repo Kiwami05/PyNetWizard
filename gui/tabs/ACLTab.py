@@ -388,7 +388,9 @@ class ACLTab(QWidget):
             # 3) access-group powiązania
             self._parse_access_groups(text)
 
-            self.console.appendPlainText("[SYNC] ASA ACLs and bindings loaded from running-config.")
+            self.console.appendPlainText(
+                "[SYNC] ASA ACLs and bindings loaded from running-config."
+            )
 
             # auto-select pierwszej ACL jeśli żadna nie ustawiona
             if self.current_acl_name is None and self.table_rules.rowCount() > 0:
