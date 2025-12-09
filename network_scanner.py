@@ -52,10 +52,16 @@ class NetworkScanner(QObject):
         self._abort = True
 
     def run(self):
-        scanner = nmap.PortScanner()
-        results = []
         try:
+            try:
+                scanner = nmap.PortScanner()
+            except Exception:
+                self.error.emit("Nmap nie jest zainstalowany lub niedostępny w PATH.")
+                return
+
+            results = []
             args = "-sV -O -Pn" if self.detailed else "-sn"
+
             scanner.scan(hosts=self.subnet, arguments=args)
             hosts = scanner.all_hosts()
             total = len(hosts)
@@ -82,28 +88,24 @@ class NetworkScanner(QObject):
                 vendor = ""
                 device_type = ""
 
-                # Typ urządzenia i vendor z osmatch/osclass
                 osmatch = info.get("osmatch") or []
                 osclasses = []
                 for om in osmatch:
-                    if "osclass" in om and isinstance(om["osclass"], list):
+                    if isinstance(om, dict) and isinstance(om.get("osclass"), list):
                         osclasses.extend(om["osclass"])
 
-                # vendor: tylko Cisco / Juniper
                 for oc in osclasses:
                     v = oc.get("vendor", "").strip()
                     if v.lower() in ("cisco", "juniper"):
                         vendor = v
                         break
 
-                # typ urządzenia: router/switch/WAP
                 for oc in osclasses:
                     t = oc.get("type", "").lower()
                     if t in ("router", "switch", "wap"):
                         device_type = t
                         break
 
-                # prepare raw_info
                 try:
                     raw_info_jsonable = json.loads(json.dumps(info))
                 except Exception:

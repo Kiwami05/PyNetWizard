@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QHeaderView,
+    QMenu,
 )
 
 from gui.RawDataDialog import RawDataDialog
@@ -20,7 +21,7 @@ from devices.DeviceList import DeviceList
 from devices.Vendor import Vendor
 from devices.DeviceType import DeviceType
 
-DEBUG = False  # ustaw True, jeśli chcesz zobaczyć raw_data
+DEBUG = True  # ustaw True, jeśli chcesz zobaczyć raw_data
 
 
 class ScanResultsDialog(QDialog):
@@ -70,9 +71,13 @@ class ScanResultsDialog(QDialog):
             self.table.setCellWidget(row, 1, combo)
 
             # Typ urządzenia
-            item_type = QTableWidgetItem(dtype or "-")
-            item_type.setFlags(item_type.flags() & ~Qt.ItemIsEditable)
-            self.table.setItem(row, 2, item_type)
+            combo_type = QComboBox()
+            combo_type.addItems([dt.name.title() for dt in DeviceType])
+            if dtype:
+                for dt in DeviceType:
+                    if dt.name.lower() == dtype.lower():
+                        combo_type.setCurrentText(dt.name.title())
+            self.table.setCellWidget(row, 2, combo_type)
 
             # Login + hasło
             user_edit = QLineEdit()
@@ -93,6 +98,8 @@ class ScanResultsDialog(QDialog):
                 container_btn.setLayout(box_btn)
                 self.table.setCellWidget(row, 5, container_btn)
 
+        self.table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self.show_context_menu)
         layout.addWidget(self.table)
 
         # --- przyciski OK/Cancel ---
@@ -133,13 +140,9 @@ class ScanResultsDialog(QDialog):
             combo = self.table.cellWidget(row, 1)
             vendor_enum = Vendor[combo.currentText().upper()]
 
-            dtype_item = self.table.item(row, 2)
-            dtype_str = dtype_item.text().lower() if dtype_item else ""
-            device_type = None
-            for dt in DeviceType:
-                if dt.name.lower() == dtype_str:
-                    device_type = dt
-                    break
+            combo = self.table.cellWidget(row, 2)
+            dtype_str = combo.currentText().upper()
+            device_type = DeviceType[dtype_str]
 
             username = self.table.cellWidget(row, 3).text()
             password = self.table.cellWidget(row, 4).text()
@@ -154,3 +157,23 @@ class ScanResultsDialog(QDialog):
             devices.add_device(device)
 
         return devices
+
+    def show_context_menu(self, pos):
+        index = self.table.indexAt(pos)
+        if not index.isValid():
+            return
+
+        self.table.selectRow(index.row())
+        menu = QMenu(self)
+        delete_action = menu.addAction("Usuń urządzenie z listy 🗑️")
+
+        action = menu.exec(self.table.viewport().mapToGlobal(pos))
+        if action == delete_action:
+            self.delete_selected_row()
+
+    def delete_selected_row(self):
+        rows = self.table.selectionModel().selectedRows()
+        if not rows:
+            return
+        row = rows[0].row()
+        self.table.removeRow(row)

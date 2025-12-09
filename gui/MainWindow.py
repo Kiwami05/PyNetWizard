@@ -17,8 +17,12 @@ from devices.ConnectionManager import ConnectionManager
 from gui.AddDeviceDialog import AddDeviceDialog
 from devices.DeviceList import DeviceList
 from devices.Device import Device
+from gui.ConfigHistoryDialog import ConfigHistoryDialog
+from gui.LogViewerDialog import LogViewerDialog
+from gui.SecurityAuditDialog import SecurityAuditDialog
 from gui.SettingsDialog import SettingsDialog
 from gui.DeviceDetailWidget import DeviceDetailWidget
+from services.config_history import save_snapshot
 from services.config_sync import ConfigSyncService
 
 
@@ -110,6 +114,13 @@ class MainWindow(QMainWindow):
         action_sync = device_menu.addAction("Odśwież konfigurację (Sync)")
         action_sync.triggered.connect(self.sync_current_device)
 
+        device_menu.addSeparator()
+
+        action_history = device_menu.addAction("Historia konfiguracji")
+        action_history.triggered.connect(self.open_config_history_dialog)
+
+        device_menu.addSeparator()
+
         action_reset_one = device_menu.addAction("Resetuj zmiany (bieżące urządzenie)")
         action_reset_one.triggered.connect(self.reset_current_device)
 
@@ -117,6 +128,14 @@ class MainWindow(QMainWindow):
             "Resetuj zmiany (wszystkie urządzenia)"
         )
         action_reset_all.triggered.connect(self.reset_all_devices)
+
+        action_log_viewer = menubar.addAction("Logi")
+        action_log_viewer.triggered.connect(self.open_log_viewer)
+
+        tools_menu = menubar.addMenu("Narzędzia")
+
+        action_security_audit = tools_menu.addAction("Audyt bezpieczeństwa…")
+        action_security_audit.triggered.connect(self.open_security_audit_dialog)
 
         settings_action = menubar.addAction("Ustawienia")
         settings_action.triggered.connect(self.open_settings_dialog)
@@ -171,13 +190,12 @@ class MainWindow(QMainWindow):
 
                 menu = QMenu()
                 remove_action = menu.addAction("Usuń urządzenie 🗑️")
-                toggle_action = menu.addAction("Przełącz połączenie (mock) 🔄")
+                edit_action = menu.addAction("Edytuj urządzenie ✏️")
                 action = menu.exec_(b.mapToGlobal(pos))
                 if action == remove_action:
                     self.remove_device(d.host)
-                elif action == toggle_action:
-                    self.connection_manager.toggle_status(d.host)
-                    self.update_status_bar()
+                elif action == edit_action:
+                    self.edit_device_dialog(d)
 
             btn.customContextMenuRequested.connect(open_context_menu)
             self.devices_layout.addWidget(btn)
@@ -431,6 +449,14 @@ class MainWindow(QMainWindow):
             # 🆕 rozesłanie do tabów
             self.detail_box.sync_tabs_from_config(conf)
 
+            # 🆕 zapis snapshotu do historii (raw_running)
+            try:
+                if conf.raw_running:
+                    save_snapshot(dev, conf.raw_running, kind="running")
+            except Exception:
+                # nie chcemy wywracać całego SYNC-a przez problem z dyskiem
+                pass
+
             # 🧾 konsola globalna + status
             self.detail_box.append_console(f"[SYNC] Hostname: {conf.hostname or '-'}")
             QMessageBox.information(
@@ -514,3 +540,88 @@ class MainWindow(QMainWindow):
             self.detail_box.buffers.clear()
         else:
             self.detail_box.buffers.pop(host, None)
+
+    def edit_device_dialog(self, device):
+        from gui.AddDeviceDialog import AddDeviceDialog
+
+        dlg = AddDeviceDialog(self)
+
+        # wypełnij istniejącymi danymi
+        dlg.input_host.setText(device.host)
+        dlg.input_username.setText(device.username)
+        dlg.input_password.setText(device.password)
+
+        # vendor
+        if device.vendor.name == "CISCO":
+            dlg.radio_cisco.setChecked(True)
+        else:
+            dlg.radio_juniper.setChecked(True)
+
+        # typ urządzenia
+        dlg.combo_devtype.setCurrentText(device.device_type.name.title())
+
+        if dlg.exec():
+            new_device = dlg.get_data()
+            # aktualizacja obiektu
+            device.host = new_device.host
+            device.username = new_device.username
+            device.password = new_device.password
+            device.vendor = new_device.vendor
+            device.device_type = new_device.device_type
+
+            self.device_list.sort_devices()
+            self.refresh_device_buttons()
+            # odśwież widok jeśli edytowaliśmy aktualnie wybrane urządzenie
+            if self.current_device == device:
+                self.show_device_details(device)
+
+    def open_config_history_dialog(self):
+        """
+        Otwiera dialog historii konfiguracji dla bieżącego urządzenia.
+        Porównanie odbywa się względem ostatniego snapshotu (buf.config.raw_running),
+        jeśli jest dostępny.
+        """
+        if not self.current_device:
+            QMessageBox.information(
+                self,
+                "Brak urządzenia",
+                "Najpierw wybierz urządzenie z listy po lewej.",
+            )
+            return
+
+        dev = self.current_device
+        buf = self.detail_box.buffers.get(dev.host)
+        current_raw = ""
+        if buf and getattr(buf, "config", None) and buf.config.raw_running:
+            current_raw = buf.config.raw_running
+
+        dlg = ConfigHistoryDialog(dev, current_raw, self)
+        dlg.exec()
+
+    def open_log_viewer(self):
+        dlg = LogViewerDialog(self)
+        dlg.exec()
+
+    def open_security_audit_dialog(self):
+        """
+        Otwiera dialog audytu bezpieczeństwa.
+        Jako źródło konfiguracji przekazuje, jeśli dostępne:
+        raw_running z bufora bieżącego urządzenia.
+        """
+        current_device_name = ""
+        current_config_text = ""
+
+        if getattr(self, "current_device", None) is not None:
+            dev = self.current_device
+            current_device_name = getattr(dev, "host", "") or getattr(dev, "name", "")
+
+            buf = self.detail_box.buffers.get(dev.host)
+            if buf and getattr(buf, "config", None) and buf.config.raw_running:
+                current_config_text = buf.config.raw_running
+
+        dlg = SecurityAuditDialog(
+            self,
+            current_device_name=current_device_name,
+            current_config_text=current_config_text,
+        )
+        dlg.exec()

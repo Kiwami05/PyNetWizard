@@ -10,9 +10,11 @@ from PySide6.QtWidgets import (
     QRadioButton,
     QLabel,
     QHBoxLayout,
+    QComboBox,
 )
 
 from devices.Device import Device
+from devices.DeviceType import DeviceType
 from devices.Vendor import Vendor
 
 
@@ -41,10 +43,14 @@ class AddDeviceDialog(QDialog):
         self.radio_juniper = QRadioButton("Juniper")
         self.radio_cisco.setChecked(True)  # domyślnie
 
+        self.combo_devtype = QComboBox()
+        self.combo_devtype.addItems(["Router", "Switch", "Firewall"])
+        form.addRow("Typ urządzenia:", self.combo_devtype)
+
         type_layout.addWidget(self.radio_cisco)
         type_layout.addWidget(self.radio_juniper)
 
-        form.addRow(QLabel("Typ urządzenia:"))
+        form.addRow(QLabel("Producent:"))
         form.addRow(type_layout)
 
         layout.addLayout(form)
@@ -77,11 +83,14 @@ class AddDeviceDialog(QDialog):
 
     def get_data(self) -> Device:
         vendor = Vendor.CISCO if self.radio_cisco.isChecked() else Vendor.JUNIPER
+        dtype = self.combo_devtype.currentText().upper()
+        device_type = DeviceType[dtype]
         return Device(
             self.input_host.text().strip(),
             self.input_username.text().strip(),
             self.input_password.text(),
             vendor,
+            device_type,
         )
 
 
