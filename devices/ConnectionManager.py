@@ -64,25 +64,30 @@ class ConnectionManager:
     # ==============================================================
 
     def connect(self, device: Device) -> bool:
-        """Nawiązuje połączenie i zapisuje sesję."""
         if device.host in self.sessions:
-            return True  # już połączony
+            return True
 
         try:
             params = self._device_to_netmiko(device)
             conn = ConnectHandler(**params)
 
-            # --- ASA / ASAv specjalna obsługa ---
+            # --- ASA ---
             if device.device_type == DeviceType.FIREWALL:
-                # Wejście w enable
                 if not conn.check_enable_mode():
                     conn.enable()
-
-                # Wyłącz pager (zamiast terminal length)
                 conn.send_command_timing("pager 0")
 
+            # --- JUNIPER ---
+            elif device.vendor == Vendor.JUNIPER:
+                # ❗ NIC NIE ROBIMY
+                # Junos:
+                # - brak enable
+                # - brak terminal length
+                # - screen-length ustawiasz w CLI
+                pass
+
+            # --- CISCO IOS / XE ---
             else:
-                # Normalne Cisco IOS / XE
                 if not conn.check_enable_mode():
                     conn.enable()
                 conn.send_command("terminal length 0")
@@ -189,7 +194,7 @@ class ConnectionManager:
             if device.vendor == Vendor.CISCO:
                 platform = "cisco_ios"
             elif device.vendor == Vendor.JUNIPER:
-                platform = "juniper"
+                platform = "juniper_junos"
             else:
                 platform = "generic_termserver"
 
