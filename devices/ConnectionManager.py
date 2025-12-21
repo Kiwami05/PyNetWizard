@@ -72,7 +72,10 @@ class ConnectionManager:
             conn = ConnectHandler(**params)
 
             # --- ASA ---
-            if device.vendor == Vendor.CISCO and device.device_type == DeviceType.FIREWALL:
+            if (
+                device.vendor == Vendor.CISCO
+                and device.device_type == DeviceType.FIREWALL
+            ):
                 if not conn.check_enable_mode():
                     conn.enable()
                 conn.send_command_timing("pager 0")
@@ -148,11 +151,7 @@ class ConnectionManager:
                 strip_command=False,
             )
         else:
-            output = conn.send_command(
-                command,
-                strip_prompt=False,
-                read_timeout=20
-            )
+            output = conn.send_command(command, strip_prompt=False, read_timeout=20)
         return output.strip()
 
     # =====================================================================

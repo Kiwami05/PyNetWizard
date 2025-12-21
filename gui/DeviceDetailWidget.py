@@ -19,7 +19,7 @@ from gui.tabs.InterfacesTab import InterfacesTab
 from gui.tabs.SwitchInterfacesTab import SwitchInterfacesTab
 from gui.tabs.VLANsTab import VLANsTab
 from gui.tabs.ACLTab import ACLTab
-from operations.base import Operation
+from operations.Operation import Operation
 from renderers.factory import RendererFactory
 from services.parsed_config import ParsedConfig
 
@@ -275,11 +275,13 @@ class DeviceDetailWidget(QWidget):
         # legacy pending_cmds
         for data in tabs_data.values():
             if (
-                    isinstance(data, dict)
-                    and "pending_cmds" in data
-                    and isinstance(data["pending_cmds"], list)
+                isinstance(data, dict)
+                and "pending_cmds" in data
+                and isinstance(data["pending_cmds"], list)
             ):
-                legacy_cmds.extend(c for c in data["pending_cmds"] if isinstance(c, str))
+                legacy_cmds.extend(
+                    c for c in data["pending_cmds"] if isinstance(c, str)
+                )
 
         # GlobalTab → OPERACJE
         conf = buf.config

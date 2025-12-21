@@ -10,6 +10,4 @@ def parse_config(device, raw_config: str):
     if device.vendor == Vendor.JUNIPER:
         return juniper_junos.parse(raw_config)
 
-    raise NotImplementedError(
-        f"No config parser for vendor: {device.vendor}"
-    )
+    raise NotImplementedError(f"No config parser for vendor: {device.vendor}")

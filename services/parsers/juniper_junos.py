@@ -1,4 +1,3 @@
-# services/parsers/juniper_junos.py
 import re
 from services.parsed_config import (
     ParsedConfig,
@@ -49,15 +48,17 @@ _STATIC_ROUTE = re.compile(
 #                   HELPERY
 # ==========================================================
 
+
 def cidr_to_mask(cidr: int) -> str:
     cidr = int(cidr)
     bits = "1" * cidr + "0" * (32 - cidr)
-    return ".".join(str(int(bits[i:i+8], 2)) for i in range(0, 32, 8))
+    return ".".join(str(int(bits[i : i + 8], 2)) for i in range(0, 32, 8))
 
 
 # ==========================================================
 #                   PARSER GŁÓWNY
 # ==========================================================
+
 
 def parse(raw_config: str) -> ParsedConfig:
     cfg = ParsedConfig(vendor="JUNIPER", raw_running=raw_config)

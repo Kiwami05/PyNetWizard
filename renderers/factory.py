@@ -1,7 +1,7 @@
 from devices.Vendor import Vendor
 from renderers.base import OperationRenderer
-from renderers.cisco_ios import CiscoIOSRenderer
-from renderers.juniper_junos import JuniperJunosRenderer
+from renderers.CiscoIOSRenderer import CiscoIOSRenderer
+from renderers.JuniperJunosRenderer import JuniperJunosRenderer
 
 
 class RendererFactory:
