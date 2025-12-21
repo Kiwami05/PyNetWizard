@@ -16,6 +16,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 
 from devices.Device import Device
+from operations.base import Operation
+from operations.global_ops import SetHostname
 from services.parsed_config import ParsedConfig
 
 
@@ -303,12 +305,12 @@ class GlobalTab(QWidget):
             head = "\n".join(conf.raw_running.splitlines()[:10])
             self._append_log("[SYNC] Snapshot running-config (head):\n" + head)
 
-    def build_pending_from_form(self, conf):
-        cmds = []
+    def build_pending_from_form(self, conf) -> list[Operation]:
+        ops: list[Operation] = []
         ui_host = (self.hostname.text() or "").strip()
         if ui_host and ui_host != (conf.hostname or ""):
-            cmds.append(f"hostname {ui_host}")
-        return cmds
+            ops.append(SetHostname(hostname=ui_host))
+        return ops
 
     def get_pending_commands(self, clear: bool = False):
         # GlobalTab pending pochodzi wyłącznie z różnicy hostname

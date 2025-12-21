@@ -19,6 +19,8 @@ from gui.tabs.InterfacesTab import InterfacesTab
 from gui.tabs.SwitchInterfacesTab import SwitchInterfacesTab
 from gui.tabs.VLANsTab import VLANsTab
 from gui.tabs.ACLTab import ACLTab
+from operations.base import Operation
+from renderers.factory import RendererFactory
 from services.parsed_config import ParsedConfig
 
 
@@ -222,22 +224,37 @@ class DeviceDetailWidget(QWidget):
         self.sync_tabs_from_config(buf.config)
 
     def collect_pending_commands_current(self, conf: ParsedConfig) -> list[str]:
-        """Zbiera pending z aktualnie widocznych tabów; zapisuje stan do bufora."""
         if not self.current_device:
             return []
-        # najpierw zapisz stan tabów do bufora (żeby pending_cmds trafiły do buffer.tabs)
+
+        # zapisz aktualny stan tabów
         self.save_tab_state(self.current_device)
 
-        cmds: list[str] = []
+        legacy_cmds: list[str] = []
+        pending_ops: list[Operation] = []
+
+        # 1) legacy taby (VLAN, interfaces, itd.)
         for idx in range(self.stack.count()):
             w = self.stack.widget(idx)
             if hasattr(w, "get_pending_commands"):
-                cmds.extend(w.get_pending_commands(clear=False))  # na razie nie czyść
-        # GlobalTab — delta hostname
+                legacy_cmds.extend(w.get_pending_commands(clear=False))
+
+        # 2) GlobalTab → OPERACJE
         g = self.pages.get("GLOBAL")
         if g and hasattr(g, "build_pending_from_form"):
-            cmds.extend(g.build_pending_from_form(conf))
-        return cmds
+            pending_ops.extend(g.build_pending_from_form(conf))
+
+        # 3) Renderowanie operacji → CLI
+        rendered_cmds: list[str] = []
+        if pending_ops:
+            renderer = RendererFactory.for_vendor(self.current_device.vendor)
+            rendered_cmds = renderer.render(pending_ops)
+
+        # 4) Finalna lista
+        final_cmds = []
+        final_cmds.extend(c.strip() for c in legacy_cmds if c.strip())
+        final_cmds.extend(c.strip() for c in rendered_cmds if c.strip())
+        return final_cmds
 
     def clear_pending_commands_current(self):
         for idx in range(self.stack.count()):
@@ -249,23 +266,36 @@ class DeviceDetailWidget(QWidget):
         buf = self.buffers.get(host)
         if not buf:
             return []
-        cmds: list[str] = []
+
+        legacy_cmds: list[str] = []
+        pending_ops: list[Operation] = []
+
         tabs_data = buf.tabs or {}
-        # Zapisane pendingi z tabów
-        for name, data in tabs_data.items():
+
+        # legacy pending_cmds
+        for data in tabs_data.values():
             if (
-                isinstance(data, dict)
-                and "pending_cmds" in data
-                and isinstance(data["pending_cmds"], list)
+                    isinstance(data, dict)
+                    and "pending_cmds" in data
+                    and isinstance(data["pending_cmds"], list)
             ):
-                cmds.extend([c for c in data["pending_cmds"] if isinstance(c, str)])
-        # GlobalTab delta hostname – potrzebuje conf snapshotu + zapisanej wartości hostname z bufora tabów
+                legacy_cmds.extend(c for c in data["pending_cmds"] if isinstance(c, str))
+
+        # GlobalTab → OPERACJE
         conf = buf.config
-        global_data = tabs_data.get("GLOBAL", {})
-        ui_host = (global_data.get("hostname", "") or "").strip()
-        if conf and ui_host and ui_host != (conf.hostname or ""):
-            cmds.append(f"hostname {ui_host}")
-        return [c.strip() for c in cmds if isinstance(c, str) and c.strip()]
+        global_tab = self.pages.get("GLOBAL")
+        if conf and global_tab and hasattr(global_tab, "build_pending_from_form"):
+            pending_ops.extend(global_tab.build_pending_from_form(conf))
+
+        rendered_cmds: list[str] = []
+        if pending_ops:
+            renderer = RendererFactory.for_vendor(self.current_device.vendor)
+            rendered_cmds = renderer.render(pending_ops)
+
+        final_cmds = []
+        final_cmds.extend(c.strip() for c in legacy_cmds if c.strip())
+        final_cmds.extend(c.strip() for c in rendered_cmds if c.strip())
+        return final_cmds
 
     def clear_pending_commands_in_buffer(self, host: str):
         buf = self.buffers.get(host)

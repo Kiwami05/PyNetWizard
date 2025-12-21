@@ -72,7 +72,7 @@ class ConnectionManager:
             conn = ConnectHandler(**params)
 
             # --- ASA ---
-            if device.device_type == DeviceType.FIREWALL:
+            if device.vendor == Vendor.CISCO and device.device_type == DeviceType.FIREWALL:
                 if not conn.check_enable_mode():
                     conn.enable()
                 conn.send_command_timing("pager 0")
@@ -138,7 +138,7 @@ class ConnectionManager:
         logging.info(f"[COMMAND] {device.host}: {command}")
 
         # specjalny tryb ASA
-        if device.device_type == DeviceType.FIREWALL:
+        if device.vendor == Vendor.CISCO and device.device_type == DeviceType.FIREWALL:
             output = conn.send_command(
                 command,
                 expect_string=r"[>#]",
@@ -148,8 +148,11 @@ class ConnectionManager:
                 strip_command=False,
             )
         else:
-            output = conn.send_command(command, strip_prompt=False, read_timeout=20)
-
+            output = conn.send_command(
+                command,
+                strip_prompt=False,
+                read_timeout=20
+            )
         return output.strip()
 
     # =====================================================================
@@ -188,15 +191,16 @@ class ConnectionManager:
         """Mapuje obiekt Device na parametry Netmiko ConnectHandler."""
 
         # --- Specjalne mapowanie dla ASA ---
-        if device.device_type == DeviceType.FIREWALL:
-            platform = "cisco_asa"
-        else:
-            if device.vendor == Vendor.CISCO:
-                platform = "cisco_ios"
-            elif device.vendor == Vendor.JUNIPER:
-                platform = "juniper_junos"
+
+        if device.vendor == Vendor.CISCO:
+            if device.device_type == DeviceType.FIREWALL:
+                platform = "cisco_asa"
             else:
-                platform = "generic_termserver"
+                platform = "cisco_ios"
+        elif device.vendor == Vendor.JUNIPER:
+            platform = "juniper_junos"
+        else:
+            platform = "generic_termserver"
 
         if self.connection_type == "telnet":
             platform = f"{platform}_telnet"
