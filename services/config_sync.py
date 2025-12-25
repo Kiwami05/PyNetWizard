@@ -1,8 +1,8 @@
-# services/config_sync.py
 from typing import Protocol
 from devices.Device import Device
 from services.parsed_config import ParsedConfig
-from services.parsers import cisco_ios
+from services.parsers import parse_config
+from devices.Vendor import Vendor
 
 
 class SyncableTab(Protocol):
@@ -14,9 +14,20 @@ class ConfigSyncService:
         self.cm = connection_manager
 
     def fetch_and_parse(self, device: Device) -> ParsedConfig:
-        # Na razie: Cisco/Juniper → użyj Cisco parsera jako domyślnego
-        raw = self.cm.send_command(device, "show running-config")
-        # TODO: w przyszłości detekcja po vendorze/banerze i wybór parsera
-        conf = cisco_ios.parse(raw)
-        conf.vendor = device.vendor.name
+        if device.vendor == Vendor.JUNIPER:
+            raw = self.cm.send_command(device, "show configuration | display set")
+            conf = parse_config(device, raw)
+
+        else:
+            # === CISCO ===
+            raw_running = self.cm.send_command(device, "show running-config")
+            raw_vlan = self.cm.send_command(device, "show vlan")
+
+            conf = parse_config(
+                device,
+                raw_running=raw_running,
+                raw_vlan=raw_vlan,
+            )
+
         return conf
+

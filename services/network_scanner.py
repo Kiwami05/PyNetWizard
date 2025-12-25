@@ -50,7 +50,11 @@ class NetworkScanner(QObject):
     def stop(self):
         self._abort = True
         try:
-            if hasattr(self, "process") and self.process and self.process.poll() is None:
+            if (
+                hasattr(self, "process")
+                and self.process
+                and self.process.poll() is None
+            ):
                 self.process.terminate()
         except Exception:
             pass
@@ -73,10 +77,7 @@ class NetworkScanner(QObject):
 
             # Uruchom nmap jako proces
             proc = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
             )
             self.process = proc  # zapamiętujemy dla stop()
 
@@ -161,4 +162,3 @@ class NetworkScanner(QObject):
 
         except Exception as e:
             self.error.emit(f"{type(e).__name__}: {str(e)}")
-

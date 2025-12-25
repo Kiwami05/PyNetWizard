@@ -16,8 +16,7 @@ _MODE_ACCESS = re.compile(r"^\s*switchport\s+mode\s+access", re.M)
 _MODE_TRUNK = re.compile(r"^\s*switchport\s+mode\s+trunk", re.M)
 _SHUT = re.compile(r"^\s*shutdown", re.M)
 
-_VLAN_BLOCK = re.compile(r"(?ms)^\s*vlan\s+(\d+)\s*(.*?)^\s*exit\b")
-_VLAN_NAME = re.compile(r"^\s*name\s+(.+)$", re.M)
+_VLAN_SHOW = re.compile(r"^\s*(\d+)\s+(\S.*?)\s+(active|act/unsup)",re.M,)
 _INT_ACCESS_VLAN = re.compile(r"^\s*switchport\s+access\s+vlan\s+(\d+)", re.M)
 
 _STATIC_ROUTE = re.compile(r"^\s*ip\s+route\s+(\S+)\s+(\S+)\s+(\S+)", re.M)
@@ -33,7 +32,7 @@ _ACL = re.compile(
 )
 
 
-def parse(raw_running: str) -> ParsedConfig:
+def parse(raw_running: str, raw_vlan: str | None = None) -> ParsedConfig:
     cfg = ParsedConfig(vendor="CISCO", raw_running=raw_running)
 
     # hostname
@@ -73,16 +72,15 @@ def parse(raw_running: str) -> ParsedConfig:
     # VLANs (z sekcji "vlan X")
     vlans = ParsedVLANs()
     # ==============================================================
-    # 1. VLANy z sekcji 'vlan X'
+    # VLANy z `show vlan` (Cisco VLAN database)
     # ==============================================================
-    for vm in _VLAN_BLOCK.finditer(raw_running):
-        vid = vm.group(1)
-        block = vm.group(2)
-        name = ""
-        nm = _VLAN_NAME.search(block)
-        if nm:
-            name = nm.group(1).strip()
-        vlans.items.setdefault(vid, {"name": name, "ports": []})
+    if raw_vlan:
+        for m in _VLAN_SHOW.finditer(raw_vlan):
+            vid, name, _ = m.groups()
+            vlans.items[vid] = {
+                "name": name.strip(),
+                "ports": [],
+            }
 
     # ==============================================================
     # 2. VLANy z interfejsów SVI (interface VlanX)
