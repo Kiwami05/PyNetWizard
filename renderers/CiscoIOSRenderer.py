@@ -22,7 +22,29 @@ class CiscoIOSRenderer(OperationRenderer):
 
         for op in ops:
             if op.operation == OperationEnum.SET_HOSTNAME:
-                cmds.append(f"hostname {op.args.get('hostname')}")
+                hostname = op.args["hostname"]
+                cmds.append(f"hostname {hostname}")
+            # === VLANS ===
+            elif op.operation == OperationEnum.CREATE_VLAN:
+                vid = op.args["vlan_id"]
+                name = op.args.get("name")
+
+                cmds.append(f"vlan {vid}")
+                if name:
+                    cmds.append(f" name {name}")
+                cmds.append(" exit")
+            elif op.operation == OperationEnum.DELETE_VLAN:
+                cmds.append(f"no vlan {op.args['vlan_id']}")
+            elif op.operation == OperationEnum.RENAME_VLAN:
+                vid = op.args["vlan_id"]
+                name = op.args.get("name")
+
+                cmds.append(f"vlan {vid}")
+                if name:
+                    cmds.append(f" name {name}")
+                else:
+                    cmds.append(" no name")
+                cmds.append(" exit")
             else:
                 raise NotImplementedError(
                     f"{self.__class__.__name__} does not this operation"

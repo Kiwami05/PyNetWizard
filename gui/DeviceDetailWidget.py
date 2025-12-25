@@ -233,10 +233,11 @@ class DeviceDetailWidget(QWidget):
         legacy_cmds: list[str] = []
         pending_ops: list[Operation] = []
 
-        # 1) legacy taby (VLAN, interfaces, itd.)
         for idx in range(self.stack.count()):
             w = self.stack.widget(idx)
-            if hasattr(w, "get_pending_commands"):
+            if hasattr(w, "get_pending_operations"):
+                pending_ops.extend(w.get_pending_operations(clear=False))
+            elif hasattr(w, "get_pending_commands"):
                 legacy_cmds.extend(w.get_pending_commands(clear=False))
 
         # 2) GlobalTab → OPERACJE
@@ -259,7 +260,9 @@ class DeviceDetailWidget(QWidget):
     def clear_pending_commands_current(self):
         for idx in range(self.stack.count()):
             w = self.stack.widget(idx)
-            if hasattr(w, "clear_pending_commands"):
+            if hasattr(w, "clear_pending_operations"):
+                w.clear_pending_operations()
+            elif hasattr(w, "clear_pending_commands"):
                 w.clear_pending_commands()
 
     def collect_pending_commands_from_buffer(self, host: str) -> list[str]:
@@ -272,18 +275,25 @@ class DeviceDetailWidget(QWidget):
 
         tabs_data = buf.tabs or {}
 
-        # legacy pending_cmds
-        for data in tabs_data.values():
+        for name, data in tabs_data.items():
             if (
-                isinstance(data, dict)
-                and "pending_cmds" in data
-                and isinstance(data["pending_cmds"], list)
+                    isinstance(data, dict)
+                    and "pending_ops" in data
+                    and isinstance(data["pending_ops"], list)
+            ):
+                pending_ops.extend(
+                    op for op in data["pending_ops"] if isinstance(op, Operation)
+                )
+
+            if (
+                    isinstance(data, dict)
+                    and "pending_cmds" in data
+                    and isinstance(data["pending_cmds"], list)
             ):
                 legacy_cmds.extend(
                     c for c in data["pending_cmds"] if isinstance(c, str)
                 )
 
-        # GlobalTab → OPERACJE
         conf = buf.config
         global_tab = self.pages.get("GLOBAL")
         if conf and global_tab and hasattr(global_tab, "build_pending_from_form"):
@@ -294,9 +304,10 @@ class DeviceDetailWidget(QWidget):
             renderer = RendererFactory.for_vendor(self.current_device.vendor)
             rendered_cmds = renderer.render(pending_ops)
 
-        final_cmds = []
+        final_cmds: list[str] = []
         final_cmds.extend(c.strip() for c in legacy_cmds if c.strip())
         final_cmds.extend(c.strip() for c in rendered_cmds if c.strip())
+
         return final_cmds
 
     def clear_pending_commands_in_buffer(self, host: str):

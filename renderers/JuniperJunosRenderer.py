@@ -21,30 +21,32 @@ class JuniperJunosRenderer(OperationRenderer):
 
         for op in ops:
             if op.operation == OperationEnum.SET_HOSTNAME:
-                cmds.append(f"set system host-name {op.args.get('hostname')}")
+                hostname = op.args["hostname"]
+                cmds.append(f"set system host-name {hostname}")
+            elif op.operation == OperationEnum.CREATE_VLAN:
+                vid = op.args["vlan_id"]
+                name = op.args.get("name")
+
+                cmds.append(f"set vlans vlan-{vid} vlan-id {vid}")
+                if name:
+                    cmds.append(f'set vlans vlan-{vid} description "{name}"')
+
+            elif op.operation == OperationEnum.DELETE_VLAN:
+                cmds.append(f"delete vlans vlan-{op.args['vlan_id']}")
+
+            elif op.operation == OperationEnum.RENAME_VLAN:
+                vid = op.args["vlan_id"]
+                name = op.args.get("name")
+
+                if name:
+                    cmds.append(f'set vlans vlan-{vid} description "{name}"')
+                else:
+                    cmds.append(f"delete vlans vlan-{vid} description")
+
             else:
                 raise NotImplementedError(
                     f"{self.__class__.__name__} does not this operation"
                 )
-            # # ================= VLAN =================
-            #
-            # elif isinstance(op, CreateVlan):
-            #     cmds.append(f"set vlans vlan-{op.vlan_id} vlan-id {op.vlan_id}")
-            #     if op.name:
-            #         cmds.append(f"set vlans vlan-{op.vlan_id} description \"{op.name}\"")
-            #
-            # elif isinstance(op, DeleteVlan):
-            #     cmds.append(f"delete vlans vlan-{op.vlan_id}")
-            #
-            # elif isinstance(op, RenameVlan):
-            #     if op.name:
-            #         cmds.append(
-            #             f"set vlans vlan-{op.vlan_id} description \"{op.name}\""
-            #         )
-            #     else:
-            #         cmds.append(
-            #             f"delete vlans vlan-{op.vlan_id} description"
-            #         )
 
         cmds.append("commit")
         cmds.append("exit")
