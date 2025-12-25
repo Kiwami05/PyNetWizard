@@ -14,18 +14,20 @@ class ConfigSyncService:
         self.cm = connection_manager
 
     def fetch_and_parse(self, device: Device) -> ParsedConfig:
-        # 1 wybór komendy po vendorze
         if device.vendor == Vendor.JUNIPER:
-            cmd = "show configuration | display set"
+            raw = self.cm.send_command(device, "show configuration | display set")
+            conf = parse_config(device, raw)
+
         else:
-            # Cisco (IOS / ASA)
-            cmd = "show running-config"
+            # === CISCO ===
+            raw_running = self.cm.send_command(device, "show running-config")
+            raw_vlan = self.cm.send_command(device, "show vlan")
 
-        # 2 pobranie raw configu
-        raw = self.cm.send_command(device, cmd)
+            conf = parse_config(
+                device,
+                raw_running=raw_running,
+                raw_vlan=raw_vlan,
+            )
 
-        # 3 vendor-aware parser
-        conf = parse_config(device, raw)
-
-        # ParsedConfig ZNA vendora — nie nadpisujemy go stringiem
         return conf
+
