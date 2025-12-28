@@ -45,29 +45,45 @@ class CiscoIOSRenderer(OperationRenderer):
                 else:
                     cmds.append(" no name")
                 cmds.append(" exit")
+            # === INTERFACES ===
+            elif op.operation == OperationEnum.SET_INTERFACE_DESCRIPTION:
+                iface = op.args["iface"]
+                desc = op.args.get("description")
+
+                cmds.append(f"interface {iface}")
+                if desc:
+                    cmds.append(f" description {desc}")
+                else:
+                    cmds.append(" no description")
+                cmds.append(" exit")
+
+            elif op.operation == OperationEnum.SET_INTERFACE_IP:
+                iface = op.args["iface"]
+                ip = op.args["ip"]
+                mask = op.args["mask"]
+
+                cmds.append(f"interface {iface}")
+                cmds.append(f" ip address {ip} {mask}")
+                cmds.append(" exit")
+
+            elif op.operation == OperationEnum.CLEAR_INTERFACE_IP:
+                iface = op.args["iface"]
+
+                cmds.append(f"interface {iface}")
+                cmds.append(" no ip address")
+                cmds.append(" exit")
+
+            elif op.operation == OperationEnum.SET_INTERFACE_STATUS:
+                iface = op.args["iface"]
+                enabled = op.args["enabled"]
+
+                cmds.append(f"interface {iface}")
+                cmds.append(" no shutdown" if enabled else " shutdown")
+                cmds.append(" exit")
             else:
                 raise NotImplementedError(
                     f"{self.__class__.__name__} does not this operation"
                 )
-
-            # # ================= VLAN =================
-            #
-            # elif isinstance(op, CreateVlan):
-            #     cmds.append(f"vlan {op.vlan_id}")
-            #     if op.name:
-            #         cmds.append(f" name {op.name}")
-            #     cmds.append(" exit")
-            #
-            # elif isinstance(op, DeleteVlan):
-            #     cmds.append(f"no vlan {op.vlan_id}")
-            #
-            # elif isinstance(op, RenameVlan):
-            #     cmds.append(f"vlan {op.vlan_id}")
-            #     if op.name:
-            #         cmds.append(f" name {op.name}")
-            #     else:
-            #         cmds.append(" no name")
-            #     cmds.append(" exit")
 
         cmds.append("end")
         return cmds
