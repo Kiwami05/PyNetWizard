@@ -78,6 +78,19 @@ class JuniperJunosRenderer(OperationRenderer):
                     cmds.append(f"delete interfaces {iface} disable")
                 else:
                     cmds.append(f"set interfaces {iface} disable")
+            # === SWITCH INTERFACES ===
+            elif op.operation in {
+                OperationEnum.SET_SWITCHPORT_MODE_ACCESS,
+                OperationEnum.SET_SWITCHPORT_MODE_TRUNK,
+                OperationEnum.SET_SWITCHPORT_MODE_ROUTED,
+                OperationEnum.SET_ACCESS_VLAN,
+                OperationEnum.CLEAR_ACCESS_VLAN,
+                OperationEnum.SET_TRUNK_ALLOWED_VLANS,
+                OperationEnum.CLEAR_TRUNK_ALLOWED_VLANS,
+            }:
+                raise NotImplementedError(
+                    "Switchport/VLAN operations not implemented for Junos yet"
+                )
             else:
                 raise NotImplementedError(
                     f"{self.__class__.__name__} does not this operation"

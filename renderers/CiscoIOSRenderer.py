@@ -80,6 +80,52 @@ class CiscoIOSRenderer(OperationRenderer):
                 cmds.append(f"interface {iface}")
                 cmds.append(" no shutdown" if enabled else " shutdown")
                 cmds.append(" exit")
+            # === SWITCH INTERFACES ===
+            elif op.operation == OperationEnum.SET_SWITCHPORT_MODE_ACCESS:
+                iface = op.args["iface"]
+
+                cmds.append(f"interface {iface}")
+                cmds.append(" switchport mode access")
+                cmds.append(" exit")
+            elif op.operation == OperationEnum.SET_SWITCHPORT_MODE_TRUNK:
+                iface = op.args["iface"]
+
+                cmds.append(f"interface {iface}")
+                cmds.append(" switchport trunk encapsulation dot1q")
+                cmds.append(" switchport mode trunk")
+                cmds.append(" exit")
+            elif op.operation == OperationEnum.SET_SWITCHPORT_MODE_ROUTED:
+                iface = op.args["iface"]
+
+                cmds.append(f"interface {iface}")
+                cmds.append(" no switchport")
+                cmds.append(" exit")
+            elif op.operation == OperationEnum.SET_ACCESS_VLAN:
+                iface = op.args["iface"]
+                vlan = op.args["vlan_id"]
+
+                cmds.append(f"interface {iface}")
+                cmds.append(f" switchport access vlan {vlan}")
+                cmds.append(" exit")
+            elif op.operation == OperationEnum.CLEAR_ACCESS_VLAN:
+                iface = op.args["iface"]
+
+                cmds.append(f"interface {iface}")
+                cmds.append(f" no switchport access vlan")
+                cmds.append(" exit")
+            elif op.operation == OperationEnum.SET_TRUNK_ALLOWED_VLANS:
+                iface = op.args["iface"]
+                vlans = ",".join(str(v) for v in op.args["vlans"])
+
+                cmds.append(f"interface {iface}")
+                cmds.append(f" switchport trunk allowed vlan {vlans}")
+                cmds.append(" exit")
+            elif op.operation == OperationEnum.CLEAR_TRUNK_ALLOWED_VLANS:
+                iface = op.args["iface"]
+
+                cmds.append(f"interface {iface}")
+                cmds.append(f" no switchport trunk allowed vlan")
+                cmds.append(" exit")
             else:
                 raise NotImplementedError(
                     f"{self.__class__.__name__} does not this operation"
