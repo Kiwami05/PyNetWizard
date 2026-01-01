@@ -91,6 +91,35 @@ class JuniperJunosRenderer(OperationRenderer):
                 raise NotImplementedError(
                     "Switchport/VLAN operations not implemented for Junos yet"
                 )
+            # === ROUTING ===
+            elif op.operation == OperationEnum.ADD_STATIC_ROUTE:
+                cmds.append(
+                    f"set routing-options static route "
+                    f"{op.args['dest']}/{op.args['mask']} next-hop {op.args['nh']}"
+                )
+            elif op.operation == OperationEnum.DEL_STATIC_ROUTE:
+                cmds.append(
+                    f"delete routing-options static route "
+                    f"{op.args['dest']}/{op.args['mask']}"
+                )
+            elif op.operation in (
+                    OperationEnum.ENABLE_RIP,
+                    OperationEnum.DISABLE_RIP,
+                    OperationEnum.ADD_RIP_NETWORK,
+                    OperationEnum.DEL_RIP_NETWORK,
+            ):
+                raise NotImplementedError("RIP not supported on Junos yet")
+            elif op.operation == OperationEnum.ADD_OSPF_NETWORK:
+                cmds.append(
+                    f"set protocols ospf area {op.args['area']} "
+                    f"network {op.args['network']}/{op.args['wildcard']}"
+                )
+
+            elif op.operation == OperationEnum.DEL_OSPF_NETWORK:
+                cmds.append(
+                    f"delete protocols ospf area {op.args['area']} "
+                    f"network {op.args['network']}/{op.args['wildcard']}"
+                )
             else:
                 raise NotImplementedError(
                     f"{self.__class__.__name__} does not this operation"

@@ -126,6 +126,52 @@ class CiscoIOSRenderer(OperationRenderer):
                 cmds.append(f"interface {iface}")
                 cmds.append(f" no switchport trunk allowed vlan")
                 cmds.append(" exit")
+            # === ROUTING ===
+            elif op.operation == OperationEnum.ADD_STATIC_ROUTE:
+                cmds.append(
+                    f"ip route {op.args['dest']} {op.args['mask']} {op.args['nh']}"
+                )
+            elif op.operation == OperationEnum.DEL_STATIC_ROUTE:
+                cmds.append(
+                    f"no ip route {op.args['dest']} {op.args['mask']} {op.args['nh']}"
+                )
+            elif op.operation == OperationEnum.ENABLE_RIP:
+                cmds.extend([
+                    "router rip",
+                    " version 2",
+                    " exit",
+                ])
+
+            elif op.operation == OperationEnum.DISABLE_RIP:
+                cmds.append("no router rip")
+
+            elif op.operation == OperationEnum.ADD_RIP_NETWORK:
+                cmds.extend([
+                    "router rip",
+                    f" network {op.args['network']}",
+                    " exit",
+                ])
+
+            elif op.operation == OperationEnum.DEL_RIP_NETWORK:
+                cmds.extend([
+                    "router rip",
+                    f" no network {op.args['network']}",
+                    " exit",
+                ])
+            elif op.operation == OperationEnum.ADD_OSPF_NETWORK:
+                cmds.extend([
+                    f"router ospf {op.args['process']}",
+                    f" network {op.args['network']} {op.args['wildcard']} area {op.args['area']}",
+                    " exit",
+                ])
+
+            elif op.operation == OperationEnum.DEL_OSPF_NETWORK:
+                cmds.extend([
+                    f"router ospf {op.args['process']}",
+                    f" no network {op.args['network']} {op.args['wildcard']} area {op.args['area']}",
+                    " exit",
+                ])
+
             else:
                 raise NotImplementedError(
                     f"{self.__class__.__name__} does not this operation"
