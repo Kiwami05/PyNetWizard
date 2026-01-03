@@ -17,6 +17,8 @@ from PySide6.QtWidgets import (
 )
 import ipaddress
 
+from operations.Operation import Operation
+from operations.OperationEnum import OperationEnum
 from services.parsed_config import ParsedConfig
 
 
@@ -73,7 +75,7 @@ class RoutingTab(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self.pending_cmds: list[str] = []
+        self.pending_ops: list[Operation] = []
         self._loading: bool = False  # blokuje eventy podczas sync/import
 
         main_layout = QVBoxLayout(self)
@@ -202,7 +204,15 @@ class RoutingTab(QWidget):
         self.static_table.setItem(r, 1, QTableWidgetItem(mask))
         self.static_table.setItem(r, 2, QTableWidgetItem(nh))
 
-        self._enqueue([f"ip route {dest} {mask} {nh}"])
+        self.pending_ops.append(
+            Operation(
+                OperationEnum.ADD_STATIC_ROUTE,
+                dest=dest,
+                mask=mask,
+                nh=nh,
+            )
+        )
+        self.console.appendPlainText(f"[OP] add static route to {dest}")
         self.static_table.selectRow(r)
 
     def _on_static_update(self):
@@ -228,11 +238,23 @@ class RoutingTab(QWidget):
         if dest == old_dest and mask == old_mask and nh == old_nh:
             return
 
-        cmds = [
-            f"no ip route {old_dest} {old_mask} {old_nh}",
-            f"ip route {dest} {mask} {nh}",
-        ]
-        self._enqueue(cmds)
+        self.pending_ops.append(
+            Operation(
+                OperationEnum.DEL_STATIC_ROUTE,
+                dest=old_dest,
+                mask=old_mask,
+                nh=old_nh,
+            )
+        )
+        self.pending_ops.append(
+            Operation(
+                OperationEnum.ADD_STATIC_ROUTE,
+                dest=dest,
+                mask=mask,
+                nh=nh,
+            )
+        )
+        self.console.appendPlainText(f"[OP] update static route to {dest}")
 
         self.static_table.setItem(row, 0, QTableWidgetItem(dest))
         self.static_table.setItem(row, 1, QTableWidgetItem(mask))
@@ -248,7 +270,15 @@ class RoutingTab(QWidget):
         mask = self.static_table.item(row, 1).text()
         nh = self.static_table.item(row, 2).text()
 
-        self._enqueue([f"no ip route {dest} {mask} {nh}"])
+        self.pending_ops.append(
+            Operation(
+                OperationEnum.DEL_STATIC_ROUTE,
+                dest=dest,
+                mask=mask,
+                nh=nh,
+            )
+        )
+        self.console.appendPlainText(f"[OP] delete static route to {dest}")
         self.static_table.removeRow(row)
 
     # ============================================================
@@ -297,9 +327,18 @@ class RoutingTab(QWidget):
         if self._loading:
             return
         if enabled:
-            self._enqueue(["router rip", " version 2", " exit"])
+            self.pending_ops.append(
+                Operation(
+                    OperationEnum.ENABLE_RIP,
+                )
+            )
         else:
-            self._enqueue(["no router rip"])
+            self.pending_ops.append(
+                Operation(
+                    OperationEnum.DISABLE_RIP,
+                )
+            )
+        self.console.appendPlainText(f"[OP] turn RIP {'ON' if enabled else 'OFF'}")
 
     def _rip_add(self):
         net = self.rip_net.text().strip()
@@ -321,7 +360,13 @@ class RoutingTab(QWidget):
         r = self.rip_table.rowCount()
         self.rip_table.insertRow(r)
         self.rip_table.setItem(r, 0, QTableWidgetItem(net))
-        self._enqueue(["router rip", f" network {net}", " exit"])
+        self.pending_ops.append(
+            Operation(
+                OperationEnum.ADD_RIP_NETWORK,
+                network=net,
+            )
+        )
+        self.console.appendPlainText(f"[OP] add {net} to RIP")
         self.rip_table.selectRow(r)
         self.rip_net.clear()
 
@@ -331,7 +376,13 @@ class RoutingTab(QWidget):
             QMessageBox.information(self, "Info", "Wybierz sieć do usunięcia.")
             return
         net = self.rip_table.item(row, 0).text()
-        self._enqueue(["router rip", f" no network {net}", " exit"])
+        self.pending_ops.append(
+            Operation(
+                OperationEnum.DEL_RIP_NETWORK,
+                network=net,
+            )
+        )
+        self.console.appendPlainText(f"[OP] delete {net} to RIP")
         self.rip_table.removeRow(row)
 
     # ============================================================
@@ -401,10 +452,9 @@ class RoutingTab(QWidget):
         row = self._ospf_selected_row()
         if row is None:
             return
-        self.ospf_pid.setText(self.ospf_table.item(row, 0).text())
-        self.ospf_network.setText(self.ospf_table.item(row, 1).text())
-        self.ospf_wild.setText(self.ospf_table.item(row, 2).text())
-        self.ospf_area.setText(self.ospf_table.item(row, 3).text())
+        self.ospf_network.setText(self.ospf_table.item(row, 0).text())
+        self.ospf_wild.setText(self.ospf_table.item(row, 1).text())
+        self.ospf_area.setText(self.ospf_table.item(row, 2).text())
 
     def _on_ospf_add(self):
         net = self.ospf_network.text().strip()
@@ -435,8 +485,16 @@ class RoutingTab(QWidget):
         self.ospf_table.setItem(r, 1, QTableWidgetItem(wc))
         self.ospf_table.setItem(r, 2, QTableWidgetItem(area))
 
-        cmds = ["router ospf 1", f" network {net} {wc} area {area}", " exit"]
-        self._enqueue(cmds)
+        self.pending_ops.append(
+            Operation(
+                OperationEnum.ADD_OSPF_NETWORK,
+                process=1,
+                network=net,
+                wildcard=wc,
+                area=area,
+            )
+        )
+        self.console.appendPlainText(f"[OP] add {net} to OSPF")
         self.ospf_table.selectRow(r)
 
     def _on_ospf_update(self):
@@ -464,15 +522,25 @@ class RoutingTab(QWidget):
         if net == old_net and wc == old_wc and area == old_area:
             return
 
-        cmds = [
-            "router ospf 1",
-            f" no network {old_net} {old_wc} area {old_area}",
-            " exit",
-            "router ospf 1",
-            f" network {net} {wc} area {area}",
-            " exit",
-        ]
-        self._enqueue(cmds)
+        self.pending_ops.append(
+            Operation(
+                OperationEnum.DEL_OSPF_NETWORK,
+                process=1,
+                network=old_net,
+                wildcard=old_wc,
+                area=old_area,
+            )
+        )
+        self.pending_ops.append(
+            Operation(
+                OperationEnum.ADD_OSPF_NETWORK,
+                process=1,
+                network=net,
+                wildcard=wc,
+                area=area,
+            )
+        )
+        self.console.appendPlainText(f"[OP] update {net} to OSPF")
 
         self.ospf_table.setItem(row, 0, QTableWidgetItem(net))
         self.ospf_table.setItem(row, 1, QTableWidgetItem(wc))
@@ -484,50 +552,34 @@ class RoutingTab(QWidget):
             QMessageBox.information(self, "Info", "Wybierz wpis OSPF do usunięcia.")
             return
 
-        pid = self.ospf_table.item(row, 0).text()
-        net = self.ospf_table.item(row, 1).text()
-        w = self.ospf_table.item(row, 2).text()
-        area = self.ospf_table.item(row, 3).text()
+        net = self.ospf_table.item(row, 0).text()
+        w = self.ospf_table.item(row, 1).text()
+        area = self.ospf_table.item(row, 2).text()
 
-        self._enqueue(
-            [
-                f"router ospf {pid}",
-                f" no network {net} {w} area {area}",
-                " exit",
-            ]
+        self.pending_ops.append(
+            Operation(
+                OperationEnum.DEL_OSPF_NETWORK,
+                process=1,
+                network=net,
+                wildcard=w,
+                area=area,
+            )
         )
+        self.console.appendPlainText(f"[OP] delete {net} from OSPF")
         self.ospf_table.removeRow(row)
 
     # ============================================================
     #                     BUFORY + IMPORT / EXPORT
     # ============================================================
 
-    def _enqueue(self, cmds: list[str]):
-        """
-        Wysyła komendy:
-        - do lokalnego logu taba
-        - do globalnej konsoli urządzenia (DeviceDetailWidget)
-        - do pending_cmds
-        """
-        for c in cmds:
-            self.console.appendPlainText(c)
-            # globalna konsola
-            try:
-                if hasattr(self.parent(), "append_console"):
-                    self.parent().append_console(c)
-            except Exception:
-                pass
-
-        self.pending_cmds.extend(cmds)
-
-    def get_pending_commands(self, clear=False):
-        cmds = list(self.pending_cmds)
+    def get_pending_operations(self, clear=False) -> list[Operation]:
+        ops = list(self.pending_ops)
         if clear:
-            self.pending_cmds = []
-        return cmds
+            self.pending_ops.clear()
+        return ops
 
-    def clear_pending_commands(self):
-        self.pending_cmds = []
+    def clear_pending_operations(self):
+        self.pending_ops.clear()
 
     def export_state(self):
         data = {
@@ -535,7 +587,7 @@ class RoutingTab(QWidget):
             "rip_enabled": self.rip_enabled.isChecked(),
             "rip": [],
             "ospf": [],
-            "pending_cmds": list(self.pending_cmds),
+            "pending_ops": list(self.pending_ops),
             "console": self.console.toPlainText(),
         }
 
@@ -592,7 +644,7 @@ class RoutingTab(QWidget):
                     self.ospf_table.setItem(r, i, QTableWidgetItem(row[i]))
 
             self.console.setPlainText(data.get("console", ""))
-            self.pending_cmds = list(data.get("pending_cmds", []))
+            self.pending_ops = list(data.get("pending_ops", []))
         finally:
             self._loading = False
 
@@ -632,7 +684,7 @@ class RoutingTab(QWidget):
                 self.ospf_table.setItem(row, 1, QTableWidgetItem(o["wildcard"]))
                 self.ospf_table.setItem(row, 2, QTableWidgetItem(o["area"]))
 
-            self.pending_cmds.clear()
+            self.pending_ops.clear()
             self.console.appendPlainText("[SYNC] Routing updated from running-config.")
         finally:
             self._loading = False

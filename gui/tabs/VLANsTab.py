@@ -15,6 +15,8 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
+from operations.Operation import Operation
+from operations.OperationEnum import OperationEnum
 from services.parsed_config import ParsedConfig
 
 
@@ -35,7 +37,7 @@ class VLANsTab(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self.pending_cmds: list[str] = []
+        self.pending_ops: list[Operation] = []
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(20, 15, 20, 15)
@@ -193,8 +195,12 @@ class VLANsTab(QWidget):
             self._append_console(f" name {name}")
         self._append_console(" exit\n")
 
-        self.pending_cmds.extend(
-            [f"vlan {vlan_id}"] + ([f" name {name}"] if name else []) + [" exit"]
+        self.pending_ops.append(
+            Operation(
+                OperationEnum.CREATE_VLAN,
+                vlan_id=int(vlan_id),
+                name=name or None,
+            )
         )
 
     def _update_existing_vlan(self, row: int, new_id: str, new_name: str):
@@ -227,14 +233,19 @@ class VLANsTab(QWidget):
                 return
 
             # Komendy
-            cmds = [f"no vlan {old_id}", f"vlan {new_id}"]
-            if new_name:
-                cmds.append(f" name {new_name}")
-            cmds.append(" exit")
-
-            for c in cmds:
-                self._append_console(c)
-            self.pending_cmds.extend(cmds)
+            self.pending_ops.append(
+                Operation(
+                    OperationEnum.DELETE_VLAN,
+                    vlan_id=int(old_id),
+                )
+            )
+            self.pending_ops.append(
+                Operation(
+                    OperationEnum.CREATE_VLAN,
+                    vlan_id=int(new_id),
+                    name=new_name or None,
+                )
+            )
 
             # Aktualizacja tabeli
             id_item.setText(new_id)
@@ -246,18 +257,13 @@ class VLANsTab(QWidget):
                 # nic się nie zmieniło
                 return
 
-            cmds = [f"vlan {old_id}"]
-            if new_name:
-                cmds.append(f" name {new_name}")
-            else:
-                # jeśli była nazwa i ją kasujemy — zróbmy no name
-                if old_name:
-                    cmds.append(" no name")
-            cmds.append(" exit")
-
-            for c in cmds:
-                self._append_console(c)
-            self.pending_cmds.extend(cmds)
+            self.pending_ops.append(
+                Operation(
+                    OperationEnum.RENAME_VLAN,
+                    vlan_id=int(old_id),
+                    name=new_name or None,
+                )
+            )
 
             name_item.setText(new_name)
 
@@ -288,10 +294,12 @@ class VLANsTab(QWidget):
         if reply != QMessageBox.Yes:
             return
 
-        # Komenda
-        cmd = f"no vlan {vlan_id}"
-        self._append_console(cmd)
-        self.pending_cmds.append(cmd)
+        self.pending_ops.append(
+            Operation(
+                OperationEnum.DELETE_VLAN,
+                vlan_id=int(vlan_id),
+            )
+        )
 
         # Usunięcie z tabeli
         self.table.removeRow(row)
@@ -304,14 +312,14 @@ class VLANsTab(QWidget):
     #                     BUFORY / PENDING
     # ==========================================================
 
-    def get_pending_commands(self, clear: bool = False):
-        cmds = list(self.pending_cmds)
+    def get_pending_operations(self, clear: bool = False) -> list[Operation]:
+        ops = list(self.pending_ops)
         if clear:
-            self.pending_cmds.clear()
-        return cmds
+            self.pending_ops.clear()
+        return ops
 
-    def clear_pending_commands(self):
-        self.pending_cmds.clear()
+    def clear_pending_operations(self):
+        self.pending_ops.clear()
 
     def export_state(self):
         rows = []
@@ -324,7 +332,7 @@ class VLANsTab(QWidget):
         return {
             "rows": rows,
             "console": self.console.toPlainText(),
-            "pending_cmds": list(self.pending_cmds),
+            "pending_ops": list(self.pending_ops),
         }
 
     def import_state(self, data):
@@ -335,7 +343,7 @@ class VLANsTab(QWidget):
             for c, val in enumerate(row):
                 self.table.setItem(r, c, QTableWidgetItem(val))
         self.console.setPlainText(data.get("console", ""))
-        self.pending_cmds = list(data.get("pending_cmds", []))
+        self.pending_ops = list(data.get("pending_ops", []))
 
     # ==========================================================
     #                     SYNC Z PARSED CONFIG
@@ -364,5 +372,5 @@ class VLANsTab(QWidget):
             ports_item.setFlags(ports_item.flags() & ~Qt.ItemIsEditable)
             self.table.setItem(r, self.COL_PORTS, ports_item)
 
-        self.pending_cmds.clear()
+        self.pending_ops.clear()
         self.console.appendPlainText("[SYNC] VLANs updated from running-config.")

@@ -16,6 +16,8 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 
 from gui.tabs.InterfacesTab import InterfacesTab, mask_to_cidr
+from operations.Operation import Operation
+from operations.OperationEnum import OperationEnum
 from services.parsed_config import ParsedConfig
 
 
@@ -251,19 +253,29 @@ class SwitchInterfacesTab(InterfacesTab):
         iface = w.property("iface")
         mode = (mode or "").lower()
 
-        cmds = [f"interface {iface}"]
-
         if mode == "access":
-            cmds.append(" switchport mode access")
+            self.pending_ops.append(
+                Operation(
+                    OperationEnum.SET_SWITCHPORT_MODE_ACCESS,
+                    iface=iface,
+                )
+            )
         elif mode == "trunk":
-            cmds.append(" switchport mode trunk")
+            self.pending_ops.append(
+                Operation(
+                    OperationEnum.SET_SWITCHPORT_MODE_TRUNK,
+                    iface=iface,
+                )
+            )
         elif mode == "routed":
-            cmds.append(" no switchport")
-        else:
-            return
+            self.pending_ops.append(
+                Operation(
+                    OperationEnum.SET_SWITCHPORT_MODE_ROUTED,
+                    iface=iface,
+                )
+            )
 
-        cmds.append(" exit")
-        self._enqueue(cmds)
+            self.console.appendPlainText(f"[OP] set mode {mode} on {iface}")
 
     # ===================================================================
     #                   HANDLER PRZYCISKU VLAN(s)
@@ -330,17 +342,23 @@ class SwitchInterfacesTab(InterfacesTab):
         btn.setText(", ".join(selected))
 
         # wygeneruj komendy
-        cmds = [f"interface {iface}"]
         if mode == "access":
             # zakładamy jeden VLAN
             vid = selected[0]
-            cmds.append(f" switchport access vlan {vid}")
+            self.pending_ops.append(
+                Operation(OperationEnum.SET_ACCESS_VLAN, iface=iface, vlan_id=vid)
+            )
         else:  # trunk
-            vids_str = ",".join(selected)
-            cmds.append(f" switchport trunk allowed vlan {vids_str}")
-        cmds.append(" exit")
-
-        self._enqueue(cmds)
+            self.pending_ops.append(
+                Operation(
+                    OperationEnum.SET_TRUNK_ALLOWED_VLANS,
+                    iface=iface,
+                    vlans=[int(v) for v in selected],
+                )
+            )
+        self.console.appendPlainText(
+            f"[OP] set VLAN(s) {','.join(selected)} on {iface} ({mode})"
+        )
 
     # ===================================================================
     #                     STATE EXPORT / IMPORT
@@ -375,7 +393,7 @@ class SwitchInterfacesTab(InterfacesTab):
         return {
             "rows": rows,
             "console": self.console.toPlainText(),
-            "pending_cmds": list(self.pending_cmds),
+            "pending_ops": list(self.pending_ops),
         }
 
     def import_state(self, data: dict):
@@ -400,7 +418,7 @@ class SwitchInterfacesTab(InterfacesTab):
                 self._create_interface_row(name, desc, ip, cidr, mode, status, vlans)
 
             self.console.setPlainText(data.get("console", ""))
-            self.pending_cmds = list(data.get("pending_cmds", []))
+            self.pending_ops = list(data.get("pending_ops", []))
         finally:
             self._loading = False
 
@@ -452,7 +470,7 @@ class SwitchInterfacesTab(InterfacesTab):
                     vlans=vlans,
                 )
 
-            self.pending_cmds.clear()
+            self.pending_ops.clear()
             self.console.appendPlainText(
                 "[SYNC] Switch interfaces updated from running-config."
             )

@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QSpinBox,
 )
-from network_scanner import NetworkScanner
+from services.network_scanner import NetworkScanner
 import os
 import ipaddress
 

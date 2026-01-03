@@ -15,6 +15,9 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 
 import ipaddress
+
+from operations.Operation import Operation
+from operations.OperationEnum import OperationEnum
 from services.parsed_config import ParsedConfig
 
 
@@ -82,7 +85,7 @@ class InterfacesTab(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self.pending_cmds: list[str] = []
+        self.pending_ops: list[Operation] = []
         self._loading: bool = False  # blokuje eventy podczas sync/import
 
         # ============================================================
@@ -199,11 +202,17 @@ class InterfacesTab(QWidget):
         iface = w.property("iface")
         desc = w.text().strip()
 
-        cmds = [f"interface {iface}"]
-        cmds.append(f" description {desc}" if desc else " no description")
-        cmds.append(" exit")
+        self.pending_ops.append(
+            Operation(
+                OperationEnum.SET_INTERFACE_DESCRIPTION,
+                iface=iface,
+                description=desc or None,
+            )
+        )
 
-        self._enqueue(cmds)
+        self.console.appendPlainText(
+            f"[OP] set description on {iface}: {desc or '(clear)'}"
+        )
 
     def _on_ip_changed(self):
         if self._loading:
@@ -243,16 +252,26 @@ class InterfacesTab(QWidget):
         ip = ip_w.text().strip()
         cidr = mask_w.value()
 
-        cmds = [f"interface {iface}"]
-
         if not ip or cidr == 0:
-            cmds.append(" no ip address")
+            self.pending_ops.append(
+                Operation(
+                    OperationEnum.CLEAR_INTERFACE_IP,
+                    iface=iface,
+                )
+            )
+            self.console.appendPlainText(f"[OP] clear IP on {iface}")
+
         else:
             mask = cidr_to_mask(cidr)
-            cmds.append(f" ip address {ip} {mask}")
-
-        cmds.append(" exit")
-        self._enqueue(cmds)
+            self.pending_ops.append(
+                Operation(
+                    OperationEnum.SET_INTERFACE_IP,
+                    iface=iface,
+                    ip=ip,
+                    mask=mask,
+                )
+            )
+            self.console.appendPlainText(f"[OP] set IP on {iface}: {ip}/{cidr}")
 
     def _on_status_changed(self, is_up: bool):
         if self._loading:
@@ -261,11 +280,15 @@ class InterfacesTab(QWidget):
         w = self.sender()
         iface = w.property("iface")
 
-        cmds = [f"interface {iface}"]
-        cmds.append(" no shutdown" if is_up else " shutdown")
-        cmds.append(" exit")
+        self.pending_ops.append(
+            Operation(
+                OperationEnum.SET_INTERFACE_STATUS,
+                iface=iface,
+                enabled=is_up,
+            )
+        )
 
-        self._enqueue(cmds)
+        self.console.appendPlainText(f"[OP] {'enable' if is_up else 'disable'} {iface}")
 
     # ================================================================
     #                   PRZYCISKI Enable/Disable
@@ -280,25 +303,30 @@ class InterfacesTab(QWidget):
             return
 
         iface = self.table.item(row, self.COL_NAME).text()
-        self._enqueue([f"interface {iface}", cmd, "exit"])
+        self.pending_ops.append(
+            Operation(
+                OperationEnum.SET_INTERFACE_STATUS,
+                iface=iface,
+                enabled=(cmd == "no shutdown"),
+            )
+        )
+
+        self.console.appendPlainText(
+            f"[OP] {'enable' if cmd == 'no shutdown' else 'disable'} {iface}"
+        )
 
     # ================================================================
     #                        BUFORY / PENDING CMDS
     # ================================================================
 
-    def _enqueue(self, cmds: list[str]):
-        for c in cmds:
-            self.console.appendPlainText(c)
-        self.pending_cmds.extend(cmds)
-
-    def get_pending_commands(self, clear=False) -> list[str]:
-        cmds = list(self.pending_cmds)
+    def get_pending_operations(self, clear=False) -> list[Operation]:
+        ops = list(self.pending_ops)
         if clear:
-            self.pending_cmds.clear()
-        return cmds
+            self.pending_ops.clear()
+        return ops
 
-    def clear_pending_commands(self):
-        self.pending_cmds.clear()
+    def clear_pending_operations(self):
+        self.pending_ops.clear()
 
     # ================================================================
     #                        EXPORT / IMPORT
@@ -323,7 +351,7 @@ class InterfacesTab(QWidget):
         return {
             "rows": rows,
             "console": self.console.toPlainText(),
-            "pending_cmds": list(self.pending_cmds),
+            "pending_ops": list(self.pending_ops),
         }
 
     def import_state(self, data: dict):
@@ -335,7 +363,7 @@ class InterfacesTab(QWidget):
                 self._create_interface_row(name, desc, ip, cidr, status)
 
             self.console.setPlainText(data.get("console", ""))
-            self.pending_cmds = list(data.get("pending_cmds", []))
+            self.pending_ops = list(data.get("pending_ops", []))
         finally:
             self._loading = False
 
@@ -363,7 +391,7 @@ class InterfacesTab(QWidget):
                     status=status,
                 )
 
-            self.pending_cmds.clear()
+            self.pending_ops.clear()
             self.console.appendPlainText(
                 "[SYNC] Interfaces updated from running-config."
             )
