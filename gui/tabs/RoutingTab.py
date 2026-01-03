@@ -472,9 +472,9 @@ class RoutingTab(QWidget):
         # duplikaty
         for r in range(self.ospf_table.rowCount()):
             if (
-                    self.ospf_table.item(r, 0).text() == net
-                    and self.ospf_table.item(r, 1).text() == wc
-                    and self.ospf_table.item(r, 2).text() == area
+                self.ospf_table.item(r, 0).text() == net
+                and self.ospf_table.item(r, 1).text() == wc
+                and self.ospf_table.item(r, 2).text() == area
             ):
                 QMessageBox.information(self, "Info", "Taki wpis OSPF już istnieje.")
                 return

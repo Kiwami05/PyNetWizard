@@ -111,7 +111,7 @@ class CiscoIOSRenderer(OperationRenderer):
                 iface = op.args["iface"]
 
                 cmds.append(f"interface {iface}")
-                cmds.append(f" no switchport access vlan")
+                cmds.append(" no switchport access vlan")
                 cmds.append(" exit")
             elif op.operation == OperationEnum.SET_TRUNK_ALLOWED_VLANS:
                 iface = op.args["iface"]
@@ -124,7 +124,7 @@ class CiscoIOSRenderer(OperationRenderer):
                 iface = op.args["iface"]
 
                 cmds.append(f"interface {iface}")
-                cmds.append(f" no switchport trunk allowed vlan")
+                cmds.append(" no switchport trunk allowed vlan")
                 cmds.append(" exit")
             # === ROUTING ===
             elif op.operation == OperationEnum.ADD_STATIC_ROUTE:
@@ -136,41 +136,51 @@ class CiscoIOSRenderer(OperationRenderer):
                     f"no ip route {op.args['dest']} {op.args['mask']} {op.args['nh']}"
                 )
             elif op.operation == OperationEnum.ENABLE_RIP:
-                cmds.extend([
-                    "router rip",
-                    " version 2",
-                    " exit",
-                ])
+                cmds.extend(
+                    [
+                        "router rip",
+                        " version 2",
+                        " exit",
+                    ]
+                )
 
             elif op.operation == OperationEnum.DISABLE_RIP:
                 cmds.append("no router rip")
 
             elif op.operation == OperationEnum.ADD_RIP_NETWORK:
-                cmds.extend([
-                    "router rip",
-                    f" network {op.args['network']}",
-                    " exit",
-                ])
+                cmds.extend(
+                    [
+                        "router rip",
+                        f" network {op.args['network']}",
+                        " exit",
+                    ]
+                )
 
             elif op.operation == OperationEnum.DEL_RIP_NETWORK:
-                cmds.extend([
-                    "router rip",
-                    f" no network {op.args['network']}",
-                    " exit",
-                ])
+                cmds.extend(
+                    [
+                        "router rip",
+                        f" no network {op.args['network']}",
+                        " exit",
+                    ]
+                )
             elif op.operation == OperationEnum.ADD_OSPF_NETWORK:
-                cmds.extend([
-                    f"router ospf {op.args['process']}",
-                    f" network {op.args['network']} {op.args['wildcard']} area {op.args['area']}",
-                    " exit",
-                ])
+                cmds.extend(
+                    [
+                        f"router ospf {op.args['process']}",
+                        f" network {op.args['network']} {op.args['wildcard']} area {op.args['area']}",
+                        " exit",
+                    ]
+                )
 
             elif op.operation == OperationEnum.DEL_OSPF_NETWORK:
-                cmds.extend([
-                    f"router ospf {op.args['process']}",
-                    f" no network {op.args['network']} {op.args['wildcard']} area {op.args['area']}",
-                    " exit",
-                ])
+                cmds.extend(
+                    [
+                        f"router ospf {op.args['process']}",
+                        f" no network {op.args['network']} {op.args['wildcard']} area {op.args['area']}",
+                        " exit",
+                    ]
+                )
             # === ACL ===
             elif op.operation == OperationEnum.ADD_ACL_RULE:
                 cmd = (

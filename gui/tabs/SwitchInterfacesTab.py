@@ -346,11 +346,7 @@ class SwitchInterfacesTab(InterfacesTab):
             # zakładamy jeden VLAN
             vid = selected[0]
             self.pending_ops.append(
-                Operation(
-                    OperationEnum.SET_ACCESS_VLAN,
-                    iface=iface,
-                    vlan_id=vid
-                )
+                Operation(OperationEnum.SET_ACCESS_VLAN, iface=iface, vlan_id=vid)
             )
         else:  # trunk
             self.pending_ops.append(

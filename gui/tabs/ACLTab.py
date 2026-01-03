@@ -231,9 +231,7 @@ class ACLTab(QWidget):
                 port=port or None,
             )
         )
-        self.console.appendPlainText(
-            f"[OP] added ACL {self.current_acl_name} rule"
-        )
+        self.console.appendPlainText(f"[OP] added ACL {self.current_acl_name} rule")
 
         # Wyczyść inputy
         self.proto_input.clear()
@@ -272,9 +270,7 @@ class ACLTab(QWidget):
                 port=port or None,
             )
         )
-        self.console.appendPlainText(
-            f"[OP] removed ACL {self.current_acl_name} rule"
-        )
+        self.console.appendPlainText(f"[OP] removed ACL {self.current_acl_name} rule")
         self.table_rules.removeRow(r)
 
     # ==============================================================
@@ -358,9 +354,7 @@ class ACLTab(QWidget):
                 interface=nameif,
             )
         )
-        self.console.appendPlainText(
-            f"[OP] unbound ACL {acl}"
-        )
+        self.console.appendPlainText(f"[OP] unbound ACL {acl}")
         self.table_bindings.removeRow(r)
 
     # ==============================================================

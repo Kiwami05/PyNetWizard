@@ -103,10 +103,10 @@ class JuniperJunosRenderer(OperationRenderer):
                     f"{op.args['dest']}/{op.args['mask']}"
                 )
             elif op.operation in (
-                    OperationEnum.ENABLE_RIP,
-                    OperationEnum.DISABLE_RIP,
-                    OperationEnum.ADD_RIP_NETWORK,
-                    OperationEnum.DEL_RIP_NETWORK,
+                OperationEnum.ENABLE_RIP,
+                OperationEnum.DISABLE_RIP,
+                OperationEnum.ADD_RIP_NETWORK,
+                OperationEnum.DEL_RIP_NETWORK,
             ):
                 raise NotImplementedError("RIP not supported on Junos yet")
             elif op.operation == OperationEnum.ADD_OSPF_NETWORK:
@@ -121,10 +121,10 @@ class JuniperJunosRenderer(OperationRenderer):
                     f"network {op.args['network']}/{op.args['wildcard']}"
                 )
             elif op.operation in (
-                    OperationEnum.ADD_ACL_RULE,
-                    OperationEnum.DEL_ACL_RULE,
-                    OperationEnum.BIND_ACL,
-                    OperationEnum.UNBIND_ACL,
+                OperationEnum.ADD_ACL_RULE,
+                OperationEnum.DEL_ACL_RULE,
+                OperationEnum.BIND_ACL,
+                OperationEnum.UNBIND_ACL,
             ):
                 raise NotImplementedError(
                     "ASA ACL operations are not supported on Juniper Junos"

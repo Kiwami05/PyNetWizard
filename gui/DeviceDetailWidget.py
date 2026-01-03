@@ -277,18 +277,18 @@ class DeviceDetailWidget(QWidget):
 
         for name, data in tabs_data.items():
             if (
-                    isinstance(data, dict)
-                    and "pending_ops" in data
-                    and isinstance(data["pending_ops"], list)
+                isinstance(data, dict)
+                and "pending_ops" in data
+                and isinstance(data["pending_ops"], list)
             ):
                 pending_ops.extend(
                     op for op in data["pending_ops"] if isinstance(op, Operation)
                 )
 
             if (
-                    isinstance(data, dict)
-                    and "pending_cmds" in data
-                    and isinstance(data["pending_cmds"], list)
+                isinstance(data, dict)
+                and "pending_cmds" in data
+                and isinstance(data["pending_cmds"], list)
             ):
                 legacy_cmds.extend(
                     c for c in data["pending_cmds"] if isinstance(c, str)

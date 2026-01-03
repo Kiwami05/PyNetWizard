@@ -271,9 +271,7 @@ class InterfacesTab(QWidget):
                     mask=mask,
                 )
             )
-            self.console.appendPlainText(
-                f"[OP] set IP on {iface}: {ip}/{cidr}"
-            )
+            self.console.appendPlainText(f"[OP] set IP on {iface}: {ip}/{cidr}")
 
     def _on_status_changed(self, is_up: bool):
         if self._loading:
@@ -290,9 +288,7 @@ class InterfacesTab(QWidget):
             )
         )
 
-        self.console.appendPlainText(
-            f"[OP] {'enable' if is_up else 'disable'} {iface}"
-        )
+        self.console.appendPlainText(f"[OP] {'enable' if is_up else 'disable'} {iface}")
 
     # ================================================================
     #                   PRZYCISKI Enable/Disable

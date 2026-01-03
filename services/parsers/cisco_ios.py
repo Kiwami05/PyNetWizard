@@ -16,7 +16,10 @@ _MODE_ACCESS = re.compile(r"^\s*switchport\s+mode\s+access", re.M)
 _MODE_TRUNK = re.compile(r"^\s*switchport\s+mode\s+trunk", re.M)
 _SHUT = re.compile(r"^\s*shutdown", re.M)
 
-_VLAN_SHOW = re.compile(r"^\s*(\d+)\s+(\S.*?)\s+(active|act/unsup)",re.M,)
+_VLAN_SHOW = re.compile(
+    r"^\s*(\d+)\s+(\S.*?)\s+(active|act/unsup)",
+    re.M,
+)
 _INT_ACCESS_VLAN = re.compile(r"^\s*switchport\s+access\s+vlan\s+(\d+)", re.M)
 
 _STATIC_ROUTE = re.compile(r"^\s*ip\s+route\s+(\S+)\s+(\S+)\s+(\S+)", re.M)

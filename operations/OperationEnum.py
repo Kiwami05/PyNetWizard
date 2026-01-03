@@ -40,4 +40,3 @@ class OperationEnum(Enum):
     DEL_ACL_RULE = auto()
     BIND_ACL = auto()
     UNBIND_ACL = auto()
-
