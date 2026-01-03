@@ -17,6 +17,8 @@ from PySide6.QtWidgets import (
     QMessageBox,
 )
 
+from operations.Operation import Operation
+from operations.OperationEnum import OperationEnum
 from services.parsed_config import ParsedConfig
 import re
 
@@ -40,7 +42,7 @@ class ACLTab(QWidget):
         super().__init__(parent)
 
         self.current_acl_name: str | None = None
-        self.pending_cmds: list[str] = []
+        self.pending_ops: list[Operation] = []
         self._loading: bool = False
 
         # lista dostępnych interfejsów: [(nameif, ifname), ...]
@@ -182,21 +184,6 @@ class ACLTab(QWidget):
         main.addWidget(self.console, 2)
 
     # ==============================================================
-    # INTERNAL HELPERS
-    # ==============================================================
-
-    def _enqueue(self, cmds):
-        """Dodaje komendy do lokalnego bufora i wypisuje w konsoli."""
-        if isinstance(cmds, str):
-            cmds = [cmds]
-        for c in cmds:
-            c = c.strip()
-            if not c:
-                continue
-            self.pending_cmds.append(c)
-            self.console.appendPlainText(c)
-
-    # ==============================================================
     # SELECT ACL NAME
     # ==============================================================
 
@@ -223,10 +210,6 @@ class ACLTab(QWidget):
         dest = self.dest_input.text().strip() or "any"
         port = self.port_input.text().strip()
 
-        cmd = f"access-list {self.current_acl_name} extended {action} {proto} {src} {dest}"
-        if port:
-            cmd += f" {port}"
-
         # Dodaj do tabeli reguł
         r = self.table_rules.rowCount()
         self.table_rules.insertRow(r)
@@ -237,7 +220,20 @@ class ACLTab(QWidget):
         self.table_rules.setItem(r, 4, QTableWidgetItem(port))
 
         # Do bufora
-        self._enqueue(cmd)
+        self.pending_ops.append(
+            Operation(
+                OperationEnum.ADD_ACL_RULE,
+                acl_name=self.current_acl_name,
+                action=action,
+                protocol=proto,
+                src=src,
+                dest=dest,
+                port=port or None,
+            )
+        )
+        self.console.appendPlainText(
+            f"[OP] added ACL {self.current_acl_name} rule"
+        )
 
         # Wyczyść inputy
         self.proto_input.clear()
@@ -265,11 +261,20 @@ class ACLTab(QWidget):
         dest = self.table_rules.item(r, 3).text()
         port = self.table_rules.item(r, 4).text()
 
-        cmd = f"no access-list {self.current_acl_name} extended {action} {proto} {src} {dest}"
-        if port:
-            cmd += f" {port}"
-
-        self._enqueue(cmd)
+        self.pending_ops.append(
+            Operation(
+                OperationEnum.DEL_ACL_RULE,
+                acl_name=self.current_acl_name,
+                action=action,
+                protocol=proto,
+                src=src,
+                dest=dest,
+                port=port or None,
+            )
+        )
+        self.console.appendPlainText(
+            f"[OP] removed ACL {self.current_acl_name} rule"
+        )
         self.table_rules.removeRow(r)
 
     # ==============================================================
@@ -293,28 +298,39 @@ class ACLTab(QWidget):
         nameif = self.iface_combo.currentData()  # przechowujemy tu nameif
         direction = self.dir_combo.currentText()
 
-        # ASA: access-group <ACL> in/out interface <nameif>
-        cmd = f"access-group {self.current_acl_name} {direction} interface {nameif}"
-
         # Jeśli istnieje już inne wiązanie dla tego interfejsu+direction, generujemy no access-group
         existing_row = self._find_binding_row(direction, nameif)
         if existing_row is not None:
             old_acl = self.table_bindings.item(existing_row, 0).text()
             if old_acl != self.current_acl_name:
-                no_cmd = f"no access-group {old_acl} {direction} interface {nameif}"
-                self._enqueue(no_cmd)
+                self.pending_ops.append(
+                    Operation(
+                        OperationEnum.UNBIND_ACL,
+                        acl_name=old_acl,
+                        direction=direction,
+                        interface=nameif,
+                    )
+                )
                 self.table_bindings.removeRow(existing_row)
 
         # Dodaj nowe wiązanie
-        self._enqueue(cmd)
+        self.pending_ops.append(
+            Operation(
+                OperationEnum.UNBIND_ACL,
+                acl_name=self.current_acl_name,
+                direction=direction,
+                interface=nameif,
+            )
+        )
+        self.console.appendPlainText(
+            f"[OP] bound ACL {self.current_acl_name} to {nameif} interface."
+        )
 
         r = self.table_bindings.rowCount()
         self.table_bindings.insertRow(r)
         self.table_bindings.setItem(r, 0, QTableWidgetItem(self.current_acl_name))
         self.table_bindings.setItem(r, 1, QTableWidgetItem(direction))
         self.table_bindings.setItem(r, 2, QTableWidgetItem(nameif))
-
-        self.console.appendPlainText(f"! ACL bound: {cmd}")
 
     def _find_binding_row(self, direction: str, nameif: str):
         for r in range(self.table_bindings.rowCount()):
@@ -334,22 +350,31 @@ class ACLTab(QWidget):
         direction = self.table_bindings.item(r, 1).text()
         nameif = self.table_bindings.item(r, 2).text()
 
-        cmd = f"no access-group {acl} {direction} interface {nameif}"
-        self._enqueue(cmd)
+        self.pending_ops.append(
+            Operation(
+                OperationEnum.UNBIND_ACL,
+                acl_name=acl,
+                direction=direction,
+                interface=nameif,
+            )
+        )
+        self.console.appendPlainText(
+            f"[OP] unbound ACL {acl}"
+        )
         self.table_bindings.removeRow(r)
 
     # ==============================================================
     # PENDING COMMAND API
     # ==============================================================
 
-    def get_pending_commands(self, clear=False):
-        cmds = list(self.pending_cmds)
+    def get_pending_operations(self, clear=False) -> list[Operation]:
+        ops = list(self.pending_ops)
         if clear:
-            self.pending_cmds.clear()
-        return cmds
+            self.pending_ops.clear()
+        return ops
 
-    def clear_pending_commands(self):
-        self.pending_cmds.clear()
+    def clear_pending_operations(self):
+        self.pending_ops.clear()
 
     # ==============================================================
     # SYNC FROM CONFIG (ASA FORMAT + INTERFACES + BINDINGS)
@@ -371,7 +396,7 @@ class ACLTab(QWidget):
         try:
             self.table_rules.setRowCount(0)
             self.table_bindings.setRowCount(0)
-            self.pending_cmds.clear()
+            self.pending_ops.clear()
             self._iface_map.clear()
             self.iface_combo.clear()
 

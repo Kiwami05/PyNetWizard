@@ -120,6 +120,15 @@ class JuniperJunosRenderer(OperationRenderer):
                     f"delete protocols ospf area {op.args['area']} "
                     f"network {op.args['network']}/{op.args['wildcard']}"
                 )
+            elif op.operation in (
+                    OperationEnum.ADD_ACL_RULE,
+                    OperationEnum.DEL_ACL_RULE,
+                    OperationEnum.BIND_ACL,
+                    OperationEnum.UNBIND_ACL,
+            ):
+                raise NotImplementedError(
+                    "ASA ACL operations are not supported on Juniper Junos"
+                )
             else:
                 raise NotImplementedError(
                     f"{self.__class__.__name__} does not this operation"

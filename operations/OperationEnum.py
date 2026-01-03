@@ -34,3 +34,10 @@ class OperationEnum(Enum):
     DEL_RIP_NETWORK = auto()
     ADD_OSPF_NETWORK = auto()
     DEL_OSPF_NETWORK = auto()
+
+    # ACL
+    ADD_ACL_RULE = auto()
+    DEL_ACL_RULE = auto()
+    BIND_ACL = auto()
+    UNBIND_ACL = auto()
+

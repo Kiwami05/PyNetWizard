@@ -18,7 +18,7 @@ class CiscoIOSRenderer(OperationRenderer):
         if not ops:
             return cmds
 
-        cmds.append("configure terminal")
+        # cmds.append("configure terminal")
 
         for op in ops:
             if op.operation == OperationEnum.SET_HOSTNAME:
@@ -171,7 +171,39 @@ class CiscoIOSRenderer(OperationRenderer):
                     f" no network {op.args['network']} {op.args['wildcard']} area {op.args['area']}",
                     " exit",
                 ])
-
+            # === ACL ===
+            elif op.operation == OperationEnum.ADD_ACL_RULE:
+                cmd = (
+                    f"access-list {op.args['acl_name']} extended "
+                    f"{op.args['action']} "
+                    f"{op.args['protocol']} "
+                    f"{op.args['src']} "
+                    f"{op.args['dest']}"
+                )
+                if op.args.get("port"):
+                    cmd += f" {op.args['port']}"
+                cmds.append(cmd)
+            elif op.operation == OperationEnum.DEL_ACL_RULE:
+                cmd = (
+                    f"no access-list {op.args['acl_name']} extended "
+                    f"{op.args['action']} "
+                    f"{op.args['protocol']} "
+                    f"{op.args['src']} "
+                    f"{op.args['dest']}"
+                )
+                if op.args.get("port"):
+                    cmd += f" {op.args['port']}"
+                cmds.append(cmd)
+            elif op.operation == OperationEnum.BIND_ACL:
+                cmds.append(
+                    f"access-group {op.args['acl_name']} "
+                    f"{op.args['direction']} interface {op.args['interface']}"
+                )
+            elif op.operation == OperationEnum.UNBIND_ACL:
+                cmds.append(
+                    f"no access-group {op.args['acl_name']} "
+                    f"{op.args['direction']} interface {op.args['interface']}"
+                )
             else:
                 raise NotImplementedError(
                     f"{self.__class__.__name__} does not this operation"
