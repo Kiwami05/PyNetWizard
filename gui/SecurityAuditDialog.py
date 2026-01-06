@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QBrush, QGuiApplication, QDesktopServices
+from PySide6.QtGui import QColor, QBrush, QGuiApplication, QDesktopServices, QPalette
 from PySide6.QtWidgets import (
     QDialog,
     QVBoxLayout,
@@ -290,17 +290,10 @@ class SecurityAuditDialog(QDialog):
             item_msg = QTableWidgetItem(finding.message)
 
             # Kolorowanie severity
-            bg = None
-            if finding.severity == "CRITICAL":
-                bg = QColor("#ffcccc")
-            elif finding.severity == "WARNING":
-                bg = QColor("#fff5cc")
-            elif finding.severity == "INFO":
-                bg = QColor("#f0f0f0")
-
-            if bg:
-                for it in (item_sev, item_cat, item_msg):
-                    it.setBackground(QBrush(bg))
+            bg = self._severity_background(finding.severity)
+            item_sev.setBackground(bg)
+            item_cat.setBackground(bg)
+            item_msg.setBackground(bg)
 
             # Zapisz indeks findingu w UserRole
             item_sev.setData(Qt.UserRole, row)
@@ -509,3 +502,20 @@ class SecurityAuditDialog(QDialog):
             f"<b>Bufor:</b> dodano {len(commands)} komend do kolejki zmian "
             f"dla urządzenia <b>{self.current_device_host}</b>."
         )
+
+    def _severity_background(self, severity: str) -> QBrush:
+        pal = self.palette()
+        base = pal.color(QPalette.Base)
+
+        def mix(c1, c2, ratio=0.15):
+            return QColor(
+                int(c1.red() * (1 - ratio) + c2.red() * ratio),
+                int(c1.green() * (1 - ratio) + c2.green() * ratio),
+                int(c1.blue() * (1 - ratio) + c2.blue() * ratio),
+            )
+
+        if severity == "CRITICAL":
+            return QBrush(mix(base, QColor(220, 50, 47)))
+        if severity == "WARNING":
+            return QBrush(mix(base, QColor(181, 137, 0)))
+        return QBrush(base)
