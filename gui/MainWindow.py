@@ -611,10 +611,12 @@ class MainWindow(QMainWindow):
         current_device_name = ""
         current_config_text = ""
         current_vendor: str | None = None
+        current_device_host: str | None = None
 
         if getattr(self, "current_device", None) is not None:
             dev = self.current_device
             current_device_name = getattr(dev, "host", "") or getattr(dev, "name", "")
+            current_device_host = getattr(dev, "host", None)
 
             # Przekaż vendor z kontekstu urządzenia (nie musimy heurystycznie zgadywać po configu)
             v = getattr(dev, "vendor", None)
@@ -632,6 +634,7 @@ class MainWindow(QMainWindow):
         dlg = SecurityAuditDialog(
             self,
             current_device_name=current_device_name,
+            current_device_host=current_device_host,
             current_config_text=current_config_text,
             current_vendor=current_vendor,
         )

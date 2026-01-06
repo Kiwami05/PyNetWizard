@@ -21,7 +21,12 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import QUrl
 
-from services.security_audit import ensure_rules_file_exists, get_rules_file_path, run_security_audit, SecurityFinding
+from services.security_audit import (
+    ensure_rules_file_exists,
+    run_security_audit,
+    SecurityFinding,
+)
+from devices.DeviceBuffer import DeviceBuffer
 
 
 class SecurityAuditDialog(QDialog):
@@ -37,6 +42,7 @@ class SecurityAuditDialog(QDialog):
         self,
         parent=None,
         current_device_name: Optional[str] = None,
+        current_device_host: Optional[str] = None,
         current_config_text: str | None = None,
         current_vendor: str | None = None,
     ):
@@ -45,14 +51,19 @@ class SecurityAuditDialog(QDialog):
         self.resize(900, 650)
 
         self.current_device_name = current_device_name or ""
+        # host of the currently selected device (used to queue suggested commands into buffer)
+        self.current_device_host: str | None = current_device_host
         self.device_config_text = current_config_text or ""
         # vendor/platform hint (passed from MainWindow for the selected device)
         self.device_vendor_hint: str | None = current_vendor
         # vendor to use for the currently selected source (device vs file)
         self.vendor_hint_for_run: str | None = current_vendor
+        # current source type
+        self.is_device_source: bool = False
         self.current_source_label = "Brak (wybierz źródło konfiguracji)"
         self.current_config_text: str = ""
         self.findings: List[SecurityFinding] = []
+        self._source_is_device: bool = False
 
         main = QVBoxLayout(self)
 
@@ -103,6 +114,11 @@ class SecurityAuditDialog(QDialog):
         self.btn_run_audit = QPushButton("Uruchom audyt")
         self.btn_run_audit.clicked.connect(self._run_audit)
         btn_row.addWidget(self.btn_run_audit)
+
+        self.btn_send_to_buffer = QPushButton("Wyślij komendy do bufora")
+        self.btn_send_to_buffer.clicked.connect(self._send_commands_to_buffer)
+        self.btn_send_to_buffer.setEnabled(False)
+        btn_row.addWidget(self.btn_send_to_buffer)
 
         # -------------------------------------------------
         #  Tabela wyników
@@ -161,6 +177,12 @@ class SecurityAuditDialog(QDialog):
         self.txt_commands.setStyleSheet("font-family: monospace; font-size: 11px;")
         right_panel.addWidget(self.txt_commands, 1)
 
+        # Informacja o buforze komend (kolejka do APPLY)
+        self.lbl_buffer_status = QLabel("")
+        self.lbl_buffer_status.setTextFormat(Qt.RichText)
+        self.lbl_buffer_status.setWordWrap(True)
+        right_panel.addWidget(self.lbl_buffer_status)
+
         # Jeżeli nie mamy konfiguracji z urządzenia – wyłącz przycisk
         if not self.device_config_text:
             self.btn_use_device.setEnabled(False)
@@ -188,6 +210,7 @@ class SecurityAuditDialog(QDialog):
             return
         self.current_config_text = self.device_config_text
         self.vendor_hint_for_run = self.device_vendor_hint
+        self.is_device_source = True
         dev_name = self.current_device_name or "(bieżące urządzenie)"
         self.current_source_label = f"Urządzenie: {dev_name}"
         self._update_source_label()
@@ -218,29 +241,10 @@ class SecurityAuditDialog(QDialog):
         # Dla pliku nie zakładamy vendora z bieżącego urządzenia; jeśli vendor jest nieznany,
         # services.security_audit spróbuje wykryć go heurystycznie po treści.
         self.vendor_hint_for_run = None
+        self.is_device_source = False
         self.current_source_label = f"Plik: {path.name}"
         self._update_source_label()
         self._run_audit()
-
-    def _open_rules_file(self):
-        # Upewnij się, że plik istnieje (i odśwież ścieżkę w razie zmian).
-        rules_path, warn = ensure_rules_file_exists()
-        self.rules_path = rules_path
-        self.lbl_rules.setText(f"<b>Plik reguł:</b> {rules_path}")
-
-        if warn:
-            QMessageBox.information(self, "Reguły audytu", warn)
-            return
-
-        ok = QDesktopServices.openUrl(QUrl.fromLocalFile(str(rules_path)))
-        if not ok:
-            QMessageBox.information(
-                self,
-                "Nie można otworzyć pliku",
-                "Nie udało się otworzyć pliku reguł w domyślnej aplikacji.\n"
-                "Otwórz go ręcznie w edytorze tekstu:\n\n"
-                f"{rules_path}",
-            )
 
     # ======================================================
     #                Uruchomienie audytu
@@ -257,7 +261,9 @@ class SecurityAuditDialog(QDialog):
             return
 
         try:
-            self.findings = run_security_audit(self.current_config_text, vendor_hint=self.vendor_hint_for_run)
+            self.findings = run_security_audit(
+                self.current_config_text, vendor_hint=self.vendor_hint_for_run
+            )
         except Exception as e:
             QMessageBox.critical(
                 self,
@@ -305,10 +311,14 @@ class SecurityAuditDialog(QDialog):
 
         self.txt_details.clear()
         self.txt_commands.clear()
+        self.lbl_buffer_status.clear()
+        self.lbl_buffer_status.clear()
 
         if self.findings:
             self.table.selectRow(0)
             self._show_finding(0)
+
+        self.btn_send_to_buffer.setEnabled(bool(self.findings))
 
     def _get_selected_index(self) -> Optional[int]:
         sel = self.table.selectionModel().selectedRows()
@@ -347,6 +357,87 @@ class SecurityAuditDialog(QDialog):
             self.txt_commands.setPlainText("Brak zasugerowanych komend dla tego wpisu.")
 
     # ======================================================
+    #   Automatyczne dodawanie komend do bufora urządzenia
+    # ======================================================
+
+    @staticmethod
+    def _unique_preserve_order(items: list[str]) -> list[str]:
+        seen = set()
+        out: list[str] = []
+        for it in items:
+            if it in seen:
+                continue
+            seen.add(it)
+            out.append(it)
+        return out
+
+    def _collect_all_suggested_commands(self) -> list[str]:
+        cmds: list[str] = []
+        for f in self.findings:
+            if not f.suggested_commands:
+                continue
+            # nie bierz "technicznych" wpisów dot. samego YAML-a
+            if f.id in ("RULES_FILE_PROBLEMS", "NO_ISSUES_FOUND"):
+                continue
+            cmds.extend(str(c).strip() for c in f.suggested_commands if str(c).strip())
+        return self._unique_preserve_order(cmds)
+
+    def _queue_commands_to_device_buffer(self, commands: list[str]) -> str | None:
+        """Zapisuje komendy do bufora urządzenia (do późniejszego APPLY).
+
+        Zwraca tekst ostrzeżenia, jeśli nie udało się dodać do bufora.
+        """
+
+        if not self.current_device_host:
+            return None
+
+        parent = self.parent()
+        detail_box = getattr(parent, "detail_box", None)
+        buffers = getattr(detail_box, "buffers", None)
+        if buffers is None:
+            return "Nie znaleziono bufora urządzeń w kontekście okna głównego."
+
+        buf = buffers.setdefault(self.current_device_host, DeviceBuffer())
+        tab = buf.tabs.setdefault("SECURITY_AUDIT", {})
+        if not isinstance(tab, dict):
+            buf.tabs["SECURITY_AUDIT"] = {}
+            tab = buf.tabs["SECURITY_AUDIT"]
+
+        # Zastępujemy listę — audyt jest deterministyczny, więc nie chcemy dublować komend
+        tab["pending_cmds"] = list(commands)
+        tab["meta"] = {
+            "source": self.current_source_label,
+            "vendor": self.vendor_hint_for_run or "auto",
+        }
+        return None
+
+    def _auto_queue_suggested_commands(self):
+        """Jeśli dialog został uruchomiony dla wybranego urządzenia, dodaj komendy do bufora."""
+
+        # Sensowne tylko, jeśli mamy kontekst urządzenia.
+        if not self.current_device_host:
+            return
+
+        commands = self._collect_all_suggested_commands()
+        warn = self._queue_commands_to_device_buffer(commands)
+
+        if warn:
+            self.lbl_buffer_status.setText(
+                f"<b>Bufor:</b> nie udało się dodać komend. ({warn})"
+            )
+            return
+
+        if not commands:
+            self.lbl_buffer_status.setText(
+                "<b>Bufor:</b> brak komend do dodania (kolejka Security Audit wyczyszczona)."
+            )
+        else:
+            self.lbl_buffer_status.setText(
+                f"<b>Bufor:</b> dodano {len(commands)} komend do kolejki zmian dla urządzenia. "
+                "Użyj <i>Apply</i> w głównym oknie, aby je wysłać."
+            )
+
+    # ======================================================
     #             Kopiowanie komend do schowka
     # ======================================================
 
@@ -359,4 +450,62 @@ class SecurityAuditDialog(QDialog):
             self,
             "Skopiowano",
             "Sugerowane komendy zostały skopiowane do schowka.",
+        )
+
+    # ======================================================
+    #                 Plik reguł YAML
+    # ======================================================
+
+    def _open_rules_file(self):
+        rules_path, warn = ensure_rules_file_exists()
+        self.rules_path = rules_path
+        self.lbl_rules.setText(f"<b>Plik reguł:</b> {rules_path}")
+
+        if warn:
+            QMessageBox.information(self, "Reguły audytu", warn)
+            return
+
+        ok = QDesktopServices.openUrl(QUrl.fromLocalFile(str(rules_path)))
+        if not ok:
+            QMessageBox.information(
+                self,
+                "Nie można otworzyć pliku",
+                "Nie udało się otworzyć pliku reguł w domyślnej aplikacji.\n"
+                f"Ścieżka: {rules_path}",
+            )
+
+    def _send_commands_to_buffer(self):
+        if not self.findings:
+            QMessageBox.information(
+                self,
+                "Brak wyników",
+                "Najpierw uruchom audyt.",
+            )
+            return
+
+        if not self.current_device_host:
+            QMessageBox.information(
+                self,
+                "Brak urządzenia",
+                "Audyt nie jest powiązany z urządzeniem.",
+            )
+            return
+
+        commands = self._collect_all_suggested_commands()
+        if not commands:
+            QMessageBox.information(
+                self,
+                "Brak komend",
+                "Audyt nie wygenerował żadnych komend.",
+            )
+            return
+
+        warn = self._queue_commands_to_device_buffer(commands)
+        if warn:
+            QMessageBox.warning(self, "Bufor", warn)
+            return
+
+        self.lbl_buffer_status.setText(
+            f"<b>Bufor:</b> dodano {len(commands)} komend do kolejki zmian "
+            f"dla urządzenia <b>{self.current_device_host}</b>."
         )

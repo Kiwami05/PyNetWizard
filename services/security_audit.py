@@ -329,7 +329,9 @@ class BuiltinOverride:
     suggested_commands: List[str] | None = None
 
 
-def _load_user_rules() -> Tuple[Dict[str, BuiltinOverride], List[YamlRule], RulesWarnings]:
+def _load_user_rules() -> Tuple[
+    Dict[str, BuiltinOverride], List[YamlRule], RulesWarnings
+]:
     """Load multi-document YAML rules.
 
     The loader is intentionally tolerant:
@@ -410,7 +412,9 @@ def _load_user_rules() -> Tuple[Dict[str, BuiltinOverride], List[YamlRule], Rule
 
                 ov = BuiltinOverride(
                     id=rid,
-                    vendors=[str(x) for x in vendors] if isinstance(vendors, list) else None,
+                    vendors=[str(x) for x in vendors]
+                    if isinstance(vendors, list)
+                    else None,
                     enabled=data.get("enabled"),
                     severity=data.get("severity"),
                     category=data.get("category"),
@@ -467,7 +471,9 @@ def _load_user_rules() -> Tuple[Dict[str, BuiltinOverride], List[YamlRule], Rule
         yaml_rules.append(
             YamlRule(
                 id=rid,
-                vendors=[str(x) for x in vendors] if isinstance(vendors, list) else None,
+                vendors=[str(x) for x in vendors]
+                if isinstance(vendors, list)
+                else None,
                 severity=severity,  # type: ignore[arg-type]
                 category=category,
                 message=message,
@@ -482,7 +488,9 @@ def _load_user_rules() -> Tuple[Dict[str, BuiltinOverride], List[YamlRule], Rule
 
 
 def _apply_builtin_overrides(
-    findings: List[SecurityFinding], overrides: Dict[str, BuiltinOverride], vendor: str | None
+    findings: List[SecurityFinding],
+    overrides: Dict[str, BuiltinOverride],
+    vendor: str | None,
 ) -> List[SecurityFinding]:
     """Apply user overrides to findings coming from builtin rules."""
 
@@ -496,7 +504,11 @@ def _apply_builtin_overrides(
                 continue
             if ov.enabled is False:
                 continue
-            if isinstance(ov.severity, str) and ov.severity in ("INFO", "WARNING", "CRITICAL"):
+            if isinstance(ov.severity, str) and ov.severity in (
+                "INFO",
+                "WARNING",
+                "CRITICAL",
+            ):
                 f.severity = ov.severity  # type: ignore[misc]
             if isinstance(ov.category, str):
                 f.category = ov.category
@@ -540,7 +552,9 @@ def _eval_when(config_text: str, when: Dict[str, Any]) -> Tuple[bool, RulesWarni
         if isinstance(v, str):
             return [v]
         if isinstance(v, list):
-            return [str(x) for x in v if isinstance(x, (str, int, float)) and str(x).strip()]
+            return [
+                str(x) for x in v if isinstance(x, (str, int, float)) and str(x).strip()
+            ]
         return []
 
     contains = _as_list(when.get("contains"))
@@ -620,7 +634,9 @@ def _detect_vendor(config_text: str) -> str | None:
         return "junos"
 
     # Cisco/IOS-like
-    if re.search(r"(?m)^\s*line\s+vty\b", txt) or re.search(r"(?m)^\s*interface\b", txt):
+    if re.search(r"(?m)^\s*line\s+vty\b", txt) or re.search(
+        r"(?m)^\s*interface\b", txt
+    ):
         return "cisco_ios"
 
     return None
@@ -679,7 +695,9 @@ class ParsedConfig:
     interface_blocks: List[ConfigBlock]
     acl_blocks: List[ConfigBlock]
     named_acl_blocks: List[ConfigBlock]
-    acl_usage: Dict[str, List[int]]  # acl_name/number -> list of line numbers where used
+    acl_usage: Dict[
+        str, List[int]
+    ]  # acl_name/number -> list of line numbers where used
 
 
 # ==========================================================
@@ -815,7 +833,9 @@ def parse_config(config_text: str) -> ParsedConfig:
 # ==========================================================
 
 
-def run_security_audit(config_text: str, vendor_hint: str | None = None) -> List[SecurityFinding]:
+def run_security_audit(
+    config_text: str, vendor_hint: str | None = None
+) -> List[SecurityFinding]:
     """Run security audit.
 
     Args:
@@ -889,7 +909,10 @@ def run_security_audit(config_text: str, vendor_hint: str | None = None) -> List
                 severity="WARNING",
                 category="Rules",
                 message="Wykryto problemy z plikiem reguł YAML (wczytano to, co się dało).",
-                details="Plik: " + str(path) + "\n\n" + "\n".join(f"- {w}" for w in all_warnings),
+                details="Plik: "
+                + str(path)
+                + "\n\n"
+                + "\n".join(f"- {w}" for w in all_warnings),
                 recommendation=(
                     "Popraw składnię/dane w pliku reguł. Jeśli plik jest nowy, zacznij od edycji domyślnego szablonu."
                 ),
