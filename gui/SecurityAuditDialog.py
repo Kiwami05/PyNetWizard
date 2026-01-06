@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QBrush, QGuiApplication
+from PySide6.QtGui import QColor, QBrush, QGuiApplication, QDesktopServices
 from PySide6.QtWidgets import (
     QDialog,
     QVBoxLayout,
@@ -19,8 +19,9 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QAbstractItemView,
 )
+from PySide6.QtCore import QUrl
 
-from services.security_audit import run_security_audit, SecurityFinding
+from services.security_audit import ensure_rules_file_exists, get_rules_file_path, run_security_audit, SecurityFinding
 
 
 class SecurityAuditDialog(QDialog):
@@ -37,6 +38,7 @@ class SecurityAuditDialog(QDialog):
         parent=None,
         current_device_name: Optional[str] = None,
         current_config_text: str | None = None,
+        current_vendor: str | None = None,
     ):
         super().__init__(parent)
         self.setWindowTitle("Audyt bezpieczeństwa")
@@ -44,6 +46,10 @@ class SecurityAuditDialog(QDialog):
 
         self.current_device_name = current_device_name or ""
         self.device_config_text = current_config_text or ""
+        # vendor/platform hint (passed from MainWindow for the selected device)
+        self.device_vendor_hint: str | None = current_vendor
+        # vendor to use for the currently selected source (device vs file)
+        self.vendor_hint_for_run: str | None = current_vendor
         self.current_source_label = "Brak (wybierz źródło konfiguracji)"
         self.current_config_text: str = ""
         self.findings: List[SecurityFinding] = []
@@ -60,6 +66,26 @@ class SecurityAuditDialog(QDialog):
         self._update_source_label()
         self.lbl_source.setTextFormat(Qt.RichText)
         header_row.addWidget(self.lbl_source)
+
+        # Ścieżka do pliku reguł (multi-document YAML)
+        rules_path, warn = ensure_rules_file_exists()
+        self.rules_path = rules_path
+
+        rules_row = QHBoxLayout()
+        header_row.addLayout(rules_row)
+
+        self.lbl_rules = QLabel(f"<b>Plik reguł:</b> {rules_path}")
+        self.lbl_rules.setTextFormat(Qt.RichText)
+        rules_row.addWidget(self.lbl_rules)
+
+        self.btn_open_rules = QPushButton("Otwórz plik reguł")
+        self.btn_open_rules.clicked.connect(self._open_rules_file)
+        rules_row.addWidget(self.btn_open_rules)
+        rules_row.addStretch()
+
+        if warn:
+            # Nie blokujemy dialogu; pokażemy info, że plik nie mógł zostać utworzony.
+            QMessageBox.information(self, "Reguły audytu", warn)
 
         btn_row = QHBoxLayout()
         header_row.addLayout(btn_row)
@@ -144,7 +170,11 @@ class SecurityAuditDialog(QDialog):
     # ======================================================
 
     def _update_source_label(self):
-        text = f"<b>Źródło konfiguracji:</b> {self.current_source_label}"
+        vendor_txt = self.vendor_hint_for_run or "auto"
+        text = (
+            f"<b>Źródło konfiguracji:</b> {self.current_source_label}<br>"
+            f"<b>Vendor:</b> {vendor_txt}"
+        )
         self.lbl_source.setText(text)
 
     def _load_from_device(self):
@@ -157,6 +187,7 @@ class SecurityAuditDialog(QDialog):
             )
             return
         self.current_config_text = self.device_config_text
+        self.vendor_hint_for_run = self.device_vendor_hint
         dev_name = self.current_device_name or "(bieżące urządzenie)"
         self.current_source_label = f"Urządzenie: {dev_name}"
         self._update_source_label()
@@ -184,9 +215,32 @@ class SecurityAuditDialog(QDialog):
             return
 
         self.current_config_text = text
+        # Dla pliku nie zakładamy vendora z bieżącego urządzenia; jeśli vendor jest nieznany,
+        # services.security_audit spróbuje wykryć go heurystycznie po treści.
+        self.vendor_hint_for_run = None
         self.current_source_label = f"Plik: {path.name}"
         self._update_source_label()
         self._run_audit()
+
+    def _open_rules_file(self):
+        # Upewnij się, że plik istnieje (i odśwież ścieżkę w razie zmian).
+        rules_path, warn = ensure_rules_file_exists()
+        self.rules_path = rules_path
+        self.lbl_rules.setText(f"<b>Plik reguł:</b> {rules_path}")
+
+        if warn:
+            QMessageBox.information(self, "Reguły audytu", warn)
+            return
+
+        ok = QDesktopServices.openUrl(QUrl.fromLocalFile(str(rules_path)))
+        if not ok:
+            QMessageBox.information(
+                self,
+                "Nie można otworzyć pliku",
+                "Nie udało się otworzyć pliku reguł w domyślnej aplikacji.\n"
+                "Otwórz go ręcznie w edytorze tekstu:\n\n"
+                f"{rules_path}",
+            )
 
     # ======================================================
     #                Uruchomienie audytu
@@ -203,7 +257,7 @@ class SecurityAuditDialog(QDialog):
             return
 
         try:
-            self.findings = run_security_audit(self.current_config_text)
+            self.findings = run_security_audit(self.current_config_text, vendor_hint=self.vendor_hint_for_run)
         except Exception as e:
             QMessageBox.critical(
                 self,

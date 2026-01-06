@@ -1,0 +1,92 @@
+# PyNetWizard - Security Audit Rules (multi-document YAML)
+#
+# To jest plik reguł dla audytu bezpieczeństwa.
+# - Każdy dokument (oddzielony linią '---') to jedna reguła lub override.
+# - Jeśli jeden dokument jest uszkodzony, aplikacja spróbuje wczytać pozostałe.
+#
+# Typy dokumentów:
+# 1) override
+#    - pozwala wyłączyć/włączyć regułę wbudowaną lub zmienić jej parametry.
+#
+# 2) rule
+#    - prosta reguła oparta o "contains"/"not_contains"/"regex" na surowym tekście konfiguracji.
+#
+# Wskazówka: regex jest domyślnie case-insensitive (chyba że case_sensitive: true).
+
+# Vendor/platform:
+# Aplikacja próbuje wykryć platformę po tekście konfiguracji (heurystyka).
+# Dostępne wartości: cisco_ios, junos
+# Możesz ograniczyć regułę/override do platform przez pole 'vendors'.
+
+---
+type: override
+id: CDP_ENABLED
+enabled: true
+
+# ---------------------------------------------------------
+# Preset Junos (automatycznie stosowany, gdy konfiguracja wygląda na JunOS)
+# Uwaga: reguły wbudowane są IOS-centric, więc na JunOS często generują false-positive.
+# Ten preset wyłącza wybrane reguły wbudowane dla vendor=junos.
+# ---------------------------------------------------------
+
+---
+type: override
+id: VTY_TELNET_ENABLED
+vendors: [junos]
+enabled: false
+
+---
+type: override
+id: SSH_NOT_FULLY_CONFIGURED
+vendors: [junos]
+enabled: false
+
+---
+type: override
+id: CONSOLE_NO_PASSWORD
+vendors: [junos]
+enabled: false
+
+---
+type: override
+id: NO_SERVICE_PASSWORD_ENCRYPTION
+vendors: [junos]
+enabled: false
+
+---
+type: override
+id: CDP_ENABLED
+vendors: [junos]
+enabled: false
+
+---
+type: rule
+id: JUNOS_ROOT_LOGIN
+vendors: [junos]
+severity: CRITICAL
+category: Junos
+message: "Junos: możliwe dopuszczenie logowania root po SSH"
+when:
+  regex: '^set\s+system\s+services\s+ssh\s+root-login\s+allow'
+  case_sensitive: false
+details: "Wykryto konfigurację sugerującą 'root-login allow' w SSH."
+recommendation: "Rozważ ustawienie 'root-login deny' lub ograniczenie dostępu zgodnie z polityką."
+suggested_commands:
+  - "set system services ssh root-login deny"
+
+---
+type: rule
+id: JUNOS_TELNET_SERVICE_ENABLED
+vendors: [junos]
+severity: CRITICAL
+category: Junos
+message: "Junos: włączony Telnet"
+when:
+  regex:
+    - '^set\s+system\s+services\s+telnet'
+    - '^set\s+system\s+services\s+telnet\s+.*'
+  operator: any
+details: "Usługa Telnet jest uznawana za niebezpieczną (brak szyfrowania)."
+recommendation: "Wyłącz Telnet i używaj SSH."
+suggested_commands:
+  - "delete system services telnet"

@@ -610,10 +610,20 @@ class MainWindow(QMainWindow):
         """
         current_device_name = ""
         current_config_text = ""
+        current_vendor: str | None = None
 
         if getattr(self, "current_device", None) is not None:
             dev = self.current_device
             current_device_name = getattr(dev, "host", "") or getattr(dev, "name", "")
+
+            # Przekaż vendor z kontekstu urządzenia (nie musimy heurystycznie zgadywać po configu)
+            v = getattr(dev, "vendor", None)
+            vname = getattr(v, "name", None)
+            if isinstance(vname, str):
+                if vname.upper() == "CISCO":
+                    current_vendor = "cisco_ios"
+                elif vname.upper() == "JUNIPER":
+                    current_vendor = "junos"
 
             buf = self.detail_box.buffers.get(dev.host)
             if buf and getattr(buf, "config", None) and buf.config.raw_running:
@@ -623,5 +633,6 @@ class MainWindow(QMainWindow):
             self,
             current_device_name=current_device_name,
             current_config_text=current_config_text,
+            current_vendor=current_vendor,
         )
         dlg.exec()
