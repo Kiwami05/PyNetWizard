@@ -63,11 +63,11 @@ class MainWindow(QMainWindow):
         # === LEWY PANEL: lista hostów + przyciski ===
         left_panel = QVBoxLayout()
 
-        btn_add = QPushButton("➕")
+        btn_add = QPushButton("Dodaj urządzenie")
         btn_add.clicked.connect(self.add_device_dialog)
         left_panel.addWidget(btn_add)
 
-        btn_clear = QPushButton("🗑️")
+        btn_clear = QPushButton("Wyczyść listę urządzeń")
         btn_clear.clicked.connect(self.clear_device_list)
         left_panel.addWidget(btn_clear)
 
