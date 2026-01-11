@@ -83,7 +83,7 @@ class DeviceDetailWidget(QWidget):
         # === DOLNA KONSOLA ===
         self.console = QPlainTextEdit()
         self.console.setReadOnly(True)
-        self.console.setPlaceholderText("System log / command preview...")
+        self.console.setPlaceholderText("Podgląd komend...")
         self.console.setStyleSheet("""
             QPlainTextEdit {
                 background-color: #111;
@@ -93,13 +93,6 @@ class DeviceDetailWidget(QWidget):
             }
         """)
         main_layout.addWidget(self.console, 1)
-
-        # === Przykładowy przycisk testowy ===
-        self.btn_test = QPushButton("Symuluj wysłanie komendy")
-        self.btn_test.clicked.connect(
-            lambda: self.append_console("> show running-config")
-        )
-        main_layout.addWidget(self.btn_test)
 
     # === Pomocnicze metody ===
 
