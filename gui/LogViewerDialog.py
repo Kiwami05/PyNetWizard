@@ -2,6 +2,7 @@ from pathlib import Path
 import re
 
 from PySide6.QtCore import QTimer
+from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import (
     QDialog,
     QVBoxLayout,
@@ -253,7 +254,8 @@ class LogViewerDialog(QDialog):
                         continue
 
             # --- kolor tła ---
-            color = self.LEVEL_COLORS.get(entry.level, None)
+            bg = self._severity_background_color(entry.level)
+            bg_css = f"rgb({bg.red()}, {bg.green()}, {bg.blue()})"
 
             # --- escape HTML ---
             escaped_lines = [
@@ -271,8 +273,15 @@ class LogViewerDialog(QDialog):
                     flags=re.IGNORECASE,
                 )
 
-            if color:
-                html.append(f"<div style='background:{color}'>{combined}</div>")
+            if bg:
+                html.append(
+                    f"<div style='"
+                    f"background:{bg_css};"
+                    f"border-left:4px solid {bg_css};"
+                    f"padding:2px 6px;"
+                    f"margin-bottom:2px;'>"
+                    f"{combined}</div>"
+                )
             else:
                 html.append(f"<div>{combined}</div>")
 
@@ -319,3 +328,25 @@ class LogViewerDialog(QDialog):
     def hideEvent(self, event):
         self.timer.stop()
         super().hideEvent(event)
+
+    def _severity_background_color(self, severity: str) -> QColor:
+        pal = self.palette()
+        base = pal.color(QPalette.Base)
+
+        def mix(c1: QColor, c2: QColor, ratio=0.12):
+            return QColor(
+                int(c1.red() * (1 - ratio) + c2.red() * ratio),
+                int(c1.green() * (1 - ratio) + c2.green() * ratio),
+                int(c1.blue() * (1 - ratio) + c2.blue() * ratio),
+            )
+
+        if severity == "ERROR":
+            return mix(base, QColor(220, 50, 47))  # solarized red
+        if severity == "WARNING":
+            return mix(base, QColor(181, 137, 0))  # solarized yellow
+        if severity == "INFO":
+            return mix(base, QColor(38, 139, 210))  # blue
+        if severity == "DEBUG":
+            return mix(base, QColor(88, 110, 117))  # subtle gray
+
+        return base

@@ -49,7 +49,7 @@ class MockConnectionManager:
 class MainWindow(QMainWindow):
     def __init__(self, device_list: DeviceList):
         super().__init__()
-        self.setWindowTitle("PyNetWizard — Network Configurator")
+        self.setWindowTitle("PyNetWizard — Konfigurator Sieciowy")
         self.resize(900, 550)
 
         self.device_list = device_list
@@ -63,11 +63,11 @@ class MainWindow(QMainWindow):
         # === LEWY PANEL: lista hostów + przyciski ===
         left_panel = QVBoxLayout()
 
-        btn_add = QPushButton("➕")
+        btn_add = QPushButton("Dodaj urządzenie")
         btn_add.clicked.connect(self.add_device_dialog)
         left_panel.addWidget(btn_add)
 
-        btn_clear = QPushButton("🗑️")
+        btn_clear = QPushButton("Wyczyść listę urządzeń")
         btn_clear.clicked.connect(self.clear_device_list)
         left_panel.addWidget(btn_clear)
 
@@ -143,7 +143,7 @@ class MainWindow(QMainWindow):
         # --- NOWE: status bar ---
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
-        self.status_label = QLabel("Ready.")
+        self.status_label = QLabel("Gotowy.")
         self.status_label.setStyleSheet("font-family: monospace;")
         self.status_bar.addPermanentWidget(self.status_label)
 
@@ -314,11 +314,11 @@ class MainWindow(QMainWindow):
         dev = self.current_device
         alive = self.connection_manager.is_connected(dev)
         color = "#0f0" if alive else "#f00"
-        state = "CONNECTED" if alive else "DISCONNECTED"
+        state = "POŁĄCZONO" if alive else "ODŁĄCZONO"
         time_str = QTime.currentTime().toString("HH:mm:ss")
 
         self.status_label.setText(
-            f"<b>{dev.host}</b> — <span style='color:{color}'>{state}</span> | Last check: {time_str}"
+            f"<b>{dev.host}</b> — <span style='color:{color}'>{state}</span> | Sprawdzono: {time_str}"
         )
 
     def closeEvent(self, event):
