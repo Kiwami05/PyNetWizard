@@ -270,7 +270,11 @@ class ConfigHistoryDialog(QDialog):
     # ==========================================================
 
     def _show_diff(self, left_text: str, right_text: str):
-        left_html, right_html = build_side_by_side_diff_html(left_text, right_text)
+        left_html, right_html = build_side_by_side_diff_html(
+            left_text,
+            right_text,
+            self.palette(),
+        )
         self.left_view.setHtml(left_html)
         self.right_view.setHtml(right_html)
 
@@ -302,16 +306,39 @@ class ConfigHistoryDialog(QDialog):
 # ==========================================================
 
 
-def build_side_by_side_diff_html(left_text: str, right_text: str) -> Tuple[str, str]:
+def build_side_by_side_diff_html(
+    left_text: str,
+    right_text: str,
+    palette=None,
+) -> Tuple[str, str]:
     """
     Zwraca parę (left_html, right_html) z zakolorowanym diffem.
-    Kolory:
-    - tło białe: linie identyczne,
-    - tło czerwone: usunięte/z lewej (delete),
-    - tło zielone: dodane/z prawej (insert),
-    - tło żółtawe: zmienione (replace).
+    Kolory dopasowane dynamicznie do motywu (jasny/ciemny).
     """
+
     import difflib
+    from PySide6.QtGui import QColor, QPalette
+    from PySide6.QtWidgets import QApplication
+
+    if palette is None:
+        palette = QApplication.palette()
+
+    base = palette.color(QPalette.Base)
+
+    def mix(c1: QColor, c2: QColor, ratio=0.16):
+        return QColor(
+            int(c1.red() * (1 - ratio) + c2.red() * ratio),
+            int(c1.green() * (1 - ratio) + c2.green() * ratio),
+            int(c1.blue() * (1 - ratio) + c2.blue() * ratio),
+        )
+
+    # Kolory semantyczne (jak w log viewerze)
+    delete_color = mix(base, QColor(220, 50, 47))  # red
+    insert_color = mix(base, QColor(133, 153, 0))  # green
+    replace_color = mix(base, QColor(181, 137, 0))  # yellow
+
+    def to_css(color: QColor) -> str:
+        return f"rgb({color.red()}, {color.green()}, {color.blue()})"
 
     left_lines = left_text.splitlines()
     right_lines = right_text.splitlines()
@@ -320,52 +347,51 @@ def build_side_by_side_diff_html(left_text: str, right_text: str) -> Tuple[str, 
     left_out: List[str] = []
     right_out: List[str] = []
 
-    def fmt_line(num: str | int, line: str, bg: str | None) -> str:
+    def fmt_line(num: str | int, line: str, bg: QColor | None) -> str:
         num_str = "" if num == "" else str(num)
         num_html = f"<span style='color:#888;'>{html.escape(num_str).rjust(4)} </span>"
         line_html = html.escape(line).replace(" ", "&nbsp;")
+
         style = "font-family: monospace; font-size: 11px;"
         if bg:
-            style += f" background-color:{bg};"
+            style += f" background-color:{to_css(bg)};"
+
         return f"<div style='{style}'>{num_html}{line_html}</div>"
 
     for tag, i1, i2, j1, j2 in sm.get_opcodes():
         if tag == "equal":
             for i in range(i1, i2):
-                ln = i + 1
-                left_out.append(fmt_line(ln, left_lines[i], None))
+                left_out.append(fmt_line(i + 1, left_lines[i], None))
             for j in range(j1, j2):
-                rn = j + 1
-                right_out.append(fmt_line(rn, right_lines[j], None))
+                right_out.append(fmt_line(j + 1, right_lines[j], None))
 
         elif tag == "replace":
             span = max(i2 - i1, j2 - j1)
             for k in range(span):
+                left_bg = replace_color
+                right_bg = replace_color
+
                 if i1 + k < i2:
-                    ln = i1 + k + 1
-                    left_line = left_lines[i1 + k]
-                    left_out.append(fmt_line(ln, left_line, "#fff0c2"))
+                    left_out.append(fmt_line(i1 + k + 1, left_lines[i1 + k], left_bg))
                 else:
-                    left_out.append(fmt_line("", "", "#fff0c2"))
+                    left_out.append(fmt_line("", "", left_bg))
 
                 if j1 + k < j2:
-                    rn = j1 + k + 1
-                    right_line = right_lines[j1 + k]
-                    right_out.append(fmt_line(rn, right_line, "#fff0c2"))
+                    right_out.append(
+                        fmt_line(j1 + k + 1, right_lines[j1 + k], right_bg)
+                    )
                 else:
-                    right_out.append(fmt_line("", "", "#fff0c2"))
+                    right_out.append(fmt_line("", "", right_bg))
 
         elif tag == "delete":
             for i in range(i1, i2):
-                ln = i + 1
-                left_out.append(fmt_line(ln, left_lines[i], "#ffd6d6"))
-                right_out.append(fmt_line("", "", "#ffd6d6"))
+                left_out.append(fmt_line(i + 1, left_lines[i], delete_color))
+                right_out.append(fmt_line("", "", delete_color))
 
         elif tag == "insert":
             for j in range(j1, j2):
-                rn = j + 1
-                right_out.append(fmt_line(rn, right_lines[j], "#d9ffd9"))
-                left_out.append(fmt_line("", "", "#d9ffd9"))
+                right_out.append(fmt_line(j + 1, right_lines[j], insert_color))
+                left_out.append(fmt_line("", "", insert_color))
 
     left_html = (
         "<html><body style='margin:4px;'>" + "".join(left_out) + "</body></html>"
