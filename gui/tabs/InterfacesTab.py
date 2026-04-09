@@ -7,7 +7,6 @@ from PySide6.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QHeaderView,
-    QPlainTextEdit,
     QLineEdit,
     QCheckBox,
     QSpinBox,
@@ -87,6 +86,7 @@ class InterfacesTab(QWidget):
 
         self.pending_ops: list[Operation] = []
         self._loading: bool = False  # blokuje eventy podczas sync/import
+        self._log_message = lambda _text: None
 
         # ============================================================
         #                           UI
@@ -121,19 +121,11 @@ class InterfacesTab(QWidget):
 
         main_layout.addLayout(btns)
 
-        # --- Dolna konsola ---
-        self.console = QPlainTextEdit()
-        self.console.setReadOnly(True)
-        self.console.setPlaceholderText("Interface commands preview...")
-        self.console.setStyleSheet("""
-            QPlainTextEdit {
-                background-color: #111;
-                color: #0f0;
-                font-family: monospace;
-                font-size: 12px;
-            }
-        """)
-        main_layout.addWidget(self.console, 2)
+    def set_logger(self, log_message):
+        self._log_message = log_message or (lambda _text: None)
+
+    def _append_log(self, text: str):
+        self._log_message(text)
 
     # ================================================================
     #                       TWORZENIE WIERSZA
@@ -210,9 +202,7 @@ class InterfacesTab(QWidget):
             )
         )
 
-        self.console.appendPlainText(
-            f"[OP] set description on {iface}: {desc or '(clear)'}"
-        )
+        self._append_log(f"[OP] set description on {iface}: {desc or '(clear)'}")
 
     def _on_ip_changed(self):
         if self._loading:
@@ -259,7 +249,7 @@ class InterfacesTab(QWidget):
                     iface=iface,
                 )
             )
-            self.console.appendPlainText(f"[OP] clear IP on {iface}")
+            self._append_log(f"[OP] clear IP on {iface}")
 
         else:
             mask = cidr_to_mask(cidr)
@@ -271,7 +261,7 @@ class InterfacesTab(QWidget):
                     mask=mask,
                 )
             )
-            self.console.appendPlainText(f"[OP] set IP on {iface}: {ip}/{cidr}")
+            self._append_log(f"[OP] set IP on {iface}: {ip}/{cidr}")
 
     def _on_status_changed(self, is_up: bool):
         if self._loading:
@@ -288,7 +278,7 @@ class InterfacesTab(QWidget):
             )
         )
 
-        self.console.appendPlainText(f"[OP] {'enable' if is_up else 'disable'} {iface}")
+        self._append_log(f"[OP] {'enable' if is_up else 'disable'} {iface}")
 
     # ================================================================
     #                   PRZYCISKI Enable/Disable
@@ -297,9 +287,7 @@ class InterfacesTab(QWidget):
     def _cmd_on_selected(self, cmd: str):
         row = self.table.currentRow()
         if row == -1:
-            self.console.appendPlainText(
-                f"[WARN] Brak zaznaczonego interfejsu ({cmd})."
-            )
+            self._append_log(f"[WARN] Brak zaznaczonego interfejsu ({cmd}).")
             return
 
         iface = self.table.item(row, self.COL_NAME).text()
@@ -311,9 +299,7 @@ class InterfacesTab(QWidget):
             )
         )
 
-        self.console.appendPlainText(
-            f"[OP] {'enable' if cmd == 'no shutdown' else 'disable'} {iface}"
-        )
+        self._append_log(f"[OP] {'enable' if cmd == 'no shutdown' else 'disable'} {iface}")
 
     # ================================================================
     #                        BUFORY / PENDING CMDS
@@ -350,7 +336,6 @@ class InterfacesTab(QWidget):
 
         return {
             "rows": rows,
-            "console": self.console.toPlainText(),
             "pending_ops": list(self.pending_ops),
         }
 
@@ -362,7 +347,6 @@ class InterfacesTab(QWidget):
                 name, desc, ip, cidr, status = row
                 self._create_interface_row(name, desc, ip, cidr, status)
 
-            self.console.setPlainText(data.get("console", ""))
             self.pending_ops = list(data.get("pending_ops", []))
         finally:
             self._loading = False
@@ -392,9 +376,7 @@ class InterfacesTab(QWidget):
                 )
 
             self.pending_ops.clear()
-            self.console.appendPlainText(
-                "[SYNC] Interfaces updated from running-config."
-            )
+            self._append_log("[SYNC] Interfaces updated from running-config.")
         finally:
             self._loading = False
 

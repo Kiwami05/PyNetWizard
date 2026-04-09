@@ -11,7 +11,6 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QFileDialog,
     QMessageBox,
-    QPlainTextEdit,
 )
 from PySide6.QtCore import Qt
 
@@ -32,6 +31,7 @@ class GlobalTab(QWidget):
         super().__init__(parent)
         self.device: Device | None = None
         self.conn_mgr = None  # przypisane z MainWindow
+        self._log_message = lambda _text: None
 
         main_layout = QVBoxLayout(self)
         main_layout.setAlignment(Qt.AlignTop)
@@ -87,20 +87,6 @@ class GlobalTab(QWidget):
         self.btn_sync.clicked.connect(self._action_sync)
         main_layout.addWidget(self.btn_sync)
 
-        # === Dolna konsola (log) ===
-        self.console = QPlainTextEdit()
-        self.console.setReadOnly(True)
-        self.console.setPlaceholderText("Global operations log...")
-        self.console.setStyleSheet("""
-            QPlainTextEdit {
-                background-color: #111;
-                color: #0f0;
-                font-family: monospace;
-                font-size: 12px;
-            }
-        """)
-        main_layout.addWidget(self.console, 2)
-
         # === Wypełniacz ===
         spacer = QSpacerItem(10, 10, QSizePolicy.Minimum, QSizePolicy.Expanding)
         main_layout.addItem(spacer)
@@ -114,6 +100,9 @@ class GlobalTab(QWidget):
         self.device = device
         self.conn_mgr = conn_mgr
         self._append_log(f"[INFO] Binded to {device.host}")
+
+    def set_logger(self, log_message):
+        self._log_message = log_message or (lambda _text: None)
 
     # ==============================================================
     #                    PRZYCISKI (AKCJE)
@@ -281,7 +270,7 @@ class GlobalTab(QWidget):
         return True
 
     def _append_log(self, text: str):
-        self.console.appendPlainText(text.strip())
+        self._log_message(text)
 
     # ==============================================================
     #                  API: export/import stanu
@@ -290,12 +279,10 @@ class GlobalTab(QWidget):
     def export_state(self) -> dict:
         return {
             "hostname": self.hostname.text(),
-            "console": self.console.toPlainText(),
         }
 
     def import_state(self, data: dict):
         self.hostname.setText(data.get("hostname", ""))
-        self.console.setPlainText(data.get("console", ""))
 
     def sync_from_config(self, conf: ParsedConfig):
         # Ustaw hostname

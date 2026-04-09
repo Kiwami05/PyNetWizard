@@ -12,7 +12,6 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QFormLayout,
     QGroupBox,
-    QPlainTextEdit,
     QComboBox,
     QMessageBox,
 )
@@ -44,6 +43,7 @@ class ACLTab(QWidget):
         self.current_acl_name: str | None = None
         self.pending_ops: list[Operation] = []
         self._loading: bool = False
+        self._log_message = lambda _text: None
 
         # lista dostępnych interfejsów: [(nameif, ifname), ...]
         self._iface_map: list[tuple[str, str]] = []
@@ -172,16 +172,11 @@ class ACLTab(QWidget):
         main.addWidget(bind_box)  # bind_form jest wewnątrz bind_box
         main.addLayout(bind_bottom)  # tabela + delete-button — osobny layout
 
-        # ----------------------------------------------------------
-        # CONSOLE
-        # ----------------------------------------------------------
-        self.console = QPlainTextEdit()
-        self.console.setReadOnly(True)
-        self.console.setPlaceholderText("ASA ACL command preview...")
-        self.console.setStyleSheet(
-            "background-color:#111; color:#0f0; font-family:monospace; font-size:12px;"
-        )
-        main.addWidget(self.console, 2)
+    def set_logger(self, log_message):
+        self._log_message = log_message or (lambda _text: None)
+
+    def _append_log(self, text: str):
+        self._log_message(text)
 
     # ==============================================================
     # SELECT ACL NAME
@@ -193,7 +188,7 @@ class ACLTab(QWidget):
             QMessageBox.warning(self, "Error", "Enter ACL name.")
             return
         self.current_acl_name = name
-        self.console.appendPlainText(f"! Using ASA ACL: {name}")
+        self._append_log(f"! Using ASA ACL: {name}")
 
     # ==============================================================
     # ADD RULE (ASA FORMAT)
@@ -231,7 +226,7 @@ class ACLTab(QWidget):
                 port=port or None,
             )
         )
-        self.console.appendPlainText(f"[OP] added ACL {self.current_acl_name} rule")
+        self._append_log(f"[OP] added ACL {self.current_acl_name} rule")
 
         # Wyczyść inputy
         self.proto_input.clear()
@@ -270,7 +265,7 @@ class ACLTab(QWidget):
                 port=port or None,
             )
         )
-        self.console.appendPlainText(f"[OP] removed ACL {self.current_acl_name} rule")
+        self._append_log(f"[OP] removed ACL {self.current_acl_name} rule")
         self.table_rules.removeRow(r)
 
     # ==============================================================
@@ -318,9 +313,7 @@ class ACLTab(QWidget):
                 interface=nameif,
             )
         )
-        self.console.appendPlainText(
-            f"[OP] bound ACL {self.current_acl_name} to {nameif} interface."
-        )
+        self._append_log(f"[OP] bound ACL {self.current_acl_name} to {nameif} interface.")
 
         r = self.table_bindings.rowCount()
         self.table_bindings.insertRow(r)
@@ -354,7 +347,7 @@ class ACLTab(QWidget):
                 interface=nameif,
             )
         )
-        self.console.appendPlainText(f"[OP] unbound ACL {acl}")
+        self._append_log(f"[OP] unbound ACL {acl}")
         self.table_bindings.removeRow(r)
 
     # ==============================================================
@@ -407,9 +400,7 @@ class ACLTab(QWidget):
             # 3) access-group powiązania
             self._parse_access_groups(text)
 
-            self.console.appendPlainText(
-                "[SYNC] ASA ACLs and bindings loaded from running-config."
-            )
+            self._append_log("[SYNC] ASA ACLs and bindings loaded from running-config.")
 
             # auto-select pierwszej ACL jeśli żadna nie ustawiona
             if self.current_acl_name is None and self.table_rules.rowCount() > 0:

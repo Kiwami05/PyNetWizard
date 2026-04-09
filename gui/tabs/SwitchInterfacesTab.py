@@ -275,7 +275,7 @@ class SwitchInterfacesTab(InterfacesTab):
                 )
             )
 
-            self.console.appendPlainText(f"[OP] set mode {mode} on {iface}")
+            self._append_log(f"[OP] set mode {mode} on {iface}")
 
     # ===================================================================
     #                   HANDLER PRZYCISKU VLAN(s)
@@ -356,9 +356,7 @@ class SwitchInterfacesTab(InterfacesTab):
                     vlans=[int(v) for v in selected],
                 )
             )
-        self.console.appendPlainText(
-            f"[OP] set VLAN(s) {','.join(selected)} on {iface} ({mode})"
-        )
+        self._append_log(f"[OP] set VLAN(s) {','.join(selected)} on {iface} ({mode})")
 
     # ===================================================================
     #                     STATE EXPORT / IMPORT
@@ -392,7 +390,6 @@ class SwitchInterfacesTab(InterfacesTab):
 
         return {
             "rows": rows,
-            "console": self.console.toPlainText(),
             "pending_ops": list(self.pending_ops),
         }
 
@@ -417,7 +414,6 @@ class SwitchInterfacesTab(InterfacesTab):
                 )
                 self._create_interface_row(name, desc, ip, cidr, mode, status, vlans)
 
-            self.console.setPlainText(data.get("console", ""))
             self.pending_ops = list(data.get("pending_ops", []))
         finally:
             self._loading = False
@@ -471,9 +467,7 @@ class SwitchInterfacesTab(InterfacesTab):
                 )
 
             self.pending_ops.clear()
-            self.console.appendPlainText(
-                "[SYNC] Switch interfaces updated from running-config."
-            )
+            self._append_log("[SYNC] Switch interfaces updated from running-config.")
         finally:
             self._loading = False
 
