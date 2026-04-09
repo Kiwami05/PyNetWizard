@@ -10,7 +10,6 @@ from PySide6.QtWidgets import (
     QTableWidget,
     QTableWidgetItem,
     QHeaderView,
-    QPlainTextEdit,
     QHBoxLayout,
     QCheckBox,
     QMessageBox,
@@ -77,6 +76,7 @@ class RoutingTab(QWidget):
 
         self.pending_ops: list[Operation] = []
         self._loading: bool = False  # blokuje eventy podczas sync/import
+        self._log_message = lambda _text: None
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(20, 15, 20, 15)
@@ -92,19 +92,11 @@ class RoutingTab(QWidget):
         self.subtabs.addTab(self._make_ospf_tab(), "OSPF")
         main_layout.addWidget(self.subtabs, 4)
 
-        # === Konsola lokalna (routing only) ===
-        self.console = QPlainTextEdit()
-        self.console.setReadOnly(True)
-        self.console.setPlaceholderText("Routing commands preview...")
-        self.console.setStyleSheet("""
-            QPlainTextEdit {
-                background-color: #111;
-                color: #0f0;
-                font-family: monospace;
-                font-size: 12px;
-            }
-        """)
-        main_layout.addWidget(self.console, 2)
+    def set_logger(self, log_message):
+        self._log_message = log_message or (lambda _text: None)
+
+    def _append_log(self, text: str):
+        self._log_message(text)
 
     # ============================================================
     #                         STATIC
@@ -212,7 +204,7 @@ class RoutingTab(QWidget):
                 nh=nh,
             )
         )
-        self.console.appendPlainText(f"[OP] add static route to {dest}")
+        self._append_log(f"[OP] add static route to {dest}")
         self.static_table.selectRow(r)
 
     def _on_static_update(self):
@@ -254,7 +246,7 @@ class RoutingTab(QWidget):
                 nh=nh,
             )
         )
-        self.console.appendPlainText(f"[OP] update static route to {dest}")
+        self._append_log(f"[OP] update static route to {dest}")
 
         self.static_table.setItem(row, 0, QTableWidgetItem(dest))
         self.static_table.setItem(row, 1, QTableWidgetItem(mask))
@@ -278,7 +270,7 @@ class RoutingTab(QWidget):
                 nh=nh,
             )
         )
-        self.console.appendPlainText(f"[OP] delete static route to {dest}")
+        self._append_log(f"[OP] delete static route to {dest}")
         self.static_table.removeRow(row)
 
     # ============================================================
@@ -338,7 +330,7 @@ class RoutingTab(QWidget):
                     OperationEnum.DISABLE_RIP,
                 )
             )
-        self.console.appendPlainText(f"[OP] turn RIP {'ON' if enabled else 'OFF'}")
+        self._append_log(f"[OP] turn RIP {'ON' if enabled else 'OFF'}")
 
     def _rip_add(self):
         net = self.rip_net.text().strip()
@@ -366,7 +358,7 @@ class RoutingTab(QWidget):
                 network=net,
             )
         )
-        self.console.appendPlainText(f"[OP] add {net} to RIP")
+        self._append_log(f"[OP] add {net} to RIP")
         self.rip_table.selectRow(r)
         self.rip_net.clear()
 
@@ -382,7 +374,7 @@ class RoutingTab(QWidget):
                 network=net,
             )
         )
-        self.console.appendPlainText(f"[OP] delete {net} to RIP")
+        self._append_log(f"[OP] delete {net} to RIP")
         self.rip_table.removeRow(row)
 
     # ============================================================
@@ -494,7 +486,7 @@ class RoutingTab(QWidget):
                 area=area,
             )
         )
-        self.console.appendPlainText(f"[OP] add {net} to OSPF")
+        self._append_log(f"[OP] add {net} to OSPF")
         self.ospf_table.selectRow(r)
 
     def _on_ospf_update(self):
@@ -540,7 +532,7 @@ class RoutingTab(QWidget):
                 area=area,
             )
         )
-        self.console.appendPlainText(f"[OP] update {net} to OSPF")
+        self._append_log(f"[OP] update {net} to OSPF")
 
         self.ospf_table.setItem(row, 0, QTableWidgetItem(net))
         self.ospf_table.setItem(row, 1, QTableWidgetItem(wc))
@@ -565,7 +557,7 @@ class RoutingTab(QWidget):
                 area=area,
             )
         )
-        self.console.appendPlainText(f"[OP] delete {net} from OSPF")
+        self._append_log(f"[OP] delete {net} from OSPF")
         self.ospf_table.removeRow(row)
 
     # ============================================================
@@ -588,7 +580,6 @@ class RoutingTab(QWidget):
             "rip": [],
             "ospf": [],
             "pending_ops": list(self.pending_ops),
-            "console": self.console.toPlainText(),
         }
 
         # static
@@ -643,7 +634,6 @@ class RoutingTab(QWidget):
                 for i in range(4):
                     self.ospf_table.setItem(r, i, QTableWidgetItem(row[i]))
 
-            self.console.setPlainText(data.get("console", ""))
             self.pending_ops = list(data.get("pending_ops", []))
         finally:
             self._loading = False
@@ -685,6 +675,6 @@ class RoutingTab(QWidget):
                 self.ospf_table.setItem(row, 2, QTableWidgetItem(o["area"]))
 
             self.pending_ops.clear()
-            self.console.appendPlainText("[SYNC] Routing updated from running-config.")
+            self._append_log("[SYNC] Routing updated from running-config.")
         finally:
             self._loading = False

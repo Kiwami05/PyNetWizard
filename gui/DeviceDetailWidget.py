@@ -77,6 +77,10 @@ class DeviceDetailWidget(QWidget):
             "ACL": ACLTab(),
         }
 
+        for page in self.pages.values():
+            if hasattr(page, "set_logger"):
+                page.set_logger(self.append_console)
+
         # Po kliknięciu w liście zmieniamy stronę
         self.category_list.currentRowChanged.connect(self.stack.setCurrentIndex)
 
@@ -117,6 +121,7 @@ class DeviceDetailWidget(QWidget):
             placeholder = QLabel("<i>No device selected</i>")
             placeholder.setAlignment(Qt.AlignCenter)
             self.stack.addWidget(placeholder)
+            self.load_console_state(None)
             return
 
         # Ustal, które zakładki mają się pojawić
@@ -143,10 +148,34 @@ class DeviceDetailWidget(QWidget):
 
         # 🆕 wczytaj stan z bufora
         self.load_tab_state(device)
+        self.load_console_state(device)
 
     def append_console(self, text: str):
         """Dodaje linię do globalnej konsoli."""
-        self.console.appendPlainText(text.strip())
+        message = text.strip()
+        if not message:
+            return
+
+        self.console.appendPlainText(message)
+
+        if not self.current_device:
+            return
+
+        buf = self.buffers.setdefault(self.current_device.host, DeviceBuffer())
+        if buf.logs:
+            buf.logs += "\n" + message
+        else:
+            buf.logs = message
+
+    def load_console_state(self, device):
+        """Ładuje globalny log dla wskazanego urządzenia."""
+        self.console.clear()
+        if not device:
+            return
+
+        buf = self.buffers.get(device.host)
+        if buf and buf.logs:
+            self.console.setPlainText(buf.logs)
 
     # =====================================================
     #        OBSŁUGA BUFORA (export/import zakładek)
@@ -192,7 +221,6 @@ class DeviceDetailWidget(QWidget):
         # Zapisz w buforze urządzenia
         buf = self.buffers.setdefault(self.current_device.host, DeviceBuffer())
         buf.hostname = conf.hostname or buf.hostname
-        buf.logs = (buf.logs or "") + "\n[SYNC] Config applied to tabs."
         buf.tabs.setdefault("GLOBAL", {})
         buf.config = conf  # zawsze aktualny snapshot
 
@@ -308,5 +336,7 @@ class DeviceDetailWidget(QWidget):
         if not buf:
             return
         for name, data in (buf.tabs or {}).items():
+            if isinstance(data, dict) and "pending_ops" in data:
+                data["pending_ops"] = []
             if isinstance(data, dict) and "pending_cmds" in data:
                 data["pending_cmds"] = []

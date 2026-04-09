@@ -10,7 +10,6 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QFormLayout,
     QGroupBox,
-    QPlainTextEdit,
     QMessageBox,
 )
 from PySide6.QtCore import Qt
@@ -38,6 +37,7 @@ class VLANsTab(QWidget):
         super().__init__(parent)
 
         self.pending_ops: list[Operation] = []
+        self._log_message = lambda _text: None
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(20, 15, 20, 15)
@@ -83,26 +83,15 @@ class VLANsTab(QWidget):
         btn_row.addStretch()
         main_layout.addLayout(btn_row)
 
-        # === Dolny log (CLI output) ===
-        self.console = QPlainTextEdit()
-        self.console.setReadOnly(True)
-        self.console.setPlaceholderText("VLAN configuration commands preview...")
-        self.console.setStyleSheet("""
-            QPlainTextEdit {
-                background-color: #111;
-                color: #0f0;
-                font-family: monospace;
-                font-size: 12px;
-            }
-        """)
-        main_layout.addWidget(self.console, 2)
+    def set_logger(self, log_message):
+        self._log_message = log_message or (lambda _text: None)
 
     # ==========================================================
     #                       HELPERY UI
     # ==========================================================
 
     def _append_console(self, text: str):
-        self.console.appendPlainText(text.rstrip())
+        self._log_message(text.rstrip())
 
     def _find_vlan_row_by_id(self, vlan_id: str):
         for row in range(self.table.rowCount()):
@@ -331,7 +320,6 @@ class VLANsTab(QWidget):
             rows.append(row)
         return {
             "rows": rows,
-            "console": self.console.toPlainText(),
             "pending_ops": list(self.pending_ops),
         }
 
@@ -342,7 +330,6 @@ class VLANsTab(QWidget):
             self.table.insertRow(r)
             for c, val in enumerate(row):
                 self.table.setItem(r, c, QTableWidgetItem(val))
-        self.console.setPlainText(data.get("console", ""))
         self.pending_ops = list(data.get("pending_ops", []))
 
     # ==========================================================
@@ -373,4 +360,4 @@ class VLANsTab(QWidget):
             self.table.setItem(r, self.COL_PORTS, ports_item)
 
         self.pending_ops.clear()
-        self.console.appendPlainText("[SYNC] VLANs updated from running-config.")
+        self._append_console("[SYNC] VLANs updated from running-config.")
