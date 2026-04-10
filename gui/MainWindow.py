@@ -20,6 +20,7 @@ from devices.Device import Device
 from gui.ConfigHistoryDialog import ConfigHistoryDialog
 from gui.LogViewerDialog import LogViewerDialog
 from gui.SecurityAuditDialog import SecurityAuditDialog
+from gui.QueuedChangesDialog import QueuedChangesDialog
 from gui.SettingsDialog import SettingsDialog
 from gui.DeviceDetailWidget import DeviceDetailWidget
 from services.config_history import save_snapshot
@@ -113,6 +114,11 @@ class MainWindow(QMainWindow):
 
         action_sync = device_menu.addAction("Odśwież konfigurację (Sync)")
         action_sync.triggered.connect(self.sync_current_device)
+
+        device_menu.addSeparator()
+
+        action_queued_changes = device_menu.addAction("Pokaż zakolejkowane zmiany")
+        action_queued_changes.triggered.connect(self.open_queued_changes_dialog)
 
         device_menu.addSeparator()
 
@@ -596,6 +602,44 @@ class MainWindow(QMainWindow):
             current_raw = buf.config.raw_running
 
         dlg = ConfigHistoryDialog(dev, current_raw, self)
+        dlg.exec()
+
+    def open_queued_changes_dialog(self):
+        if not self.current_device:
+            QMessageBox.information(
+                self,
+                "Brak urządzenia",
+                "Najpierw wybierz urządzenie z listy po lewej.",
+            )
+            return
+
+        dev = self.current_device
+        buf = self.detail_box.buffers.get(dev.host)
+        if not buf or not getattr(buf, "config", None):
+            QMessageBox.information(
+                self,
+                "Brak snapshotu",
+                "Najpierw wykonaj Sync dla tego urządzenia.",
+            )
+            return
+
+        preview = self.detail_box.preview_pending_changes_current(buf.config)
+        commands = preview["commands"]
+
+        if not commands:
+            QMessageBox.information(
+                self,
+                "Brak zmian",
+                f"Brak zakolejkowanych zmian dla {dev.host}.",
+            )
+            return
+
+        dlg = QueuedChangesDialog(
+            host=dev.host,
+            commands=commands,
+            operation_count=preview["operation_count"],
+            parent=self,
+        )
         dlg.exec()
 
     def open_log_viewer(self):
