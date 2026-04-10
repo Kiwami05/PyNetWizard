@@ -6,7 +6,6 @@ from PySide6.QtWidgets import (
     QStackedWidget,
     QPlainTextEdit,
     QFrame,
-    QPushButton,
     QLabel,
 )
 from PySide6.QtCore import Qt
@@ -117,8 +116,8 @@ class DeviceDetailWidget(QWidget):
         self.clear_stack()
 
         if not device:
-            self.category_list.addItem("No device selected")
-            placeholder = QLabel("<i>No device selected</i>")
+            self.category_list.addItem("Brak wybranego urządzenia")
+            placeholder = QLabel("<i>Brak wybranego urządzenia</i>")
             placeholder.setAlignment(Qt.AlignCenter)
             self.stack.addWidget(placeholder)
             self.load_console_state(None)
@@ -138,7 +137,11 @@ class DeviceDetailWidget(QWidget):
         for key in tab_keys:
             # Etykieta w bocznej liście
             if key in ("INTERFACES", "SWITCH_INTERFACES"):
-                label = "INTERFACES"
+                label = "INTERFEJSY"
+            elif key == "GLOBAL":
+                label = "OGÓLNE"
+            elif key == "VLANs":
+                label = "VLAN-y"
             else:
                 label = key
             self.category_list.addItem(label)

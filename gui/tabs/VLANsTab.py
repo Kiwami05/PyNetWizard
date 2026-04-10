@@ -44,31 +44,31 @@ class VLANsTab(QWidget):
         main_layout.setSpacing(10)
 
         # === Nagłówek ===
-        main_layout.addWidget(QLabel("<h2>VLAN Configuration</h2>"))
+        main_layout.addWidget(QLabel("<h2>Konfiguracja VLAN-ów</h2>"))
 
         # === Sekcja dodawania / edycji VLAN-u ===
-        add_box = QGroupBox("Add / Edit VLAN")
+        add_box = QGroupBox("Dodaj / edytuj VLAN")
         form = QFormLayout(add_box)
         self.vlan_id = QLineEdit()
         self.vlan_name = QLineEdit()
         self.vlan_id.setPlaceholderText("np. 10")
-        self.vlan_name.setPlaceholderText("np. Management")
+        self.vlan_name.setPlaceholderText("np. Zarządzanie")
         self.vlan_id.setToolTip(
             "Numer VLAN (1–4094). Zmiana ID usuwa stary VLAN i tworzy nowy."
         )
         self.vlan_name.setToolTip("Opcjonalna nazwa VLAN-u.")
 
-        self.btn_add_update = QPushButton("Add / Update VLAN")
+        self.btn_add_update = QPushButton("Dodaj / aktualizuj VLAN")
         self.btn_add_update.clicked.connect(self._on_add_update_vlan)
 
         form.addRow("VLAN ID:", self.vlan_id)
-        form.addRow("Name:", self.vlan_name)
+        form.addRow("Nazwa:", self.vlan_name)
         form.addRow(self.btn_add_update)
         main_layout.addWidget(add_box)
 
         # === Tabela VLAN-ów ===
         self.table = QTableWidget(0, 3)
-        self.table.setHorizontalHeaderLabels(["VLAN ID", "Name", "Ports"])
+        self.table.setHorizontalHeaderLabels(["VLAN ID", "Nazwa", "Porty"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QTableWidget.SingleSelection)
@@ -77,7 +77,7 @@ class VLANsTab(QWidget):
 
         # === Przyciski operacyjne ===
         btn_row = QHBoxLayout()
-        self.btn_delete = QPushButton("Delete VLAN")
+        self.btn_delete = QPushButton("Usuń VLAN")
         self.btn_delete.clicked.connect(self._on_delete_vlan)
         btn_row.addWidget(self.btn_delete)
         btn_row.addStretch()
@@ -263,7 +263,7 @@ class VLANsTab(QWidget):
     def _on_delete_vlan(self):
         row = self._get_selected_row()
         if row is None:
-            QMessageBox.information(self, "Info", "Wybierz VLAN do usunięcia.")
+            QMessageBox.information(self, "Informacja", "Wybierz VLAN do usunięcia.")
             return
 
         id_item = self.table.item(row, self.COL_ID)

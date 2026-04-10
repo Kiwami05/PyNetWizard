@@ -92,10 +92,10 @@ class MainWindow(QMainWindow):
         action_scan = file_menu.addAction("Skanuj sieć")
         action_scan.triggered.connect(self.scan_network)
 
-        action_save = file_menu.addAction("Zapisz inventory")
+        action_save = file_menu.addAction("Zapisz listę urządzeń")
         action_save.triggered.connect(self.save_inventory)
 
-        action_load = file_menu.addAction("Wczytaj inventory")
+        action_load = file_menu.addAction("Wczytaj listę urządzeń")
         action_load.triggered.connect(self.load_inventory)
 
         device_menu = menubar.addMenu("Urządzenie")
@@ -112,7 +112,7 @@ class MainWindow(QMainWindow):
 
         device_menu.addSeparator()
 
-        action_sync = device_menu.addAction("Odśwież konfigurację (Sync)")
+        action_sync = device_menu.addAction("Synchronizuj konfigurację")
         action_sync.triggered.connect(self.sync_current_device)
 
         device_menu.addSeparator()
@@ -280,24 +280,24 @@ class MainWindow(QMainWindow):
 
     def save_inventory(self):
         filename, _ = QFileDialog.getSaveFileName(
-            self, "Zapisz inventory", "inventory.json", "JSON Files (*.json)"
+            self, "Zapisz listę urządzeń", "inventory.json", "Pliki JSON (*.json)"
         )
         if filename:
             self.device_list.save_to_file(filename)
             QMessageBox.information(
-                self, "Zapisano", f"Inventory zapisane do {filename}"
+                self, "Zapisano", f"Lista urządzeń została zapisana do {filename}"
             )
 
     def load_inventory(self):
         filename, _ = QFileDialog.getOpenFileName(
-            self, "Wczytaj inventory", "", "Pliki JSON (*.json)"
+            self, "Wczytaj listę urządzeń", "", "Pliki JSON (*.json)"
         )
         if filename:
             self.device_list.load_from_file(filename)
             self.clear_device_buffer()
             self.refresh_device_buttons()
             QMessageBox.information(
-                self, "Wczytano", f"Załadowano inventory z {filename}"
+                self, "Wczytano", f"Załadowano listę urządzeń z {filename}"
             )
         if self.device_list.devices:
             first_device = self.device_list.devices[0]
@@ -464,7 +464,9 @@ class MainWindow(QMainWindow):
                 pass
 
             # 🧾 konsola globalna + status
-            self.detail_box.append_console(f"[SYNC] Hostname: {conf.hostname or '-'}")
+            self.detail_box.append_console(
+                f"[SYNC] Nazwa hosta: {conf.hostname or '-'}"
+            )
             QMessageBox.information(
                 self,
                 "Pobrano",

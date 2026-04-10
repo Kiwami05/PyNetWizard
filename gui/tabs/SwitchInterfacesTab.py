@@ -36,7 +36,7 @@ class VLANSelectDialog(QDialog):
         current_vlans: list[str],
     ):
         super().__init__(parent)
-        self.setWindowTitle("Select VLANs")
+        self.setWindowTitle("Wybór VLAN-ów")
         self.mode = mode
         self.vlans = vlans or {}
         self._selected = list(current_vlans)
@@ -45,7 +45,9 @@ class VLANSelectDialog(QDialog):
 
         if not self.vlans:
             layout.addWidget(
-                QLabel("No VLANs available. Define VLANs in VLANsTab first.")
+                QLabel(
+                    "Brak dostępnych VLAN-ów. Najpierw zdefiniuj je w zakładce VLAN."
+                )
             )
         else:
             # Scrollowalna lista VLAN-ów
@@ -309,7 +311,7 @@ class SwitchInterfacesTab(InterfacesTab):
 
             QMessageBox.information(
                 self,
-                "Info",
+                "Informacja",
                 "VLANs można przypisywać tylko w trybie access lub trunk.",
             )
             return
