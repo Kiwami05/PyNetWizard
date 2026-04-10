@@ -245,8 +245,12 @@ class DeviceDetailWidget(QWidget):
         self.sync_tabs_from_config(buf.config)
 
     def collect_pending_commands_current(self, conf: ParsedConfig) -> list[str]:
+        preview = self.preview_pending_changes_current(conf)
+        return preview["commands"]
+
+    def preview_pending_changes_current(self, conf: ParsedConfig) -> dict:
         if not self.current_device:
-            return []
+            return {"commands": [], "operation_count": 0, "legacy_count": 0}
 
         # zapisz aktualny stan tabów
         self.save_tab_state(self.current_device)
@@ -276,7 +280,11 @@ class DeviceDetailWidget(QWidget):
         final_cmds = []
         final_cmds.extend(c.strip() for c in legacy_cmds if c.strip())
         final_cmds.extend(c.strip() for c in rendered_cmds if c.strip())
-        return final_cmds
+        return {
+            "commands": final_cmds,
+            "operation_count": len(pending_ops),
+            "legacy_count": len([c for c in legacy_cmds if c.strip()]),
+        }
 
     def clear_pending_commands_current(self):
         for idx in range(self.stack.count()):
