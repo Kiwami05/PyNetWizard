@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QComboBox,
     QMessageBox,
+    QScrollArea,
 )
 
 from operations.Operation import Operation
@@ -48,7 +49,18 @@ class ACLTab(QWidget):
         # lista dostępnych interfejsów: [(nameif, ifname), ...]
         self._iface_map: list[tuple[str, str]] = []
 
-        main = QVBoxLayout(self)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.NoFrame)
+        outer.addWidget(scroll)
+
+        content = QWidget()
+        scroll.setWidget(content)
+
+        main = QVBoxLayout(content)
         main.setContentsMargins(20, 15, 20, 15)
         main.setSpacing(10)
 
@@ -60,13 +72,14 @@ class ACLTab(QWidget):
         # ----------------------------------------------------------
         # ACL NAME SELECTION
         # ----------------------------------------------------------
-        acl_box = QGroupBox("Wybierz lub utwórz nazwaną ACL dla ASA")
+        acl_box = QGroupBox("Wybierz lub utwórz ACL")
         acl_form = QFormLayout(acl_box)
+        acl_form.setRowWrapPolicy(QFormLayout.WrapLongRows)
 
         self.input_acl_name = QLineEdit()
         self.input_acl_name.setPlaceholderText("OUTSIDE-IN, INSIDE-POLICY, ...")
 
-        btn_set_acl = QPushButton("Użyj tej nazwy ACL")
+        btn_set_acl = QPushButton("Ustaw ACL")
         btn_set_acl.clicked.connect(self._select_acl)
 
         acl_form.addRow("Nazwa ACL:", self.input_acl_name)
@@ -122,7 +135,7 @@ class ACLTab(QWidget):
 
         # Delete rule
         row = QHBoxLayout()
-        btn_del_rule = QPushButton("Usuń zaznaczoną regułę")
+        btn_del_rule = QPushButton("Usuń regułę")
         btn_del_rule.clicked.connect(self._delete_rule)
         row.addWidget(btn_del_rule)
         row.addStretch()
@@ -131,8 +144,9 @@ class ACLTab(QWidget):
         # ----------------------------------------------------------
         # BINDINGS (access-group)
         # ----------------------------------------------------------
-        bind_box = QGroupBox("Przypisz ACL do interfejsu (ASA access-group)")
+        bind_box = QGroupBox("Przypisanie ACL do interfejsu")
         bind_form = QFormLayout(bind_box)
+        bind_form.setRowWrapPolicy(QFormLayout.WrapLongRows)
 
         self.iface_combo = QComboBox()
         self.iface_combo.setPlaceholderText("Nie znaleziono jeszcze interfejsów nameif")
@@ -156,7 +170,7 @@ class ACLTab(QWidget):
         self.table_bindings.setSelectionBehavior(QTableWidget.SelectRows)
         self.table_bindings.setSelectionMode(QTableWidget.SingleSelection)
 
-        btn_del_bind = QPushButton("Usuń zaznaczone przypisanie")
+        btn_del_bind = QPushButton("Usuń przypisanie")
         btn_del_bind.clicked.connect(self._delete_binding)
 
         # Layout dla części pod bind_box
