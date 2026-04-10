@@ -96,12 +96,12 @@ class InterfacesTab(QWidget):
         main_layout.setContentsMargins(20, 15, 20, 15)
         main_layout.setSpacing(10)
 
-        main_layout.addWidget(QLabel("<h2>Interface Configuration</h2>"))
+        main_layout.addWidget(QLabel("<h2>Konfiguracja interfejsów</h2>"))
 
         # --- Tabela interfejsów ---
         self.table = QTableWidget(0, 5)
         self.table.setHorizontalHeaderLabels(
-            ["Name", "Description", "IP Address", "Mask (/CIDR)", "Status"]
+            ["Nazwa", "Opis", "Adres IP", "Maska (/CIDR)", "Status"]
         )
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
@@ -109,8 +109,8 @@ class InterfacesTab(QWidget):
 
         # --- Przyciski operacyjne (Enable/Disable) ---
         btns = QHBoxLayout()
-        self.btn_enable = QPushButton("Enable")
-        self.btn_disable = QPushButton("Disable")
+        self.btn_enable = QPushButton("Włącz")
+        self.btn_disable = QPushButton("Wyłącz")
 
         self.btn_enable.clicked.connect(lambda: self._cmd_on_selected("no shutdown"))
         self.btn_disable.clicked.connect(lambda: self._cmd_on_selected("shutdown"))
@@ -299,7 +299,9 @@ class InterfacesTab(QWidget):
             )
         )
 
-        self._append_log(f"[OP] {'enable' if cmd == 'no shutdown' else 'disable'} {iface}")
+        self._append_log(
+            f"[OP] {'enable' if cmd == 'no shutdown' else 'disable'} {iface}"
+        )
 
     # ================================================================
     #                        BUFORY / PENDING CMDS

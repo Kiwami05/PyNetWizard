@@ -55,21 +55,21 @@ class ACLTab(QWidget):
         # ----------------------------------------------------------
         # HEADER
         # ----------------------------------------------------------
-        main.addWidget(QLabel("<h2>Cisco ASA Access Control Lists (ACL)</h2>"))
+        main.addWidget(QLabel("<h2>Listy ACL dla Cisco ASA</h2>"))
 
         # ----------------------------------------------------------
         # ACL NAME SELECTION
         # ----------------------------------------------------------
-        acl_box = QGroupBox("Select or Create ASA ACL (Named)")
+        acl_box = QGroupBox("Wybierz lub utwórz nazwaną ACL dla ASA")
         acl_form = QFormLayout(acl_box)
 
         self.input_acl_name = QLineEdit()
         self.input_acl_name.setPlaceholderText("OUTSIDE-IN, INSIDE-POLICY, ...")
 
-        btn_set_acl = QPushButton("Use ACL Name")
+        btn_set_acl = QPushButton("Użyj tej nazwy ACL")
         btn_set_acl.clicked.connect(self._select_acl)
 
-        acl_form.addRow("ACL Name:", self.input_acl_name)
+        acl_form.addRow("Nazwa ACL:", self.input_acl_name)
         acl_form.addRow(btn_set_acl)
 
         main.addWidget(acl_box)
@@ -77,14 +77,14 @@ class ACLTab(QWidget):
         # ----------------------------------------------------------
         # ADD RULE
         # ----------------------------------------------------------
-        rule_box = QGroupBox("Add Rule to ACL")
+        rule_box = QGroupBox("Dodaj regułę do ACL")
         rule_form = QFormLayout(rule_box)
 
         self.action_combo = QComboBox()
         self.action_combo.addItems(["permit", "deny"])
 
         self.proto_input = QLineEdit()
-        self.proto_input.setPlaceholderText("tcp, udp, icmp, ip (default: ip)")
+        self.proto_input.setPlaceholderText("tcp, udp, icmp, ip (domyślnie: ip)")
 
         self.src_input = QLineEdit()
         self.src_input.setPlaceholderText("any, host 1.1.1.1, 10.0.0.0/24")
@@ -93,15 +93,15 @@ class ACLTab(QWidget):
         self.dest_input.setPlaceholderText("any, host 2.2.2.2, 192.168.0.0/24")
 
         self.port_input = QLineEdit()
-        self.port_input.setPlaceholderText("optional: eq 80, range 100 200, ...")
+        self.port_input.setPlaceholderText("opcjonalnie: eq 80, range 100 200, ...")
 
-        rule_form.addRow("Action:", self.action_combo)
-        rule_form.addRow("Protocol:", self.proto_input)
-        rule_form.addRow("Source:", self.src_input)
-        rule_form.addRow("Destination:", self.dest_input)
-        rule_form.addRow("Port Options:", self.port_input)
+        rule_form.addRow("Akcja:", self.action_combo)
+        rule_form.addRow("Protokół:", self.proto_input)
+        rule_form.addRow("Źródło:", self.src_input)
+        rule_form.addRow("Cel:", self.dest_input)
+        rule_form.addRow("Opcje portu:", self.port_input)
 
-        btn_add_rule = QPushButton("Add Rule")
+        btn_add_rule = QPushButton("Dodaj regułę")
         btn_add_rule.clicked.connect(self._add_rule)
         rule_form.addRow(btn_add_rule)
 
@@ -112,7 +112,7 @@ class ACLTab(QWidget):
         # ----------------------------------------------------------
         self.table_rules = QTableWidget(0, 5)
         self.table_rules.setHorizontalHeaderLabels(
-            ["Action", "Protocol", "Source", "Destination", "Port Opts"]
+            ["Akcja", "Protokół", "Źródło", "Cel", "Opcje portu"]
         )
         self.table_rules.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table_rules.setSelectionBehavior(QTableWidget.SelectRows)
@@ -122,7 +122,7 @@ class ACLTab(QWidget):
 
         # Delete rule
         row = QHBoxLayout()
-        btn_del_rule = QPushButton("Delete Selected Rule")
+        btn_del_rule = QPushButton("Usuń zaznaczoną regułę")
         btn_del_rule.clicked.connect(self._delete_rule)
         row.addWidget(btn_del_rule)
         row.addStretch()
@@ -131,32 +131,32 @@ class ACLTab(QWidget):
         # ----------------------------------------------------------
         # BINDINGS (access-group)
         # ----------------------------------------------------------
-        bind_box = QGroupBox("Bind ACL to Interface (ASA access-group)")
+        bind_box = QGroupBox("Przypisz ACL do interfejsu (ASA access-group)")
         bind_form = QFormLayout(bind_box)
 
         self.iface_combo = QComboBox()
-        self.iface_combo.setPlaceholderText("No nameif interfaces found yet")
+        self.iface_combo.setPlaceholderText("Nie znaleziono jeszcze interfejsów nameif")
 
         self.dir_combo = QComboBox()
         self.dir_combo.addItems(["in", "out"])
 
-        btn_bind = QPushButton("Bind ACL")
+        btn_bind = QPushButton("Przypisz ACL")
         btn_bind.clicked.connect(self._bind_acl)
 
-        bind_form.addRow("Interface (nameif):", self.iface_combo)
-        bind_form.addRow("Direction:", self.dir_combo)
+        bind_form.addRow("Interfejs (nameif):", self.iface_combo)
+        bind_form.addRow("Kierunek:", self.dir_combo)
         bind_form.addRow(btn_bind)
 
         # Tabela istniejących wiązań
         self.table_bindings = QTableWidget(0, 3)
         self.table_bindings.setHorizontalHeaderLabels(
-            ["ACL Name", "Direction", "Interface (nameif)"]
+            ["Nazwa ACL", "Kierunek", "Interfejs (nameif)"]
         )
         self.table_bindings.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table_bindings.setSelectionBehavior(QTableWidget.SelectRows)
         self.table_bindings.setSelectionMode(QTableWidget.SingleSelection)
 
-        btn_del_bind = QPushButton("Delete Selected Binding")
+        btn_del_bind = QPushButton("Usuń zaznaczone przypisanie")
         btn_del_bind.clicked.connect(self._delete_binding)
 
         # Layout dla części pod bind_box
@@ -185,7 +185,7 @@ class ACLTab(QWidget):
     def _select_acl(self):
         name = self.input_acl_name.text().strip()
         if not name:
-            QMessageBox.warning(self, "Error", "Enter ACL name.")
+            QMessageBox.warning(self, "Błąd", "Wpisz nazwę ACL.")
             return
         self.current_acl_name = name
         self._append_log(f"! Using ASA ACL: {name}")
@@ -196,7 +196,7 @@ class ACLTab(QWidget):
 
     def _add_rule(self):
         if not self.current_acl_name:
-            QMessageBox.warning(self, "Error", "Select ACL first.")
+            QMessageBox.warning(self, "Błąd", "Najpierw wybierz ACL.")
             return
 
         action = self.action_combo.currentText()
@@ -241,11 +241,11 @@ class ACLTab(QWidget):
     def _delete_rule(self):
         r = self.table_rules.currentRow()
         if r == -1:
-            QMessageBox.information(self, "Info", "Select rule to delete.")
+            QMessageBox.information(self, "Informacja", "Wybierz regułę do usunięcia.")
             return
 
         if not self.current_acl_name:
-            QMessageBox.warning(self, "Error", "No ACL selected.")
+            QMessageBox.warning(self, "Błąd", "Nie wybrano ACL.")
             return
 
         action = self.table_rules.item(r, 0).text()
@@ -274,16 +274,18 @@ class ACLTab(QWidget):
 
     def _bind_acl(self):
         if not self.current_acl_name:
-            QMessageBox.warning(self, "Error", "Select ACL first.")
+            QMessageBox.warning(self, "Błąd", "Najpierw wybierz ACL.")
             return
 
         if self.iface_combo.count() == 0:
-            QMessageBox.warning(self, "Error", "No ASA interfaces with nameif found.")
+            QMessageBox.warning(
+                self, "Błąd", "Nie znaleziono interfejsów ASA z nameif."
+            )
             return
 
         idx = self.iface_combo.currentIndex()
         if idx < 0:
-            QMessageBox.warning(self, "Error", "Select interface (nameif).")
+            QMessageBox.warning(self, "Błąd", "Wybierz interfejs (nameif).")
             return
 
         nameif = self.iface_combo.currentData()  # przechowujemy tu nameif
@@ -313,7 +315,9 @@ class ACLTab(QWidget):
                 interface=nameif,
             )
         )
-        self._append_log(f"[OP] bound ACL {self.current_acl_name} to {nameif} interface.")
+        self._append_log(
+            f"[OP] bound ACL {self.current_acl_name} to {nameif} interface."
+        )
 
         r = self.table_bindings.rowCount()
         self.table_bindings.insertRow(r)
@@ -332,7 +336,9 @@ class ACLTab(QWidget):
     def _delete_binding(self):
         r = self.table_bindings.currentRow()
         if r == -1:
-            QMessageBox.information(self, "Info", "Select binding to delete.")
+            QMessageBox.information(
+                self, "Informacja", "Wybierz przypisanie do usunięcia."
+            )
             return
 
         acl = self.table_bindings.item(r, 0).text()

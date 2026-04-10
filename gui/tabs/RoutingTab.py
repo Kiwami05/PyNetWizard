@@ -83,11 +83,11 @@ class RoutingTab(QWidget):
         main_layout.setSpacing(10)
 
         # === Tytuł ===
-        main_layout.addWidget(QLabel("<h2>Routing Configuration</h2>"))
+        main_layout.addWidget(QLabel("<h2>Konfiguracja routingu</h2>"))
 
         # === Subtaba ===
         self.subtabs = QTabWidget()
-        self.subtabs.addTab(self._make_static_tab(), "Static")
+        self.subtabs.addTab(self._make_static_tab(), "Statyczny")
         self.subtabs.addTab(self._make_rip_tab(), "RIP")
         self.subtabs.addTab(self._make_ospf_tab(), "OSPF")
         main_layout.addWidget(self.subtabs, 4)
@@ -107,7 +107,7 @@ class RoutingTab(QWidget):
         layout = QVBoxLayout(tab)
 
         # --- Form ---
-        form_box = QGroupBox("Add / Edit Static Route")
+        form_box = QGroupBox("Dodaj / edytuj trasę statyczną")
         form_layout = QFormLayout(form_box)
 
         self.static_dest = QLineEdit()
@@ -117,13 +117,13 @@ class RoutingTab(QWidget):
         self.static_mask.setPlaceholderText("255.255.255.0")
         self.static_next_hop.setPlaceholderText("10.0.0.2")
 
-        form_layout.addRow("Destination:", self.static_dest)
-        form_layout.addRow("Mask:", self.static_mask)
-        form_layout.addRow("Next Hop:", self.static_next_hop)
+        form_layout.addRow("Sieć docelowa:", self.static_dest)
+        form_layout.addRow("Maska:", self.static_mask)
+        form_layout.addRow("Następny hop:", self.static_next_hop)
 
         row = QHBoxLayout()
-        btn_add = QPushButton("Add")
-        btn_update = QPushButton("Update")
+        btn_add = QPushButton("Dodaj")
+        btn_update = QPushButton("Aktualizuj")
 
         btn_add.clicked.connect(self._on_static_add)
         btn_update.clicked.connect(self._on_static_update)
@@ -136,7 +136,9 @@ class RoutingTab(QWidget):
 
         # --- Table ---
         self.static_table = QTableWidget(0, 3)
-        self.static_table.setHorizontalHeaderLabels(["Destination", "Mask", "Next Hop"])
+        self.static_table.setHorizontalHeaderLabels(
+            ["Sieć docelowa", "Maska", "Następny hop"]
+        )
         self.static_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.static_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.static_table.setSelectionMode(QTableWidget.SingleSelection)
@@ -146,7 +148,7 @@ class RoutingTab(QWidget):
         layout.addWidget(self.static_table, 1)
 
         # --- Delete ---
-        btn_delete = QPushButton("Delete Route")
+        btn_delete = QPushButton("Usuń trasę")
         btn_delete.clicked.connect(self._on_static_delete)
         row = QHBoxLayout()
         row.addWidget(btn_delete)
@@ -187,7 +189,7 @@ class RoutingTab(QWidget):
             m = self.static_table.item(r, 1).text()
             n = self.static_table.item(r, 2).text()
             if d == dest and m == mask and n == nh:
-                QMessageBox.information(self, "Info", "Taka trasa już istnieje.")
+                QMessageBox.information(self, "Informacja", "Taka trasa już istnieje.")
                 return
 
         r = self.static_table.rowCount()
@@ -210,7 +212,9 @@ class RoutingTab(QWidget):
     def _on_static_update(self):
         row = self._get_static_selected_row()
         if row is None:
-            QMessageBox.information(self, "Info", "Najpierw wybierz istniejącą trasę.")
+            QMessageBox.information(
+                self, "Informacja", "Najpierw wybierz istniejącą trasę."
+            )
             return
 
         dest = self.static_dest.text().strip()
@@ -255,7 +259,7 @@ class RoutingTab(QWidget):
     def _on_static_delete(self):
         row = self._get_static_selected_row()
         if row is None:
-            QMessageBox.information(self, "Info", "Wybierz trasę do usunięcia.")
+            QMessageBox.information(self, "Informacja", "Wybierz trasę do usunięcia.")
             return
 
         dest = self.static_table.item(row, 0).text()
@@ -281,27 +285,27 @@ class RoutingTab(QWidget):
         tab = QWidget()
         layout = QVBoxLayout(tab)
 
-        self.rip_enabled = QCheckBox("Enable RIP v2")
+        self.rip_enabled = QCheckBox("Włącz RIP v2")
         self.rip_enabled.toggled.connect(self._rip_toggle)
         layout.addWidget(self.rip_enabled)
 
         self.rip_table = QTableWidget(0, 1)
-        self.rip_table.setHorizontalHeaderLabels(["Network"])
+        self.rip_table.setHorizontalHeaderLabels(["Sieć"])
         self.rip_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.rip_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.rip_table.setSelectionMode(QTableWidget.SingleSelection)
         layout.addWidget(self.rip_table, 1)
 
         # Form add
-        form = QGroupBox("Add RIP Network")
+        form = QGroupBox("Dodaj sieć RIP")
         f = QFormLayout(form)
         self.rip_net = QLineEdit()
         self.rip_net.setPlaceholderText("10.0.0.0")
-        f.addRow("Network:", self.rip_net)
+        f.addRow("Sieć:", self.rip_net)
 
-        btn_add = QPushButton("Add")
+        btn_add = QPushButton("Dodaj")
         btn_add.clicked.connect(self._rip_add)
-        btn_del = QPushButton("Delete")
+        btn_del = QPushButton("Usuń")
         btn_del.clicked.connect(self._rip_delete)
         row = QHBoxLayout()
         row.addWidget(btn_add)
@@ -340,13 +344,13 @@ class RoutingTab(QWidget):
             return
 
         if not self.rip_enabled.isChecked():
-            QMessageBox.warning(self, "Info", "Najpierw włącz RIP.")
+            QMessageBox.warning(self, "Informacja", "Najpierw włącz RIP.")
             return
 
         # duplikaty
         for r in range(self.rip_table.rowCount()):
             if self.rip_table.item(r, 0).text() == net:
-                QMessageBox.information(self, "Info", "Ta sieć już istnieje.")
+                QMessageBox.information(self, "Informacja", "Ta sieć już istnieje.")
                 return
 
         r = self.rip_table.rowCount()
@@ -365,7 +369,7 @@ class RoutingTab(QWidget):
     def _rip_delete(self):
         row = self._rip_selected_row()
         if row is None:
-            QMessageBox.information(self, "Info", "Wybierz sieć do usunięcia.")
+            QMessageBox.information(self, "Informacja", "Wybierz sieć do usunięcia.")
             return
         net = self.rip_table.item(row, 0).text()
         self.pending_ops.append(
@@ -385,11 +389,11 @@ class RoutingTab(QWidget):
         tab = QWidget()
         layout = QVBoxLayout(tab)
 
-        layout.addWidget(QLabel("<b>OSPF (process 1)</b>"))
+        layout.addWidget(QLabel("<b>OSPF (proces 1)</b>"))
 
         # Table
         self.ospf_table = QTableWidget(0, 3)
-        self.ospf_table.setHorizontalHeaderLabels(["Network", "Wildcard", "Area"])
+        self.ospf_table.setHorizontalHeaderLabels(["Sieć", "Wildcard", "Obszar"])
 
         self.ospf_table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.ospf_table.setSelectionBehavior(QTableWidget.SelectRows)
@@ -398,7 +402,7 @@ class RoutingTab(QWidget):
         layout.addWidget(self.ospf_table, 1)
 
         # Form
-        form = QGroupBox("Add / Edit OSPF Network")
+        form = QGroupBox("Dodaj / edytuj sieć OSPF")
         f = QFormLayout(form)
 
         self.ospf_network = QLineEdit()
@@ -409,13 +413,13 @@ class RoutingTab(QWidget):
         self.ospf_wild.setPlaceholderText("0.0.0.255")
         self.ospf_area.setPlaceholderText("0")
 
-        f.addRow("Network:", self.ospf_network)
+        f.addRow("Sieć:", self.ospf_network)
         f.addRow("Wildcard:", self.ospf_wild)
-        f.addRow("Area:", self.ospf_area)
+        f.addRow("Obszar:", self.ospf_area)
 
         row = QHBoxLayout()
-        btn_add = QPushButton("Add")
-        btn_update = QPushButton("Update")
+        btn_add = QPushButton("Dodaj")
+        btn_update = QPushButton("Aktualizuj")
 
         btn_add.clicked.connect(self._on_ospf_add)
         btn_update.clicked.connect(self._on_ospf_update)
@@ -423,7 +427,7 @@ class RoutingTab(QWidget):
         row.addWidget(btn_add)
         row.addWidget(btn_update)
         f.addRow(row)
-        btn_del = QPushButton("Delete")
+        btn_del = QPushButton("Usuń")
         btn_del.clicked.connect(self._ospf_delete)
 
         row = QHBoxLayout()
@@ -458,7 +462,7 @@ class RoutingTab(QWidget):
             return
 
         if not area.isdigit():
-            QMessageBox.warning(self, "Błąd", "Area musi być liczbą.")
+            QMessageBox.warning(self, "Błąd", "Pole obszaru musi być liczbą.")
             return
 
         # duplikaty
@@ -468,7 +472,9 @@ class RoutingTab(QWidget):
                 and self.ospf_table.item(r, 1).text() == wc
                 and self.ospf_table.item(r, 2).text() == area
             ):
-                QMessageBox.information(self, "Info", "Taki wpis OSPF już istnieje.")
+                QMessageBox.information(
+                    self, "Informacja", "Taki wpis OSPF już istnieje."
+                )
                 return
 
         r = self.ospf_table.rowCount()
@@ -492,7 +498,9 @@ class RoutingTab(QWidget):
     def _on_ospf_update(self):
         row = self._ospf_selected_row()
         if row is None:
-            QMessageBox.information(self, "Info", "Wybierz wpis OSPF do aktualizacji.")
+            QMessageBox.information(
+                self, "Informacja", "Wybierz wpis OSPF do aktualizacji."
+            )
             return
 
         net = self.ospf_network.text().strip()
@@ -504,7 +512,7 @@ class RoutingTab(QWidget):
             return
 
         if not area.isdigit():
-            QMessageBox.warning(self, "Błąd", "Area musi być liczbą.")
+            QMessageBox.warning(self, "Błąd", "Pole obszaru musi być liczbą.")
             return
 
         old_net = self.ospf_table.item(row, 0).text()
@@ -541,7 +549,9 @@ class RoutingTab(QWidget):
     def _ospf_delete(self):
         row = self._ospf_selected_row()
         if row is None:
-            QMessageBox.information(self, "Info", "Wybierz wpis OSPF do usunięcia.")
+            QMessageBox.information(
+                self, "Informacja", "Wybierz wpis OSPF do usunięcia."
+            )
             return
 
         net = self.ospf_table.item(row, 0).text()

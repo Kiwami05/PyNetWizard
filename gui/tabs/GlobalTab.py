@@ -39,50 +39,50 @@ class GlobalTab(QWidget):
         main_layout.setSpacing(15)
 
         # === Nagłówek ===
-        title = QLabel("<h2>Global Settings</h2>")
+        title = QLabel("<h2>Ustawienia globalne</h2>")
         main_layout.addWidget(title)
 
         # === Hostname ===
         form = QFormLayout()
         self.hostname = QLineEdit()
         self.hostname.setPlaceholderText("np. Router1")
-        form.addRow(QLabel("Hostname:"), self.hostname)
+        form.addRow(QLabel("Nazwa hosta:"), self.hostname)
         main_layout.addLayout(form)
 
         # === NVRAM ===
         nvram_box = self._make_box(
-            "NVRAM",
+            "Pamięć NVRAM",
             [
-                ("Erase", self._action_erase),
-                ("Save", self._action_save),
+                ("Wyczyść", self._action_erase),
+                ("Zapisz", self._action_save),
             ],
         )
         main_layout.addWidget(nvram_box)
 
         # === Startup-config ===
         startup_box = self._make_box(
-            "Startup Config",
+            "Startup-config",
             [
-                ("Load...", self._action_load_startup),
-                ("Export...", self._action_export_startup),
+                ("Wczytaj...", self._action_load_startup),
+                ("Eksportuj...", self._action_export_startup),
             ],
         )
         main_layout.addWidget(startup_box)
 
         # === Running-config ===
         running_box = self._make_box(
-            "Running Config",
+            "Running-config",
             [
-                ("Export...", self._action_export_running),
-                ("Merge...", self._action_merge_running),
+                ("Eksportuj...", self._action_export_running),
+                ("Scal...", self._action_merge_running),
             ],
         )
         main_layout.addWidget(running_box)
 
         # === Sync Configuration ===
-        self.btn_sync = QPushButton("🔄 Sync Configuration")
+        self.btn_sync = QPushButton("🔄 Synchronizuj konfigurację")
         self.btn_sync.setToolTip(
-            "Pobiera konfigurację z urządzenia i aktualizuje hostname."
+            "Pobiera konfigurację z urządzenia i aktualizuje nazwę hosta."
         )
         self.btn_sync.clicked.connect(self._action_sync)
         main_layout.addWidget(self.btn_sync)
