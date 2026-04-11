@@ -1,4 +1,5 @@
 from typing import Iterable, List
+from ipaddress import IPv4Network
 
 from operations.Operation import Operation
 from operations.OperationEnum import OperationEnum
@@ -16,8 +17,6 @@ class JuniperJunosRenderer(OperationRenderer):
         ops = list(operations)
         if not ops:
             return cmds
-
-        cmds.append("configure")
 
         for op in ops:
             if op.operation == OperationEnum.SET_HOSTNAME:
@@ -93,14 +92,15 @@ class JuniperJunosRenderer(OperationRenderer):
                 )
             # === ROUTING ===
             elif op.operation == OperationEnum.ADD_STATIC_ROUTE:
+                prefix = _ipv4_prefix(op.args["dest"], op.args["mask"])
                 cmds.append(
                     f"set routing-options static route "
-                    f"{op.args['dest']}/{op.args['mask']} next-hop {op.args['nh']}"
+                    f"{prefix} next-hop {op.args['nh']}"
                 )
             elif op.operation == OperationEnum.DEL_STATIC_ROUTE:
+                prefix = _ipv4_prefix(op.args["dest"], op.args["mask"])
                 cmds.append(
-                    f"delete routing-options static route "
-                    f"{op.args['dest']}/{op.args['mask']}"
+                    f"delete routing-options static route {prefix}"
                 )
             elif op.operation in (
                 OperationEnum.ENABLE_RIP,
@@ -134,6 +134,9 @@ class JuniperJunosRenderer(OperationRenderer):
                     f"{self.__class__.__name__} does not this operation"
                 )
 
-        cmds.append("commit")
-        cmds.append("exit")
         return cmds
+
+
+def _ipv4_prefix(address: str, mask: str) -> str:
+    """Converts GUI route fields to Junos prefix notation, e.g. 10.0.0.0/24."""
+    return str(IPv4Network(f"{address}/{mask}", strict=False))
