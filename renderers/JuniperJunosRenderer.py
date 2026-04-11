@@ -97,9 +97,7 @@ class JuniperJunosRenderer(OperationRenderer):
                 )
             elif op.operation == OperationEnum.DEL_STATIC_ROUTE:
                 prefix = _ipv4_prefix(op.args["dest"], op.args["mask"])
-                cmds.append(
-                    f"delete routing-options static route {prefix}"
-                )
+                cmds.append(f"delete routing-options static route {prefix}")
             elif op.operation in (
                 OperationEnum.ENABLE_RIP,
                 OperationEnum.DISABLE_RIP,
