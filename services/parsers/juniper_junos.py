@@ -1,4 +1,5 @@
 import re
+import shlex
 from services.parsed_config import (
     ParsedConfig,
     ParsedInterfaces,
@@ -29,6 +30,20 @@ _IFACE_DISABLE = re.compile(
     re.M,
 )
 
+# interface description
+# set interfaces ge-0/0/0 description "WAN uplink"
+_IFACE_DESC = re.compile(
+    r"^set interfaces (\S+) description (.+)$",
+    re.M,
+)
+
+# logical unit description
+# set interfaces ge-0/0/0 unit 0 description "WAN uplink"
+_IFACE_UNIT_DESC = re.compile(
+    r"^set interfaces (\S+) unit (\d+) description (.+)$",
+    re.M,
+)
+
 # VLAN
 # set vlans VLAN10 vlan-id 10
 _VLAN = re.compile(
@@ -53,6 +68,29 @@ def cidr_to_mask(cidr: int) -> str:
     cidr = int(cidr)
     bits = "1" * cidr + "0" * (32 - cidr)
     return ".".join(str(int(bits[i : i + 8], 2)) for i in range(0, 32, 8))
+
+
+def clean_junos_value(value: str) -> str:
+    value = value.strip()
+    try:
+        parts = shlex.split(value)
+        if parts:
+            return " ".join(parts)
+    except ValueError:
+        pass
+    return value.strip('"')
+
+
+def ensure_iface(ifaces: ParsedInterfaces, iface: str) -> dict:
+    if iface not in ifaces.items:
+        ifaces.items[iface] = {
+            "description": "",
+            "ip": "",
+            "mask": "",
+            "mode": "routed",
+            "status": "up",
+        }
+    return ifaces.items[iface]
 
 
 # ==========================================================
@@ -82,31 +120,28 @@ def parse(raw_config: str) -> ParsedConfig:
         ip, cidr = addr.split("/")
         mask = cidr_to_mask(int(cidr))
 
-        if iface not in ifaces.items:
-            ifaces.items[iface] = {
-                "description": "",
-                "ip": "",
-                "mask": "",
-                "mode": "routed",
-                "status": "up",
-            }
-
-        ifaces.items[iface]["ip"] = ip
-        ifaces.items[iface]["mask"] = mask
+        info = ensure_iface(ifaces, iface)
+        info["ip"] = ip
+        info["mask"] = mask
 
     # interface disable
     for m in _IFACE_DISABLE.finditer(raw_config):
         iface = m.group(1)
-        if iface not in ifaces.items:
-            ifaces.items[iface] = {
-                "description": "",
-                "ip": "",
-                "mask": "",
-                "mode": "routed",
-                "status": "down",
-            }
-        else:
-            ifaces.items[iface]["status"] = "down"
+        ensure_iface(ifaces, iface)["status"] = "down"
+
+    # unit 0 descriptions are useful when physical description is absent
+    for m in _IFACE_UNIT_DESC.finditer(raw_config):
+        iface, unit, desc = m.groups()
+        if unit != "0":
+            continue
+        info = ensure_iface(ifaces, iface)
+        if not info.get("description"):
+            info["description"] = clean_junos_value(desc)
+
+    # physical interface descriptions match what the renderer writes
+    for m in _IFACE_DESC.finditer(raw_config):
+        iface, desc = m.groups()
+        ensure_iface(ifaces, iface)["description"] = clean_junos_value(desc)
 
     cfg.interfaces = ifaces
 
