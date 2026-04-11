@@ -57,10 +57,8 @@ class JuniperJunosRenderer(OperationRenderer):
                 ip = op.args["ip"]
                 mask = op.args["mask"]
 
-                # mask → CIDR
-                from ipaddress import IPv4Network
-
                 cidr = IPv4Network(f"0.0.0.0/{mask}").prefixlen
+                cmds.append(f"delete interfaces {iface} unit 0 family inet address")
                 cmds.append(
                     f"set interfaces {iface} unit 0 family inet address {ip}/{cidr}"
                 )
