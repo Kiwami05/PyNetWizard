@@ -22,6 +22,7 @@ from gui.LogViewerDialog import LogViewerDialog
 from gui.QueuedChangesDialog import QueuedChangesDialog
 from gui.SettingsDialog import SettingsDialog
 from gui.DeviceDetailWidget import DeviceDetailWidget
+from operations.capabilities import UnsupportedOperationsError
 from services.config_history import save_snapshot
 from services.config_sync import ConfigSyncService
 
@@ -372,6 +373,8 @@ class MainWindow(QMainWindow):
             QMessageBox.information(
                 self, "Zatwierdzono", f"Konfiguracja zapisana na {dev.host}."
             )
+        except UnsupportedOperationsError as e:
+            QMessageBox.warning(self, "Nieobsługiwana funkcja", _format_exception(e))
         except Exception as e:
             QMessageBox.critical(self, "Błąd", _format_exception(e))
 
@@ -394,7 +397,9 @@ class MainWindow(QMainWindow):
                 continue
 
             try:
-                cmds = self.detail_box.collect_pending_commands_from_buffer(dev.host)
+                cmds = self.detail_box.collect_pending_commands_from_buffer(
+                    dev.host, dev.vendor
+                )
                 if not cmds:
                     continue
 
@@ -619,7 +624,12 @@ class MainWindow(QMainWindow):
             )
             return
 
-        preview = self.detail_box.preview_pending_changes_current(buf.config)
+        try:
+            preview = self.detail_box.preview_pending_changes_current(buf.config)
+        except UnsupportedOperationsError as e:
+            QMessageBox.warning(self, "Nieobsługiwana funkcja", _format_exception(e))
+            return
+
         commands = preview["commands"]
 
         if not commands:

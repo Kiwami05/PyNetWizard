@@ -19,6 +19,7 @@ from gui.tabs.SwitchInterfacesTab import SwitchInterfacesTab
 from gui.tabs.VLANsTab import VLANsTab
 from gui.tabs.ACLTab import ACLTab
 from operations.Operation import Operation
+from operations.capabilities import validate_operations_supported
 from renderers.factory import RendererFactory
 from services.parsed_config import ParsedConfig
 
@@ -276,6 +277,7 @@ class DeviceDetailWidget(QWidget):
         # 3) Renderowanie operacji → CLI
         rendered_cmds: list[str] = []
         if pending_ops:
+            validate_operations_supported(self.current_device.vendor, pending_ops)
             renderer = RendererFactory.for_vendor(self.current_device.vendor)
             rendered_cmds = renderer.render(pending_ops)
 
@@ -297,7 +299,7 @@ class DeviceDetailWidget(QWidget):
             elif hasattr(w, "clear_pending_commands"):
                 w.clear_pending_commands()
 
-    def collect_pending_commands_from_buffer(self, host: str) -> list[str]:
+    def collect_pending_commands_from_buffer(self, host: str, vendor=None) -> list[str]:
         buf = self.buffers.get(host)
         if not buf:
             return []
@@ -333,7 +335,9 @@ class DeviceDetailWidget(QWidget):
 
         rendered_cmds: list[str] = []
         if pending_ops:
-            renderer = RendererFactory.for_vendor(self.current_device.vendor)
+            target_vendor = vendor or self.current_device.vendor
+            validate_operations_supported(target_vendor, pending_ops)
+            renderer = RendererFactory.for_vendor(target_vendor)
             rendered_cmds = renderer.render(pending_ops)
 
         final_cmds: list[str] = []
