@@ -51,6 +51,21 @@ _VLAN = re.compile(
     re.M,
 )
 
+# interface-mode
+# set interfaces ge-0/0/1 unit 0 family ethernet-switching interface-mode access
+_IFACE_SWITCH_MODE = re.compile(
+    r"^set interfaces (\S+) unit (\d+) family ethernet-switching interface-mode (\S+)",
+    re.M,
+)
+
+# VLAN membership
+# set interfaces ge-0/0/1 unit 0 family ethernet-switching vlan members VLAN10
+# set interfaces ge-0/0/2 unit 0 family ethernet-switching vlan members [ VLAN10 VLAN20 ]
+_IFACE_VLAN_MEMBERS = re.compile(
+    r"^set interfaces (\S+) unit (\d+) family ethernet-switching vlan members (.+)$",
+    re.M,
+)
+
 # static routing
 # set routing-options static route 0.0.0.0/0 next-hop 10.0.0.1
 _STATIC_ROUTE = re.compile(
@@ -93,6 +108,20 @@ def ensure_iface(ifaces: ParsedInterfaces, iface: str) -> dict:
     return ifaces.items[iface]
 
 
+def parse_junos_list(value: str) -> list[str]:
+    value = value.strip()
+    if value.startswith("[") and value.endswith("]"):
+        value = value[1:-1].strip()
+    try:
+        return shlex.split(value)
+    except ValueError:
+        return [part for part in value.split() if part]
+
+
+def vlan_member_to_id(member: str, vlan_name_to_id: dict[str, str]) -> str:
+    return vlan_name_to_id.get(member, member)
+
+
 # ==========================================================
 #                   PARSER GŁÓWNY
 # ==========================================================
@@ -105,6 +134,20 @@ def parse(raw_config: str) -> ParsedConfig:
     m = _HOSTNAME.search(raw_config)
     if m:
         cfg.hostname = m.group(1)
+
+    # ---------------- VLANs ----------------
+    vlans = ParsedVLANs()
+    vlan_name_to_id: dict[str, str] = {}
+
+    for m in _VLAN.finditer(raw_config):
+        name, vid = m.groups()
+        vlans.items[vid] = {
+            "name": name,
+            "ports": [],
+        }
+        vlan_name_to_id[name] = vid
+
+    cfg.vlans = vlans
 
     # ---------------- interfaces ----------------
     ifaces = ParsedInterfaces()
@@ -143,19 +186,49 @@ def parse(raw_config: str) -> ParsedConfig:
         iface, desc = m.groups()
         ensure_iface(ifaces, iface)["description"] = clean_junos_value(desc)
 
+    # switchport mode
+    for m in _IFACE_SWITCH_MODE.finditer(raw_config):
+        iface, unit, mode = m.groups()
+        if unit != "0":
+            continue
+        mode = mode.lower()
+        if mode in ("access", "trunk"):
+            ensure_iface(ifaces, iface)["mode"] = mode
+
+    # VLAN membership
+    for m in _IFACE_VLAN_MEMBERS.finditer(raw_config):
+        iface, unit, members_raw = m.groups()
+        if unit != "0":
+            continue
+
+        info = ensure_iface(ifaces, iface)
+        members = [
+            vlan_member_to_id(member, vlan_name_to_id)
+            for member in parse_junos_list(members_raw)
+        ]
+        members = [member for member in members if member]
+
+        if not members:
+            continue
+
+        mode = (info.get("mode") or "").lower()
+        if mode == "trunk":
+            existing = [str(v) for v in info.get("trunk_vlans", [])]
+            for member in members:
+                if member not in existing:
+                    existing.append(member)
+            info["trunk_vlans"] = existing
+        else:
+            if mode not in ("access", "trunk"):
+                info["mode"] = "access"
+            info["access_vlan"] = members[0]
+
+        for member in members:
+            vlan = vlans.items.get(member)
+            if vlan is not None and iface not in vlan["ports"]:
+                vlan["ports"].append(iface)
+
     cfg.interfaces = ifaces
-
-    # ---------------- VLANs ----------------
-    vlans = ParsedVLANs()
-
-    for m in _VLAN.finditer(raw_config):
-        name, vid = m.groups()
-        vlans.items[vid] = {
-            "name": name,
-            "ports": [],  # Juniper: porty później (bridge-domains)
-        }
-
-    cfg.vlans = vlans
 
     # ---------------- Routing ----------------
     routing = ParsedRouting()
