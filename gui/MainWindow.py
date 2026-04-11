@@ -373,7 +373,7 @@ class MainWindow(QMainWindow):
                 self, "Zatwierdzono", f"Konfiguracja zapisana na {dev.host}."
             )
         except Exception as e:
-            QMessageBox.critical(self, "Błąd", str(e))
+            QMessageBox.critical(self, "Błąd", _format_exception(e))
 
     def apply_all_devices(self):
         if not self.device_list.devices:
@@ -421,7 +421,7 @@ class MainWindow(QMainWindow):
                         pass
 
             except Exception as e:
-                errors.append(f"{dev.host}: {e}")
+                errors.append(f"{dev.host}: {_format_exception(e)}")
 
         if applied == 0 and not errors:
             QMessageBox.information(
@@ -467,7 +467,7 @@ class MainWindow(QMainWindow):
                 f"Konfiguracja {dev.host} zsynchronizowana z zakładkami.",
             )
         except Exception as e:
-            QMessageBox.critical(self, "Błąd", str(e))
+            QMessageBox.critical(self, "Błąd", _format_exception(e))
 
     def reset_current_device(self):
         """Przywraca ostatni snapshot (bez pobierania z urządzenia)."""
@@ -641,3 +641,10 @@ class MainWindow(QMainWindow):
     def open_log_viewer(self):
         dlg = LogViewerDialog(self)
         dlg.exec()
+
+
+def _format_exception(exc: Exception) -> str:
+    message = str(exc).strip()
+    if message:
+        return message
+    return type(exc).__name__

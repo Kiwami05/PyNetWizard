@@ -150,6 +150,15 @@ class ConnectionManager:
                 strip_prompt=False,
                 strip_command=False,
             )
+        elif device.vendor == Vendor.JUNIPER:
+            self._ensure_juniper_operational_mode(conn)
+            output = conn.send_command(
+                command,
+                read_timeout=60,
+                strip_prompt=True,
+                strip_command=True,
+                cmd_verify=False,
+            )
         else:
             output = conn.send_command(command, strip_prompt=False, read_timeout=20)
         return output.strip()
@@ -165,7 +174,18 @@ class ConnectionManager:
         conn = self.sessions[device.host]
         logging.info(f"[CONFIG] {device.host}: {commands}")
 
-        if device.device_type == DeviceType.FIREWALL:
+        if device.vendor == Vendor.JUNIPER:
+            output = conn.send_config_set(commands)
+            try:
+                commit_output = conn.commit()
+                if commit_output:
+                    output = f"{output}\n{commit_output}"
+            except AttributeError:
+                save_output = conn.save_config()
+                if save_output:
+                    output = f"{output}\n{save_output}"
+            self._ensure_juniper_operational_mode(conn)
+        elif device.device_type == DeviceType.FIREWALL:
             output = conn.send_config_set(
                 commands,
                 read_timeout=30,
@@ -181,6 +201,19 @@ class ConnectionManager:
             conn.save_config()
 
         return output.strip()
+
+    def _ensure_juniper_operational_mode(self, conn):
+        """Junos commit can leave the session in config mode; show commands must run in op mode."""
+        try:
+            if conn.check_config_mode():
+                conn.exit_config_mode()
+        except Exception:
+            # Fallback for sessions where prompt detection is temporarily confused.
+            try:
+                conn.write_channel("\n")
+                conn.exit_config_mode()
+            except Exception:
+                pass
 
     # ==============================================================
     #                        POMOCNICZE
