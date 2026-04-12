@@ -76,17 +76,63 @@ class JuniperJunosRenderer(OperationRenderer):
                 else:
                     cmds.append(f"set interfaces {iface} disable")
             # === SWITCH INTERFACES ===
-            elif op.operation in {
-                OperationEnum.SET_SWITCHPORT_MODE_ACCESS,
-                OperationEnum.SET_SWITCHPORT_MODE_TRUNK,
-                OperationEnum.SET_SWITCHPORT_MODE_ROUTED,
-                OperationEnum.SET_ACCESS_VLAN,
-                OperationEnum.CLEAR_ACCESS_VLAN,
-                OperationEnum.SET_TRUNK_ALLOWED_VLANS,
-                OperationEnum.CLEAR_TRUNK_ALLOWED_VLANS,
-            }:
-                raise NotImplementedError(
-                    "Switchport/VLAN operations not implemented for Junos yet"
+            elif op.operation == OperationEnum.SET_SWITCHPORT_MODE_ACCESS:
+                iface = op.args["iface"]
+                cmds.append(
+                    f"set interfaces {iface} unit 0 family ethernet-switching "
+                    f"interface-mode access"
+                )
+            elif op.operation == OperationEnum.SET_SWITCHPORT_MODE_TRUNK:
+                iface = op.args["iface"]
+                cmds.append(
+                    f"set interfaces {iface} unit 0 family ethernet-switching "
+                    f"interface-mode trunk"
+                )
+            elif op.operation == OperationEnum.SET_SWITCHPORT_MODE_ROUTED:
+                iface = op.args["iface"]
+                cmds.append(f"delete interfaces {iface} unit 0 family ethernet-switching")
+            elif op.operation == OperationEnum.SET_ACCESS_VLAN:
+                iface = op.args["iface"]
+                vlan = _junos_vlan_name(op.args["vlan_id"])
+                cmds.append(
+                    f"set interfaces {iface} unit 0 family ethernet-switching "
+                    f"interface-mode access"
+                )
+                cmds.append(
+                    f"delete interfaces {iface} unit 0 family ethernet-switching "
+                    f"vlan members"
+                )
+                cmds.append(
+                    f"set interfaces {iface} unit 0 family ethernet-switching "
+                    f"vlan members {vlan}"
+                )
+            elif op.operation == OperationEnum.CLEAR_ACCESS_VLAN:
+                iface = op.args["iface"]
+                cmds.append(
+                    f"delete interfaces {iface} unit 0 family ethernet-switching "
+                    f"vlan members"
+                )
+            elif op.operation == OperationEnum.SET_TRUNK_ALLOWED_VLANS:
+                iface = op.args["iface"]
+                vlans = [_junos_vlan_name(vlan) for vlan in op.args["vlans"]]
+                cmds.append(
+                    f"set interfaces {iface} unit 0 family ethernet-switching "
+                    f"interface-mode trunk"
+                )
+                cmds.append(
+                    f"delete interfaces {iface} unit 0 family ethernet-switching "
+                    f"vlan members"
+                )
+                if vlans:
+                    cmds.append(
+                        f"set interfaces {iface} unit 0 family ethernet-switching "
+                        f"vlan members [ {' '.join(vlans)} ]"
+                    )
+            elif op.operation == OperationEnum.CLEAR_TRUNK_ALLOWED_VLANS:
+                iface = op.args["iface"]
+                cmds.append(
+                    f"delete interfaces {iface} unit 0 family ethernet-switching "
+                    f"vlan members"
                 )
             # === ROUTING ===
             elif op.operation == OperationEnum.ADD_STATIC_ROUTE:
@@ -130,9 +176,22 @@ class JuniperJunosRenderer(OperationRenderer):
                     f"{self.__class__.__name__} does not this operation"
                 )
 
-        return cmds
+        return _dedupe_adjacent(cmds)
 
 
 def _ipv4_prefix(address: str, mask: str) -> str:
     """Converts GUI route fields to Junos prefix notation, e.g. 10.0.0.0/24."""
     return str(IPv4Network(f"{address}/{mask}", strict=False))
+
+
+def _junos_vlan_name(vlan_id) -> str:
+    """Matches the current Junos VLAN object naming convention used by the app."""
+    return f"vlan-{vlan_id}"
+
+
+def _dedupe_adjacent(commands: list[str]) -> list[str]:
+    deduped: list[str] = []
+    for command in commands:
+        if not deduped or deduped[-1] != command:
+            deduped.append(command)
+    return deduped
