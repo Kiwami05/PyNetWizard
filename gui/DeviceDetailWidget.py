@@ -12,12 +12,14 @@ from PySide6.QtCore import Qt
 
 from devices.DeviceBuffer import DeviceBuffer
 from devices.DeviceType import DeviceType
+from devices.Vendor import Vendor
 from gui.tabs.GlobalTab import GlobalTab
 from gui.tabs.RoutingTab import RoutingTab
 from gui.tabs.InterfacesTab import InterfacesTab
 from gui.tabs.SwitchInterfacesTab import SwitchInterfacesTab
 from gui.tabs.VLANsTab import VLANsTab
 from gui.tabs.ACLTab import ACLTab
+from gui.tabs.SRXPoliciesTab import SRXPoliciesTab
 from operations.Operation import Operation
 from operations.capabilities import validate_operations_supported
 from renderers.factory import RendererFactory
@@ -75,6 +77,7 @@ class DeviceDetailWidget(QWidget):
             "SWITCH_INTERFACES": SwitchInterfacesTab(),  # dla switchy
             "VLANs": VLANsTab(),
             "ACL": ACLTab(),
+            "SRX_POLICIES": SRXPoliciesTab(),
         }
 
         for page in self.pages.values():
@@ -135,7 +138,10 @@ class DeviceDetailWidget(QWidget):
         elif device.device_type == DeviceType.SWITCH:
             tab_keys = ["GLOBAL", "VLANs", "SWITCH_INTERFACES"]
         elif device.device_type == DeviceType.FIREWALL:
-            tab_keys = ["GLOBAL", "INTERFACES", "ACL"]
+            if device.vendor == Vendor.JUNIPER:
+                tab_keys = ["GLOBAL", "INTERFACES", "SRX_POLICIES"]
+            else:
+                tab_keys = ["GLOBAL", "INTERFACES", "ACL"]
         else:
             tab_keys = ["GLOBAL"]
 
@@ -147,6 +153,8 @@ class DeviceDetailWidget(QWidget):
                 label = "OGÓLNE"
             elif key == "VLANs":
                 label = "VLAN-y"
+            elif key == "SRX_POLICIES":
+                label = "POLITYKI SRX"
             else:
                 label = key
             self.category_list.addItem(label)

@@ -178,6 +178,24 @@ class JuniperJunosRenderer(OperationRenderer):
                 OperationEnum.DEL_OSPF_NETWORK,
             ):
                 raise NotImplementedError("Cisco-style OSPF is not supported on Junos")
+            # === SRX POLICIES ===
+            elif op.operation == OperationEnum.ADD_SRX_POLICY:
+                from_zone = op.args["from_zone"]
+                to_zone = op.args["to_zone"]
+                name = op.args["name"]
+                base = (
+                    f"set security policies from-zone {from_zone} "
+                    f"to-zone {to_zone} policy {name}"
+                )
+                cmds.append(f"{base} match source-address {op.args['src']}")
+                cmds.append(f"{base} match destination-address {op.args['dst']}")
+                cmds.append(f"{base} match application {op.args['application']}")
+                cmds.append(f"{base} then {op.args['action']}")
+            elif op.operation == OperationEnum.DEL_SRX_POLICY:
+                cmds.append(
+                    f"delete security policies from-zone {op.args['from_zone']} "
+                    f"to-zone {op.args['to_zone']} policy {op.args['name']}"
+                )
             elif op.operation in (
                 OperationEnum.ADD_ACL_RULE,
                 OperationEnum.DEL_ACL_RULE,

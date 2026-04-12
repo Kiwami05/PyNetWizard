@@ -27,6 +27,8 @@ _JUNIPER_SUPPORTED = {
     OperationEnum.DEL_RIP_INTERFACE,
     OperationEnum.ADD_OSPF_INTERFACE,
     OperationEnum.DEL_OSPF_INTERFACE,
+    OperationEnum.ADD_SRX_POLICY,
+    OperationEnum.DEL_SRX_POLICY,
 }
 
 _OPERATION_LABELS = {
@@ -61,6 +63,8 @@ _OPERATION_LABELS = {
     OperationEnum.DEL_ACL_RULE: "usunięcie reguły ACL",
     OperationEnum.BIND_ACL: "podpięcie ACL do interfejsu",
     OperationEnum.UNBIND_ACL: "odpięcie ACL od interfejsu",
+    OperationEnum.ADD_SRX_POLICY: "dodanie polityki SRX",
+    OperationEnum.DEL_SRX_POLICY: "usunięcie polityki SRX",
 }
 
 
