@@ -113,6 +113,10 @@ class DeviceDetailWidget(QWidget):
             self.save_tab_state(self.current_device)
 
         self.current_device = device
+        for page in self.pages.values():
+            if hasattr(page, "set_device_context"):
+                page.set_device_context(device)
+
         self.category_list.clear()
         self.clear_stack()
 

@@ -73,6 +73,13 @@ _STATIC_ROUTE = re.compile(
     re.M,
 )
 
+# OSPF
+# set protocols ospf area 0.0.0.0 interface ge-0/0/0.0
+_OSPF_INTERFACE = re.compile(
+    r"^set protocols ospf area (\S+) interface (\S+)",
+    re.M,
+)
+
 
 # ==========================================================
 #                   HELPERY
@@ -242,6 +249,16 @@ def parse(raw_config: str) -> ParsedConfig:
                 "dest": net,
                 "mask": mask,
                 "nh": nh,
+            }
+        )
+
+    for m in _OSPF_INTERFACE.finditer(raw_config):
+        area, iface = m.groups()
+        routing.ospf.append(
+            {
+                "type": "interface",
+                "area": area,
+                "interface": iface,
             }
         )
 

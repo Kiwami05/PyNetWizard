@@ -23,6 +23,8 @@ _JUNIPER_SUPPORTED = {
     OperationEnum.CLEAR_TRUNK_ALLOWED_VLANS,
     OperationEnum.ADD_STATIC_ROUTE,
     OperationEnum.DEL_STATIC_ROUTE,
+    OperationEnum.ADD_OSPF_INTERFACE,
+    OperationEnum.DEL_OSPF_INTERFACE,
 }
 
 _OPERATION_LABELS = {
@@ -49,6 +51,8 @@ _OPERATION_LABELS = {
     OperationEnum.DEL_RIP_NETWORK: "usunięcie sieci RIP",
     OperationEnum.ADD_OSPF_NETWORK: "dodanie sieci OSPF",
     OperationEnum.DEL_OSPF_NETWORK: "usunięcie sieci OSPF",
+    OperationEnum.ADD_OSPF_INTERFACE: "dodanie interfejsu OSPF",
+    OperationEnum.DEL_OSPF_INTERFACE: "usunięcie interfejsu OSPF",
     OperationEnum.ADD_ACL_RULE: "dodanie reguły ACL",
     OperationEnum.DEL_ACL_RULE: "usunięcie reguły ACL",
     OperationEnum.BIND_ACL: "podpięcie ACL do interfejsu",

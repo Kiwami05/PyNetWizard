@@ -13,9 +13,12 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QCheckBox,
     QMessageBox,
+    QStackedWidget,
+    QComboBox,
 )
 import ipaddress
 
+from devices.Vendor import Vendor
 from operations.Operation import Operation
 from operations.OperationEnum import OperationEnum
 from services.parsed_config import ParsedConfig
@@ -77,6 +80,8 @@ class RoutingTab(QWidget):
         self.pending_ops: list[Operation] = []
         self._loading: bool = False  # blokuje eventy podczas sync/import
         self._log_message = lambda _text: None
+        self.vendor: Vendor | None = None
+        self._ospf_interfaces: list[str] = []
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(20, 15, 20, 15)
@@ -87,10 +92,31 @@ class RoutingTab(QWidget):
 
         # === Subtaba ===
         self.subtabs = QTabWidget()
-        self.subtabs.addTab(self._make_static_tab(), "Statyczny")
-        self.subtabs.addTab(self._make_rip_tab(), "RIP")
-        self.subtabs.addTab(self._make_ospf_tab(), "OSPF")
+        self.static_tab = self._make_static_tab()
+        self.rip_tab = self._make_rip_tab()
+        self.ospf_tab = self._make_ospf_tab()
+        self.subtabs.addTab(self.static_tab, "Statyczny")
+        self.subtabs.addTab(self.rip_tab, "RIP")
+        self.subtabs.addTab(self.ospf_tab, "OSPF")
         main_layout.addWidget(self.subtabs, 4)
+
+    def set_device_context(self, device):
+        self.vendor = getattr(device, "vendor", None)
+        self._apply_vendor_context()
+
+    def _apply_vendor_context(self):
+        if not hasattr(self, "ospf_stack"):
+            return
+        is_juniper = self.vendor == Vendor.JUNIPER
+        self.ospf_stack.setCurrentWidget(
+            self.ospf_juniper_page if is_juniper else self.ospf_cisco_page
+        )
+        rip_index = self.subtabs.indexOf(self.rip_tab)
+        if rip_index >= 0:
+            self.subtabs.setTabToolTip(
+                rip_index,
+                "RIP dla Junipera nie jest jeszcze obsługiwany." if is_juniper else "",
+            )
 
     def set_logger(self, log_message):
         self._log_message = log_message or (lambda _text: None)
@@ -322,6 +348,16 @@ class RoutingTab(QWidget):
     def _rip_toggle(self, enabled: bool):
         if self._loading:
             return
+        if self.vendor == Vendor.JUNIPER:
+            QMessageBox.information(
+                self,
+                "Nieobsługiwana funkcja",
+                "RIP dla Junipera nie jest jeszcze obsługiwany.",
+            )
+            self._loading = True
+            self.rip_enabled.setChecked(False)
+            self._loading = False
+            return
         if enabled:
             self.pending_ops.append(
                 Operation(
@@ -337,6 +373,14 @@ class RoutingTab(QWidget):
         self._append_log(f"[OP] turn RIP {'ON' if enabled else 'OFF'}")
 
     def _rip_add(self):
+        if self.vendor == Vendor.JUNIPER:
+            QMessageBox.information(
+                self,
+                "Nieobsługiwana funkcja",
+                "RIP dla Junipera nie jest jeszcze obsługiwany.",
+            )
+            return
+
         net = self.rip_net.text().strip()
 
         if not is_valid_ip(net):
@@ -367,6 +411,14 @@ class RoutingTab(QWidget):
         self.rip_net.clear()
 
     def _rip_delete(self):
+        if self.vendor == Vendor.JUNIPER:
+            QMessageBox.information(
+                self,
+                "Nieobsługiwana funkcja",
+                "RIP dla Junipera nie jest jeszcze obsługiwany.",
+            )
+            return
+
         row = self._rip_selected_row()
         if row is None:
             QMessageBox.information(self, "Informacja", "Wybierz sieć do usunięcia.")
@@ -389,7 +441,19 @@ class RoutingTab(QWidget):
         tab = QWidget()
         layout = QVBoxLayout(tab)
 
-        layout.addWidget(QLabel("<b>OSPF (proces 1)</b>"))
+        self.ospf_stack = QStackedWidget()
+        self.ospf_cisco_page = self._make_cisco_ospf_page()
+        self.ospf_juniper_page = self._make_juniper_ospf_page()
+        self.ospf_stack.addWidget(self.ospf_cisco_page)
+        self.ospf_stack.addWidget(self.ospf_juniper_page)
+        layout.addWidget(self.ospf_stack)
+        return tab
+
+    def _make_cisco_ospf_page(self):
+        page = QWidget()
+        layout = QVBoxLayout(page)
+
+        layout.addWidget(QLabel("<b>OSPF Cisco (proces 1)</b>"))
 
         # Table
         self.ospf_table = QTableWidget(0, 3)
@@ -436,7 +500,52 @@ class RoutingTab(QWidget):
         f.addRow(row)
 
         layout.addWidget(form)
-        return tab
+        return page
+
+    def _make_juniper_ospf_page(self):
+        page = QWidget()
+        layout = QVBoxLayout(page)
+
+        layout.addWidget(QLabel("<b>OSPF Juniper</b>"))
+
+        self.junos_ospf_table = QTableWidget(0, 2)
+        self.junos_ospf_table.setHorizontalHeaderLabels(["Obszar", "Interfejs"])
+        self.junos_ospf_table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.Stretch
+        )
+        self.junos_ospf_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.junos_ospf_table.setSelectionMode(QTableWidget.SingleSelection)
+        self.junos_ospf_table.itemSelectionChanged.connect(self._junos_ospf_selection)
+        layout.addWidget(self.junos_ospf_table, 1)
+
+        form = QGroupBox("Dodaj / edytuj interfejs OSPF")
+        f = QFormLayout(form)
+
+        self.junos_ospf_area = QLineEdit()
+        self.junos_ospf_iface = QComboBox()
+        self.junos_ospf_iface.setEditable(True)
+        self.junos_ospf_area.setPlaceholderText("0.0.0.0")
+        self.junos_ospf_iface.lineEdit().setPlaceholderText("ge-0/0/0.0")
+
+        f.addRow("Obszar:", self.junos_ospf_area)
+        f.addRow("Interfejs:", self.junos_ospf_iface)
+
+        btn_add = QPushButton("Dodaj")
+        btn_update = QPushButton("Aktualizuj")
+        btn_del = QPushButton("Usuń")
+
+        btn_add.clicked.connect(self._on_junos_ospf_add)
+        btn_update.clicked.connect(self._on_junos_ospf_update)
+        btn_del.clicked.connect(self._junos_ospf_delete)
+
+        row = QHBoxLayout()
+        row.addWidget(btn_add)
+        row.addWidget(btn_update)
+        row.addWidget(btn_del)
+        f.addRow(row)
+
+        layout.addWidget(form)
+        return page
 
     def _ospf_selected_row(self):
         rows = self.ospf_table.selectionModel().selectedRows()
@@ -570,6 +679,148 @@ class RoutingTab(QWidget):
         self._append_log(f"[OP] delete {net} from OSPF")
         self.ospf_table.removeRow(row)
 
+    def _junos_ospf_selected_row(self):
+        rows = self.junos_ospf_table.selectionModel().selectedRows()
+        return rows[0].row() if rows else None
+
+    def _junos_ospf_selection(self):
+        if self._loading:
+            return
+        row = self._junos_ospf_selected_row()
+        if row is None:
+            return
+        self.junos_ospf_area.setText(self.junos_ospf_table.item(row, 0).text())
+        self._set_junos_ospf_iface(self.junos_ospf_table.item(row, 1).text())
+
+    def _on_junos_ospf_add(self):
+        area = self.junos_ospf_area.text().strip()
+        iface = self._current_junos_ospf_iface()
+
+        if not area or not iface:
+            QMessageBox.warning(self, "Błąd", "Podaj obszar i interfejs OSPF.")
+            return
+
+        for r in range(self.junos_ospf_table.rowCount()):
+            if (
+                self.junos_ospf_table.item(r, 0).text() == area
+                and self.junos_ospf_table.item(r, 1).text() == iface
+            ):
+                QMessageBox.information(
+                    self, "Informacja", "Taki wpis OSPF już istnieje."
+                )
+                return
+
+        row = self.junos_ospf_table.rowCount()
+        self.junos_ospf_table.insertRow(row)
+        self.junos_ospf_table.setItem(row, 0, QTableWidgetItem(area))
+        self.junos_ospf_table.setItem(row, 1, QTableWidgetItem(iface))
+
+        self.pending_ops.append(
+            Operation(
+                OperationEnum.ADD_OSPF_INTERFACE,
+                area=area,
+                interface=iface,
+            )
+        )
+        self._append_log(f"[OP] add {iface} to OSPF area {area}")
+        self.junos_ospf_table.selectRow(row)
+
+    def _on_junos_ospf_update(self):
+        row = self._junos_ospf_selected_row()
+        if row is None:
+            QMessageBox.information(
+                self, "Informacja", "Wybierz wpis OSPF do aktualizacji."
+            )
+            return
+
+        area = self.junos_ospf_area.text().strip()
+        iface = self._current_junos_ospf_iface()
+        if not area or not iface:
+            QMessageBox.warning(self, "Błąd", "Podaj obszar i interfejs OSPF.")
+            return
+
+        old_area = self.junos_ospf_table.item(row, 0).text()
+        old_iface = self.junos_ospf_table.item(row, 1).text()
+        if area == old_area and iface == old_iface:
+            return
+
+        self.pending_ops.append(
+            Operation(
+                OperationEnum.DEL_OSPF_INTERFACE,
+                area=old_area,
+                interface=old_iface,
+            )
+        )
+        self.pending_ops.append(
+            Operation(
+                OperationEnum.ADD_OSPF_INTERFACE,
+                area=area,
+                interface=iface,
+            )
+        )
+
+        self.junos_ospf_table.setItem(row, 0, QTableWidgetItem(area))
+        self.junos_ospf_table.setItem(row, 1, QTableWidgetItem(iface))
+        self._append_log(f"[OP] update OSPF interface {iface}")
+
+    def _junos_ospf_delete(self):
+        row = self._junos_ospf_selected_row()
+        if row is None:
+            QMessageBox.information(
+                self, "Informacja", "Wybierz wpis OSPF do usunięcia."
+            )
+            return
+
+        area = self.junos_ospf_table.item(row, 0).text()
+        iface = self.junos_ospf_table.item(row, 1).text()
+        self.pending_ops.append(
+            Operation(
+                OperationEnum.DEL_OSPF_INTERFACE,
+                area=area,
+                interface=iface,
+            )
+        )
+        self._append_log(f"[OP] delete {iface} from OSPF area {area}")
+        self.junos_ospf_table.removeRow(row)
+
+    def _current_junos_ospf_iface(self) -> str:
+        return self.junos_ospf_iface.currentText().strip()
+
+    def _set_junos_ospf_iface(self, iface: str):
+        if not iface:
+            self.junos_ospf_iface.setCurrentText("")
+            return
+        self._ensure_junos_ospf_iface_option(iface)
+        self.junos_ospf_iface.setCurrentText(iface)
+
+    def _ensure_junos_ospf_iface_option(self, iface: str):
+        if not iface:
+            return
+        if self.junos_ospf_iface.findText(iface) == -1:
+            self.junos_ospf_iface.addItem(iface)
+
+    def _refresh_junos_ospf_interfaces(self, conf: ParsedConfig):
+        selected = self._current_junos_ospf_iface()
+        interfaces: list[str] = []
+        for name in sorted(conf.interfaces.items.keys()):
+            candidates = [name]
+            if "." not in name:
+                candidates.append(f"{name}.0")
+            for candidate in candidates:
+                if candidate not in interfaces:
+                    interfaces.append(candidate)
+
+        for r in range(self.junos_ospf_table.rowCount()):
+            item = self.junos_ospf_table.item(r, 1)
+            if item and item.text() not in interfaces:
+                interfaces.append(item.text())
+
+        self._ospf_interfaces = interfaces
+        self.junos_ospf_iface.clear()
+        self.junos_ospf_iface.addItems(interfaces)
+        if selected:
+            self._set_junos_ospf_iface(selected)
+
     # ============================================================
     #                     BUFORY + IMPORT / EXPORT
     # ============================================================
@@ -589,6 +840,7 @@ class RoutingTab(QWidget):
             "rip_enabled": self.rip_enabled.isChecked(),
             "rip": [],
             "ospf": [],
+            "junos_ospf": [],
             "pending_ops": list(self.pending_ops),
         }
 
@@ -610,7 +862,14 @@ class RoutingTab(QWidget):
                     self.ospf_table.item(r, 0).text(),
                     self.ospf_table.item(r, 1).text(),
                     self.ospf_table.item(r, 2).text(),
-                    self.ospf_table.item(r, 3).text(),
+                ]
+            )
+
+        for r in range(self.junos_ospf_table.rowCount()):
+            data["junos_ospf"].append(
+                [
+                    self.junos_ospf_table.item(r, 0).text(),
+                    self.junos_ospf_table.item(r, 1).text(),
                 ]
             )
 
@@ -641,8 +900,18 @@ class RoutingTab(QWidget):
             for row in data.get("ospf", []):
                 r = self.ospf_table.rowCount()
                 self.ospf_table.insertRow(r)
-                for i in range(4):
+                for i in range(min(3, len(row))):
                     self.ospf_table.setItem(r, i, QTableWidgetItem(row[i]))
+
+            self.junos_ospf_table.setRowCount(0)
+            for row in data.get("junos_ospf", []):
+                if len(row) < 2:
+                    continue
+                r = self.junos_ospf_table.rowCount()
+                self.junos_ospf_table.insertRow(r)
+                self.junos_ospf_table.setItem(r, 0, QTableWidgetItem(row[0]))
+                self.junos_ospf_table.setItem(r, 1, QTableWidgetItem(row[1]))
+                self._ensure_junos_ospf_iface_option(row[1])
 
             self.pending_ops = list(data.get("pending_ops", []))
         finally:
@@ -675,8 +944,19 @@ class RoutingTab(QWidget):
 
             # OSPF
             self.ospf_table.setRowCount(0)
+            self.junos_ospf_table.setRowCount(0)
             for o in conf.routing.ospf:
-                if o["process"] != "1":
+                if o.get("type") == "interface":
+                    row = self.junos_ospf_table.rowCount()
+                    self.junos_ospf_table.insertRow(row)
+                    self.junos_ospf_table.setItem(row, 0, QTableWidgetItem(o["area"]))
+                    self.junos_ospf_table.setItem(
+                        row, 1, QTableWidgetItem(o["interface"])
+                    )
+                    self._ensure_junos_ospf_iface_option(o["interface"])
+                    continue
+
+                if o.get("process") != "1":
                     continue
                 row = self.ospf_table.rowCount()
                 self.ospf_table.insertRow(row)
@@ -684,6 +964,7 @@ class RoutingTab(QWidget):
                 self.ospf_table.setItem(row, 1, QTableWidgetItem(o["wildcard"]))
                 self.ospf_table.setItem(row, 2, QTableWidgetItem(o["area"]))
 
+            self._refresh_junos_ospf_interfaces(conf)
             self.pending_ops.clear()
             self._append_log("[SYNC] Routing updated from running-config.")
         finally:
