@@ -14,6 +14,13 @@ _JUNIPER_SUPPORTED = {
     OperationEnum.CLEAR_INTERFACE_IP,
     OperationEnum.SET_INTERFACE_STATUS,
     OperationEnum.SET_INTERFACE_DESCRIPTION,
+    OperationEnum.SET_SWITCHPORT_MODE_ACCESS,
+    OperationEnum.SET_SWITCHPORT_MODE_TRUNK,
+    OperationEnum.SET_SWITCHPORT_MODE_ROUTED,
+    OperationEnum.SET_ACCESS_VLAN,
+    OperationEnum.CLEAR_ACCESS_VLAN,
+    OperationEnum.SET_TRUNK_ALLOWED_VLANS,
+    OperationEnum.CLEAR_TRUNK_ALLOWED_VLANS,
     OperationEnum.ADD_STATIC_ROUTE,
     OperationEnum.DEL_STATIC_ROUTE,
 }
