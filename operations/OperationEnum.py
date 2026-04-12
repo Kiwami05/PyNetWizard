@@ -32,6 +32,8 @@ class OperationEnum(Enum):
     DISABLE_RIP = auto()
     ADD_RIP_NETWORK = auto()
     DEL_RIP_NETWORK = auto()
+    ADD_RIP_INTERFACE = auto()
+    DEL_RIP_INTERFACE = auto()
     ADD_OSPF_NETWORK = auto()
     DEL_OSPF_NETWORK = auto()
     ADD_OSPF_INTERFACE = auto()
