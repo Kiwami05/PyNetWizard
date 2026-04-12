@@ -80,6 +80,13 @@ _OSPF_INTERFACE = re.compile(
     re.M,
 )
 
+# RIP
+# set protocols rip group default neighbor ge-0/0/0.0
+_RIP_INTERFACE = re.compile(
+    r"^set protocols rip group (\S+) neighbor (\S+)",
+    re.M,
+)
+
 
 # ==========================================================
 #                   HELPERY
@@ -258,6 +265,16 @@ def parse(raw_config: str) -> ParsedConfig:
             {
                 "type": "interface",
                 "area": area,
+                "interface": iface,
+            }
+        )
+
+    routing.rip_interfaces = []
+    for m in _RIP_INTERFACE.finditer(raw_config):
+        group, iface = m.groups()
+        routing.rip_interfaces.append(
+            {
+                "group": group,
                 "interface": iface,
             }
         )

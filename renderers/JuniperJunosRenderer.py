@@ -146,6 +146,16 @@ class JuniperJunosRenderer(OperationRenderer):
             elif op.operation == OperationEnum.DEL_STATIC_ROUTE:
                 prefix = _ipv4_prefix(op.args["dest"], op.args["mask"])
                 cmds.append(f"delete routing-options static route {prefix}")
+            elif op.operation == OperationEnum.ADD_RIP_INTERFACE:
+                cmds.append(
+                    f"set protocols rip group {op.args['group']} "
+                    f"neighbor {op.args['interface']}"
+                )
+            elif op.operation == OperationEnum.DEL_RIP_INTERFACE:
+                cmds.append(
+                    f"delete protocols rip group {op.args['group']} "
+                    f"neighbor {op.args['interface']}"
+                )
             elif op.operation == OperationEnum.ADD_OSPF_INTERFACE:
                 cmds.append(
                     f"set protocols ospf area {op.args['area']} "
@@ -162,7 +172,7 @@ class JuniperJunosRenderer(OperationRenderer):
                 OperationEnum.ADD_RIP_NETWORK,
                 OperationEnum.DEL_RIP_NETWORK,
             ):
-                raise NotImplementedError("RIP not supported on Junos yet")
+                raise NotImplementedError("Cisco-style RIP is not supported on Junos")
             elif op.operation in (
                 OperationEnum.ADD_OSPF_NETWORK,
                 OperationEnum.DEL_OSPF_NETWORK,
