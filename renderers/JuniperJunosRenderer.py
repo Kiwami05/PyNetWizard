@@ -90,7 +90,9 @@ class JuniperJunosRenderer(OperationRenderer):
                 )
             elif op.operation == OperationEnum.SET_SWITCHPORT_MODE_ROUTED:
                 iface = op.args["iface"]
-                cmds.append(f"delete interfaces {iface} unit 0 family ethernet-switching")
+                cmds.append(
+                    f"delete interfaces {iface} unit 0 family ethernet-switching"
+                )
             elif op.operation == OperationEnum.SET_ACCESS_VLAN:
                 iface = op.args["iface"]
                 vlan = _junos_vlan_name(op.args["vlan_id"])
@@ -144,6 +146,16 @@ class JuniperJunosRenderer(OperationRenderer):
             elif op.operation == OperationEnum.DEL_STATIC_ROUTE:
                 prefix = _ipv4_prefix(op.args["dest"], op.args["mask"])
                 cmds.append(f"delete routing-options static route {prefix}")
+            elif op.operation == OperationEnum.ADD_OSPF_INTERFACE:
+                cmds.append(
+                    f"set protocols ospf area {op.args['area']} "
+                    f"interface {op.args['interface']}"
+                )
+            elif op.operation == OperationEnum.DEL_OSPF_INTERFACE:
+                cmds.append(
+                    f"delete protocols ospf area {op.args['area']} "
+                    f"interface {op.args['interface']}"
+                )
             elif op.operation in (
                 OperationEnum.ENABLE_RIP,
                 OperationEnum.DISABLE_RIP,
@@ -151,17 +163,11 @@ class JuniperJunosRenderer(OperationRenderer):
                 OperationEnum.DEL_RIP_NETWORK,
             ):
                 raise NotImplementedError("RIP not supported on Junos yet")
-            elif op.operation == OperationEnum.ADD_OSPF_NETWORK:
-                cmds.append(
-                    f"set protocols ospf area {op.args['area']} "
-                    f"network {op.args['network']}/{op.args['wildcard']}"
-                )
-
-            elif op.operation == OperationEnum.DEL_OSPF_NETWORK:
-                cmds.append(
-                    f"delete protocols ospf area {op.args['area']} "
-                    f"network {op.args['network']}/{op.args['wildcard']}"
-                )
+            elif op.operation in (
+                OperationEnum.ADD_OSPF_NETWORK,
+                OperationEnum.DEL_OSPF_NETWORK,
+            ):
+                raise NotImplementedError("Cisco-style OSPF is not supported on Junos")
             elif op.operation in (
                 OperationEnum.ADD_ACL_RULE,
                 OperationEnum.DEL_ACL_RULE,
