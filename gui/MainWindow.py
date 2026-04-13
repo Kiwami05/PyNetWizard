@@ -398,7 +398,7 @@ class MainWindow(QMainWindow):
 
             try:
                 cmds = self.detail_box.collect_pending_commands_from_buffer(
-                    dev.host, dev.vendor
+                    dev.host, dev
                 )
                 if not cmds:
                     continue

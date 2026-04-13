@@ -20,7 +20,7 @@ from gui.tabs.ACLTab import ACLTab
 from gui.tabs.SRXPoliciesTab import SRXPoliciesTab
 from gui.tab_registry import tab_specs_for_device
 from operations.Operation import Operation
-from operations.capabilities import validate_operations_supported
+from operations.capabilities import validate_operations_supported_for_device
 from renderers.factory import RendererFactory
 from services.parsed_config import ParsedConfig
 
@@ -263,7 +263,7 @@ class DeviceDetailWidget(QWidget):
         # 3) Renderowanie operacji → CLI
         rendered_cmds: list[str] = []
         if pending_ops:
-            validate_operations_supported(self.current_device.vendor, pending_ops)
+            validate_operations_supported_for_device(self.current_device, pending_ops)
             renderer = RendererFactory.for_vendor(self.current_device.vendor)
             rendered_cmds = renderer.render(pending_ops)
 
@@ -285,7 +285,7 @@ class DeviceDetailWidget(QWidget):
             elif hasattr(w, "clear_pending_commands"):
                 w.clear_pending_commands()
 
-    def collect_pending_commands_from_buffer(self, host: str, vendor=None) -> list[str]:
+    def collect_pending_commands_from_buffer(self, host: str, device=None) -> list[str]:
         buf = self.buffers.get(host)
         if not buf:
             return []
@@ -321,9 +321,9 @@ class DeviceDetailWidget(QWidget):
 
         rendered_cmds: list[str] = []
         if pending_ops:
-            target_vendor = vendor or self.current_device.vendor
-            validate_operations_supported(target_vendor, pending_ops)
-            renderer = RendererFactory.for_vendor(target_vendor)
+            target_device = device or self.current_device
+            validate_operations_supported_for_device(target_device, pending_ops)
+            renderer = RendererFactory.for_vendor(target_device.vendor)
             rendered_cmds = renderer.render(pending_ops)
 
         final_cmds: list[str] = []
