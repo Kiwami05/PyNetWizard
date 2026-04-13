@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
 )
 import ipaddress
 
-from devices.vendor import Vendor
+from platforms.vendor import Vendor
 from operations.operation import Operation
 from operations.operation_type import OperationType
 from services.parsed_config import ParsedConfig

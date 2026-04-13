@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
     QStatusBar,
 )
 
-from devices.connection_manager import ConnectionManager
+from connections.connection_manager import ConnectionManager
 from gui.dialogs.add_device_dialog import AddDeviceDialog
 from devices.device_list import DeviceList
 from devices.device import Device
