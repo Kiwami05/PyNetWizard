@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
-from operations.Operation import Operation
+from operations.operation import Operation
 from operations.operation_type import OperationType
 from services.parsed_config import ParsedConfig
 
