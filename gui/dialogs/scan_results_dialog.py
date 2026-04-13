@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
     QMenu,
 )
 
-from gui.raw_data_dialog import RawDataDialog
+from gui.dialogs.raw_data_dialog import RawDataDialog
 from devices.device import Device
 from devices.device_list import DeviceList
 from devices.vendor import Vendor
