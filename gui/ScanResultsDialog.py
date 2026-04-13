@@ -16,10 +16,10 @@ from PySide6.QtWidgets import (
 )
 
 from gui.RawDataDialog import RawDataDialog
-from devices.Device import Device
-from devices.DeviceList import DeviceList
-from devices.Vendor import Vendor
-from devices.DeviceType import DeviceType
+from devices.device import Device
+from devices.device_list import DeviceList
+from devices.vendor import Vendor
+from devices.device_type import DeviceType
 
 DEBUG = True  # ustaw True, jeśli chcesz zobaczyć raw_data
 

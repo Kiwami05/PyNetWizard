@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
     QAbstractItemView,
 )
 
-from devices.Device import Device
+from devices.device import Device
 from services.config_history import list_snapshots, ConfigSnapshot
 
 

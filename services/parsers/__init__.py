@@ -1,5 +1,5 @@
 # services/parsers/__init__.py
-from devices.Vendor import Vendor
+from devices.vendor import Vendor
 from services.parsed_config import ParsedConfig
 from services.parsers import cisco_ios, juniper_junos
 

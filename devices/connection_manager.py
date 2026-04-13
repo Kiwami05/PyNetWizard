@@ -3,9 +3,9 @@ from netmiko import (
     NetmikoTimeoutException,
     NetmikoAuthenticationException,
 )
-from devices.Device import Device
-from devices.Vendor import Vendor
-from devices.DeviceType import DeviceType
+from devices.device import Device
+from devices.vendor import Vendor
+from devices.device_type import DeviceType
 import logging
 import os
 import tempfile

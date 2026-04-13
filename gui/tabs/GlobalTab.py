@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
-from devices.Device import Device
+from devices.device import Device
 from operations.operation import Operation
 
 from operations.operation_type import OperationType

@@ -13,9 +13,9 @@ from PySide6.QtWidgets import (
     QComboBox,
 )
 
-from devices.Device import Device
-from devices.DeviceType import DeviceType
-from devices.Vendor import Vendor
+from devices.device import Device
+from devices.device_type import DeviceType
+from devices.vendor import Vendor
 
 
 class AddDeviceDialog(QDialog):
