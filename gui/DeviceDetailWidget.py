@@ -11,8 +11,6 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 
 from devices.DeviceBuffer import DeviceBuffer
-from devices.DeviceType import DeviceType
-from devices.Vendor import Vendor
 from gui.tabs.GlobalTab import GlobalTab
 from gui.tabs.RoutingTab import RoutingTab
 from gui.tabs.InterfacesTab import InterfacesTab
@@ -20,6 +18,7 @@ from gui.tabs.SwitchInterfacesTab import SwitchInterfacesTab
 from gui.tabs.VLANsTab import VLANsTab
 from gui.tabs.ACLTab import ACLTab
 from gui.tabs.SRXPoliciesTab import SRXPoliciesTab
+from gui.tab_registry import tab_specs_for_device
 from operations.Operation import Operation
 from operations.capabilities import validate_operations_supported
 from renderers.factory import RendererFactory
@@ -131,34 +130,9 @@ class DeviceDetailWidget(QWidget):
             self.load_console_state(None)
             return
 
-        # Ustal, które zakładki mają się pojawić
-        # Ustal, które zakładki mają się pojawić
-        if device.device_type == DeviceType.ROUTER:
-            tab_keys = ["GLOBAL", "ROUTING", "INTERFACES"]
-        elif device.device_type == DeviceType.SWITCH:
-            tab_keys = ["GLOBAL", "VLANs", "SWITCH_INTERFACES"]
-        elif device.device_type == DeviceType.FIREWALL:
-            if device.vendor == Vendor.JUNIPER:
-                tab_keys = ["GLOBAL", "INTERFACES", "SRX_POLICIES"]
-            else:
-                tab_keys = ["GLOBAL", "INTERFACES", "ACL"]
-        else:
-            tab_keys = ["GLOBAL"]
-
-        for key in tab_keys:
-            # Etykieta w bocznej liście
-            if key in ("INTERFACES", "SWITCH_INTERFACES"):
-                label = "INTERFEJSY"
-            elif key == "GLOBAL":
-                label = "OGÓLNE"
-            elif key == "VLANs":
-                label = "VLAN-y"
-            elif key == "SRX_POLICIES":
-                label = "POLITYKI SRX"
-            else:
-                label = key
-            self.category_list.addItem(label)
-            self.stack.addWidget(self.pages[key])
+        for tab in tab_specs_for_device(device):
+            self.category_list.addItem(tab.label)
+            self.stack.addWidget(self.pages[tab.key])
 
         self.category_list.setCurrentRow(0)
 
