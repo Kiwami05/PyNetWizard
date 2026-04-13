@@ -1,35 +1,11 @@
 from devices.Vendor import Vendor
+from devices.DeviceType import DeviceType
+from devices.capabilities import capabilities_for_device, capabilities_for_platform
 from operations.Operation import Operation
 from operations.OperationEnum import OperationEnum
 
 
 _ALL_OPERATIONS = set(OperationEnum)
-
-_JUNIPER_SUPPORTED = {
-    OperationEnum.SET_HOSTNAME,
-    OperationEnum.CREATE_VLAN,
-    OperationEnum.DELETE_VLAN,
-    OperationEnum.RENAME_VLAN,
-    OperationEnum.SET_INTERFACE_IP,
-    OperationEnum.CLEAR_INTERFACE_IP,
-    OperationEnum.SET_INTERFACE_STATUS,
-    OperationEnum.SET_INTERFACE_DESCRIPTION,
-    OperationEnum.SET_SWITCHPORT_MODE_ACCESS,
-    OperationEnum.SET_SWITCHPORT_MODE_TRUNK,
-    OperationEnum.SET_SWITCHPORT_MODE_ROUTED,
-    OperationEnum.SET_ACCESS_VLAN,
-    OperationEnum.CLEAR_ACCESS_VLAN,
-    OperationEnum.SET_TRUNK_ALLOWED_VLANS,
-    OperationEnum.CLEAR_TRUNK_ALLOWED_VLANS,
-    OperationEnum.ADD_STATIC_ROUTE,
-    OperationEnum.DEL_STATIC_ROUTE,
-    OperationEnum.ADD_RIP_INTERFACE,
-    OperationEnum.DEL_RIP_INTERFACE,
-    OperationEnum.ADD_OSPF_INTERFACE,
-    OperationEnum.DEL_OSPF_INTERFACE,
-    OperationEnum.ADD_SRX_POLICY,
-    OperationEnum.DEL_SRX_POLICY,
-}
 
 _OPERATION_LABELS = {
     OperationEnum.SET_HOSTNAME: "zmiana nazwy hosta",
@@ -82,11 +58,17 @@ class UnsupportedOperationsError(ValueError):
 
 
 def supported_operations(vendor: Vendor) -> set[OperationEnum]:
+    """Compatibility fallback for older call sites that only know vendor."""
     if vendor == Vendor.CISCO:
         return set(_ALL_OPERATIONS)
-    if vendor == Vendor.JUNIPER:
-        return set(_JUNIPER_SUPPORTED)
-    return set()
+    supported: set[OperationEnum] = set()
+    for device_type in DeviceType:
+        supported.update(capabilities_for_platform(vendor, device_type).operations)
+    return supported
+
+
+def supported_operations_for_device(device) -> set[OperationEnum]:
+    return set(capabilities_for_device(device).operations)
 
 
 def unsupported_operations(
@@ -104,6 +86,16 @@ def validate_operations_supported(vendor: Vendor, operations: list[Operation]) -
     unsupported = unsupported_operations(vendor, operations)
     if unsupported:
         raise UnsupportedOperationsError(vendor, unsupported)
+
+
+def validate_operations_supported_for_device(device, operations: list[Operation]) -> None:
+    supported = supported_operations_for_device(device)
+    unsupported: list[OperationEnum] = []
+    for op in operations:
+        if op.operation not in supported and op.operation not in unsupported:
+            unsupported.append(op.operation)
+    if unsupported:
+        raise UnsupportedOperationsError(device.vendor, unsupported)
 
 
 def operation_label(operation: OperationEnum) -> str:
