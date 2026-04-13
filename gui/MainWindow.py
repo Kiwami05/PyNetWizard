@@ -22,7 +22,7 @@ from gui.LogViewerDialog import LogViewerDialog
 from gui.QueuedChangesDialog import QueuedChangesDialog
 from gui.SettingsDialog import SettingsDialog
 from gui.DeviceDetailWidget import DeviceDetailWidget
-from operations.capabilities import UnsupportedOperationsError
+from operations.operation_support import UnsupportedOperationsError
 from services.config_history import save_snapshot
 from services.config_sync import ConfigSyncService
 

@@ -20,7 +20,7 @@ from gui.tabs.ACLTab import ACLTab
 from gui.tabs.SRXPoliciesTab import SRXPoliciesTab
 from gui.tab_registry import tab_specs_for_device
 from operations.Operation import Operation
-from operations.capabilities import validate_operations_supported_for_device
+from operations.operation_support import validate_operations_supported_for_device
 from renderers.factory import RendererFactory
 from services.parsed_config import ParsedConfig
 

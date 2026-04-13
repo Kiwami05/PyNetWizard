@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from devices.capabilities import capabilities_for_device
+from devices.platform_capabilities import capabilities_for_device
 
 
 @dataclass(frozen=True)

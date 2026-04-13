@@ -1,6 +1,9 @@
 from devices.Vendor import Vendor
 from devices.DeviceType import DeviceType
-from devices.capabilities import capabilities_for_device, capabilities_for_platform
+from devices.platform_capabilities import (
+    capabilities_for_device,
+    capabilities_for_platform,
+)
 from operations.Operation import Operation
 from operations.OperationEnum import OperationEnum
 
@@ -88,7 +91,9 @@ def validate_operations_supported(vendor: Vendor, operations: list[Operation]) -
         raise UnsupportedOperationsError(vendor, unsupported)
 
 
-def validate_operations_supported_for_device(device, operations: list[Operation]) -> None:
+def validate_operations_supported_for_device(
+    device, operations: list[Operation]
+) -> None:
     supported = supported_operations_for_device(device)
     unsupported: list[OperationEnum] = []
     for op in operations:
