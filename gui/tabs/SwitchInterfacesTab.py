@@ -17,7 +17,7 @@ from PySide6.QtCore import Qt
 
 from gui.tabs.InterfacesTab import InterfacesTab, mask_to_cidr
 from operations.Operation import Operation
-from operations.OperationEnum import OperationEnum
+from operations.operation_type import OperationType
 from services.parsed_config import ParsedConfig
 
 
@@ -258,21 +258,21 @@ class SwitchInterfacesTab(InterfacesTab):
         if mode == "access":
             self.pending_ops.append(
                 Operation(
-                    OperationEnum.SET_SWITCHPORT_MODE_ACCESS,
+                    OperationType.SET_SWITCHPORT_MODE_ACCESS,
                     iface=iface,
                 )
             )
         elif mode == "trunk":
             self.pending_ops.append(
                 Operation(
-                    OperationEnum.SET_SWITCHPORT_MODE_TRUNK,
+                    OperationType.SET_SWITCHPORT_MODE_TRUNK,
                     iface=iface,
                 )
             )
         elif mode == "routed":
             self.pending_ops.append(
                 Operation(
-                    OperationEnum.SET_SWITCHPORT_MODE_ROUTED,
+                    OperationType.SET_SWITCHPORT_MODE_ROUTED,
                     iface=iface,
                 )
             )
@@ -348,12 +348,12 @@ class SwitchInterfacesTab(InterfacesTab):
             # zakładamy jeden VLAN
             vid = selected[0]
             self.pending_ops.append(
-                Operation(OperationEnum.SET_ACCESS_VLAN, iface=iface, vlan_id=vid)
+                Operation(OperationType.SET_ACCESS_VLAN, iface=iface, vlan_id=vid)
             )
         else:  # trunk
             self.pending_ops.append(
                 Operation(
-                    OperationEnum.SET_TRUNK_ALLOWED_VLANS,
+                    OperationType.SET_TRUNK_ALLOWED_VLANS,
                     iface=iface,
                     vlans=[int(v) for v in selected],
                 )

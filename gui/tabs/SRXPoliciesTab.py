@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
 )
 
 from operations.Operation import Operation
-from operations.OperationEnum import OperationEnum
+from operations.operation_type import OperationType
 from services.parsed_config import ParsedConfig
 
 
@@ -169,7 +169,7 @@ class SRXPoliciesTab(QWidget):
 
         self.pending_ops.append(
             Operation(
-                OperationEnum.ADD_SRX_POLICY,
+                OperationType.ADD_SRX_POLICY,
                 name=name,
                 from_zone=from_zone,
                 to_zone=to_zone,
@@ -197,7 +197,7 @@ class SRXPoliciesTab(QWidget):
 
         self.pending_ops.append(
             Operation(
-                OperationEnum.DEL_SRX_POLICY,
+                OperationType.DEL_SRX_POLICY,
                 name=name,
                 from_zone=from_zone,
                 to_zone=to_zone,

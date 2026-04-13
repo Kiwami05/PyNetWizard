@@ -5,50 +5,50 @@ from devices.platform_capabilities import (
     capabilities_for_platform,
 )
 from operations.Operation import Operation
-from operations.OperationEnum import OperationEnum
+from operations.operation_type import OperationType
 
 
-_ALL_OPERATIONS = set(OperationEnum)
+_ALL_OPERATIONS = set(OperationType)
 
 _OPERATION_LABELS = {
-    OperationEnum.SET_HOSTNAME: "zmiana nazwy hosta",
-    OperationEnum.CREATE_VLAN: "utworzenie VLAN",
-    OperationEnum.DELETE_VLAN: "usunięcie VLAN",
-    OperationEnum.RENAME_VLAN: "zmiana opisu VLAN",
-    OperationEnum.SET_INTERFACE_IP: "ustawienie IP interfejsu",
-    OperationEnum.CLEAR_INTERFACE_IP: "usunięcie IP interfejsu",
-    OperationEnum.SET_INTERFACE_STATUS: "zmiana statusu interfejsu",
-    OperationEnum.SET_INTERFACE_DESCRIPTION: "zmiana opisu interfejsu",
-    OperationEnum.SET_SWITCHPORT_MODE_ACCESS: "tryb access portu switcha",
-    OperationEnum.SET_SWITCHPORT_MODE_TRUNK: "tryb trunk portu switcha",
-    OperationEnum.SET_SWITCHPORT_MODE_ROUTED: "tryb routed portu switcha",
-    OperationEnum.SET_ACCESS_VLAN: "przypisanie access VLAN",
-    OperationEnum.CLEAR_ACCESS_VLAN: "usunięcie access VLAN",
-    OperationEnum.SET_TRUNK_ALLOWED_VLANS: "lista VLAN trunk",
-    OperationEnum.CLEAR_TRUNK_ALLOWED_VLANS: "usunięcie listy VLAN trunk",
-    OperationEnum.ADD_STATIC_ROUTE: "dodanie trasy statycznej",
-    OperationEnum.DEL_STATIC_ROUTE: "usunięcie trasy statycznej",
-    OperationEnum.ENABLE_RIP: "włączenie RIP",
-    OperationEnum.DISABLE_RIP: "wyłączenie RIP",
-    OperationEnum.ADD_RIP_NETWORK: "dodanie sieci RIP",
-    OperationEnum.DEL_RIP_NETWORK: "usunięcie sieci RIP",
-    OperationEnum.ADD_RIP_INTERFACE: "dodanie interfejsu RIP",
-    OperationEnum.DEL_RIP_INTERFACE: "usunięcie interfejsu RIP",
-    OperationEnum.ADD_OSPF_NETWORK: "dodanie sieci OSPF",
-    OperationEnum.DEL_OSPF_NETWORK: "usunięcie sieci OSPF",
-    OperationEnum.ADD_OSPF_INTERFACE: "dodanie interfejsu OSPF",
-    OperationEnum.DEL_OSPF_INTERFACE: "usunięcie interfejsu OSPF",
-    OperationEnum.ADD_ACL_RULE: "dodanie reguły ACL",
-    OperationEnum.DEL_ACL_RULE: "usunięcie reguły ACL",
-    OperationEnum.BIND_ACL: "podpięcie ACL do interfejsu",
-    OperationEnum.UNBIND_ACL: "odpięcie ACL od interfejsu",
-    OperationEnum.ADD_SRX_POLICY: "dodanie polityki SRX",
-    OperationEnum.DEL_SRX_POLICY: "usunięcie polityki SRX",
+    OperationType.SET_HOSTNAME: "zmiana nazwy hosta",
+    OperationType.CREATE_VLAN: "utworzenie VLAN",
+    OperationType.DELETE_VLAN: "usunięcie VLAN",
+    OperationType.RENAME_VLAN: "zmiana opisu VLAN",
+    OperationType.SET_INTERFACE_IP: "ustawienie IP interfejsu",
+    OperationType.CLEAR_INTERFACE_IP: "usunięcie IP interfejsu",
+    OperationType.SET_INTERFACE_STATUS: "zmiana statusu interfejsu",
+    OperationType.SET_INTERFACE_DESCRIPTION: "zmiana opisu interfejsu",
+    OperationType.SET_SWITCHPORT_MODE_ACCESS: "tryb access portu switcha",
+    OperationType.SET_SWITCHPORT_MODE_TRUNK: "tryb trunk portu switcha",
+    OperationType.SET_SWITCHPORT_MODE_ROUTED: "tryb routed portu switcha",
+    OperationType.SET_ACCESS_VLAN: "przypisanie access VLAN",
+    OperationType.CLEAR_ACCESS_VLAN: "usunięcie access VLAN",
+    OperationType.SET_TRUNK_ALLOWED_VLANS: "lista VLAN trunk",
+    OperationType.CLEAR_TRUNK_ALLOWED_VLANS: "usunięcie listy VLAN trunk",
+    OperationType.ADD_STATIC_ROUTE: "dodanie trasy statycznej",
+    OperationType.DEL_STATIC_ROUTE: "usunięcie trasy statycznej",
+    OperationType.ENABLE_RIP: "włączenie RIP",
+    OperationType.DISABLE_RIP: "wyłączenie RIP",
+    OperationType.ADD_RIP_NETWORK: "dodanie sieci RIP",
+    OperationType.DEL_RIP_NETWORK: "usunięcie sieci RIP",
+    OperationType.ADD_RIP_INTERFACE: "dodanie interfejsu RIP",
+    OperationType.DEL_RIP_INTERFACE: "usunięcie interfejsu RIP",
+    OperationType.ADD_OSPF_NETWORK: "dodanie sieci OSPF",
+    OperationType.DEL_OSPF_NETWORK: "usunięcie sieci OSPF",
+    OperationType.ADD_OSPF_INTERFACE: "dodanie interfejsu OSPF",
+    OperationType.DEL_OSPF_INTERFACE: "usunięcie interfejsu OSPF",
+    OperationType.ADD_ACL_RULE: "dodanie reguły ACL",
+    OperationType.DEL_ACL_RULE: "usunięcie reguły ACL",
+    OperationType.BIND_ACL: "podpięcie ACL do interfejsu",
+    OperationType.UNBIND_ACL: "odpięcie ACL od interfejsu",
+    OperationType.ADD_SRX_POLICY: "dodanie polityki SRX",
+    OperationType.DEL_SRX_POLICY: "usunięcie polityki SRX",
 }
 
 
 class UnsupportedOperationsError(ValueError):
-    def __init__(self, vendor: Vendor, operations: list[OperationEnum]):
+    def __init__(self, vendor: Vendor, operations: list[OperationType]):
         labels = [operation_label(op) for op in operations]
         message = (
             f"Te operacje nie są jeszcze obsługiwane dla {vendor.name.title()}: "
@@ -60,25 +60,25 @@ class UnsupportedOperationsError(ValueError):
         self.operations = operations
 
 
-def supported_operations(vendor: Vendor) -> set[OperationEnum]:
+def supported_operations(vendor: Vendor) -> set[OperationType]:
     """Compatibility fallback for older call sites that only know vendor."""
     if vendor == Vendor.CISCO:
         return set(_ALL_OPERATIONS)
-    supported: set[OperationEnum] = set()
+    supported: set[OperationType] = set()
     for device_type in DeviceType:
         supported.update(capabilities_for_platform(vendor, device_type).operations)
     return supported
 
 
-def supported_operations_for_device(device) -> set[OperationEnum]:
+def supported_operations_for_device(device) -> set[OperationType]:
     return set(capabilities_for_device(device).operations)
 
 
 def unsupported_operations(
     vendor: Vendor, operations: list[Operation]
-) -> list[OperationEnum]:
+) -> list[OperationType]:
     supported = supported_operations(vendor)
-    unsupported: list[OperationEnum] = []
+    unsupported: list[OperationType] = []
     for op in operations:
         if op.operation not in supported and op.operation not in unsupported:
             unsupported.append(op.operation)
@@ -95,7 +95,7 @@ def validate_operations_supported_for_device(
     device, operations: list[Operation]
 ) -> None:
     supported = supported_operations_for_device(device)
-    unsupported: list[OperationEnum] = []
+    unsupported: list[OperationType] = []
     for op in operations:
         if op.operation not in supported and op.operation not in unsupported:
             unsupported.append(op.operation)
@@ -103,5 +103,5 @@ def validate_operations_supported_for_device(
         raise UnsupportedOperationsError(device.vendor, unsupported)
 
 
-def operation_label(operation: OperationEnum) -> str:
+def operation_label(operation: OperationType) -> str:
     return _OPERATION_LABELS.get(operation, operation.name)

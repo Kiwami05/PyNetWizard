@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
 )
 
 from operations.Operation import Operation
-from operations.OperationEnum import OperationEnum
+from operations.operation_type import OperationType
 from services.parsed_config import ParsedConfig
 import re
 
@@ -231,7 +231,7 @@ class ACLTab(QWidget):
         # Do bufora
         self.pending_ops.append(
             Operation(
-                OperationEnum.ADD_ACL_RULE,
+                OperationType.ADD_ACL_RULE,
                 acl_name=self.current_acl_name,
                 action=action,
                 protocol=proto,
@@ -270,7 +270,7 @@ class ACLTab(QWidget):
 
         self.pending_ops.append(
             Operation(
-                OperationEnum.DEL_ACL_RULE,
+                OperationType.DEL_ACL_RULE,
                 acl_name=self.current_acl_name,
                 action=action,
                 protocol=proto,
@@ -312,7 +312,7 @@ class ACLTab(QWidget):
             if old_acl != self.current_acl_name:
                 self.pending_ops.append(
                     Operation(
-                        OperationEnum.UNBIND_ACL,
+                        OperationType.UNBIND_ACL,
                         acl_name=old_acl,
                         direction=direction,
                         interface=nameif,
@@ -323,7 +323,7 @@ class ACLTab(QWidget):
         # Dodaj nowe wiązanie
         self.pending_ops.append(
             Operation(
-                OperationEnum.UNBIND_ACL,
+                OperationType.UNBIND_ACL,
                 acl_name=self.current_acl_name,
                 direction=direction,
                 interface=nameif,
@@ -361,7 +361,7 @@ class ACLTab(QWidget):
 
         self.pending_ops.append(
             Operation(
-                OperationEnum.UNBIND_ACL,
+                OperationType.UNBIND_ACL,
                 acl_name=acl,
                 direction=direction,
                 interface=nameif,

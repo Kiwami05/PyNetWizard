@@ -16,7 +16,7 @@ from PySide6.QtCore import Qt
 import ipaddress
 
 from operations.Operation import Operation
-from operations.OperationEnum import OperationEnum
+from operations.operation_type import OperationType
 from services.parsed_config import ParsedConfig
 
 
@@ -196,7 +196,7 @@ class InterfacesTab(QWidget):
 
         self.pending_ops.append(
             Operation(
-                OperationEnum.SET_INTERFACE_DESCRIPTION,
+                OperationType.SET_INTERFACE_DESCRIPTION,
                 iface=iface,
                 description=desc or None,
             )
@@ -245,7 +245,7 @@ class InterfacesTab(QWidget):
         if not ip or cidr == 0:
             self.pending_ops.append(
                 Operation(
-                    OperationEnum.CLEAR_INTERFACE_IP,
+                    OperationType.CLEAR_INTERFACE_IP,
                     iface=iface,
                 )
             )
@@ -255,7 +255,7 @@ class InterfacesTab(QWidget):
             mask = cidr_to_mask(cidr)
             self.pending_ops.append(
                 Operation(
-                    OperationEnum.SET_INTERFACE_IP,
+                    OperationType.SET_INTERFACE_IP,
                     iface=iface,
                     ip=ip,
                     mask=mask,
@@ -272,7 +272,7 @@ class InterfacesTab(QWidget):
 
         self.pending_ops.append(
             Operation(
-                OperationEnum.SET_INTERFACE_STATUS,
+                OperationType.SET_INTERFACE_STATUS,
                 iface=iface,
                 enabled=is_up,
             )
@@ -293,7 +293,7 @@ class InterfacesTab(QWidget):
         iface = self.table.item(row, self.COL_NAME).text()
         self.pending_ops.append(
             Operation(
-                OperationEnum.SET_INTERFACE_STATUS,
+                OperationType.SET_INTERFACE_STATUS,
                 iface=iface,
                 enabled=(cmd == "no shutdown"),
             )

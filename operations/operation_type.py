@@ -1,7 +1,7 @@
 from enum import Enum, auto
 
 
-class OperationEnum(Enum):
+class OperationType(Enum):
     # Global
     SET_HOSTNAME = auto()
 

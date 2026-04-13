@@ -17,7 +17,7 @@ from PySide6.QtCore import Qt
 from devices.Device import Device
 from operations.Operation import Operation
 
-from operations.OperationEnum import OperationEnum
+from operations.operation_type import OperationType
 from services.parsed_config import ParsedConfig
 
 
@@ -297,7 +297,7 @@ class GlobalTab(QWidget):
         ops: list[Operation] = []
         ui_host = (self.hostname.text() or "").strip()
         if ui_host and ui_host != (conf.hostname or ""):
-            ops.append(Operation(OperationEnum.SET_HOSTNAME, hostname=ui_host))
+            ops.append(Operation(OperationType.SET_HOSTNAME, hostname=ui_host))
         return ops
 
     def get_pending_commands(self, clear: bool = False):
