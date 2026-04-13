@@ -381,30 +381,3 @@ class InterfacesTab(QWidget):
             self._append_log("[SYNC] Interfaces updated from running-config.")
         finally:
             self._loading = False
-
-    # ================================================================
-    #        KOMPATYBILNOŚĆ: JEŚLI COŚ JESZCZE WOŁA add_interface...
-    # ================================================================
-
-    def add_interface_to_table(self, name, desc, ip, mask, mode=None):
-        """Zachowana dla zgodności; 'mode' ignorujemy w bazowym tabie."""
-        try:
-            if mask and "." in str(mask):
-                cidr = mask_to_cidr(mask)
-            else:
-                cidr = int(mask) if mask not in (None, "") else 0
-        except Exception:
-            cidr = 0
-
-        row = self._find_row(name)
-        if row == -1:
-            self._create_interface_row(name, desc, ip, str(cidr), "up")
-            return
-
-        self._loading = True
-        try:
-            self.table.cellWidget(row, self.COL_DESC).setText(desc)
-            self.table.cellWidget(row, self.COL_IP).setText(ip)
-            self.table.cellWidget(row, self.COL_MASK).setValue(cidr)
-        finally:
-            self._loading = False
