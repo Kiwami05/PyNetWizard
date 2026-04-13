@@ -20,7 +20,7 @@ import ipaddress
 
 from devices.Vendor import Vendor
 from operations.Operation import Operation
-from operations.OperationEnum import OperationEnum
+from operations.operation_type import OperationType
 from services.parsed_config import ParsedConfig
 
 
@@ -228,7 +228,7 @@ class RoutingTab(QWidget):
 
         self.pending_ops.append(
             Operation(
-                OperationEnum.ADD_STATIC_ROUTE,
+                OperationType.ADD_STATIC_ROUTE,
                 dest=dest,
                 mask=mask,
                 nh=nh,
@@ -264,7 +264,7 @@ class RoutingTab(QWidget):
 
         self.pending_ops.append(
             Operation(
-                OperationEnum.DEL_STATIC_ROUTE,
+                OperationType.DEL_STATIC_ROUTE,
                 dest=old_dest,
                 mask=old_mask,
                 nh=old_nh,
@@ -272,7 +272,7 @@ class RoutingTab(QWidget):
         )
         self.pending_ops.append(
             Operation(
-                OperationEnum.ADD_STATIC_ROUTE,
+                OperationType.ADD_STATIC_ROUTE,
                 dest=dest,
                 mask=mask,
                 nh=nh,
@@ -296,7 +296,7 @@ class RoutingTab(QWidget):
 
         self.pending_ops.append(
             Operation(
-                OperationEnum.DEL_STATIC_ROUTE,
+                OperationType.DEL_STATIC_ROUTE,
                 dest=dest,
                 mask=mask,
                 nh=nh,
@@ -411,13 +411,13 @@ class RoutingTab(QWidget):
         if enabled:
             self.pending_ops.append(
                 Operation(
-                    OperationEnum.ENABLE_RIP,
+                    OperationType.ENABLE_RIP,
                 )
             )
         else:
             self.pending_ops.append(
                 Operation(
-                    OperationEnum.DISABLE_RIP,
+                    OperationType.DISABLE_RIP,
                 )
             )
         self._append_log(f"[OP] turn RIP {'ON' if enabled else 'OFF'}")
@@ -444,7 +444,7 @@ class RoutingTab(QWidget):
         self.rip_table.setItem(r, 0, QTableWidgetItem(net))
         self.pending_ops.append(
             Operation(
-                OperationEnum.ADD_RIP_NETWORK,
+                OperationType.ADD_RIP_NETWORK,
                 network=net,
             )
         )
@@ -460,7 +460,7 @@ class RoutingTab(QWidget):
         net = self.rip_table.item(row, 0).text()
         self.pending_ops.append(
             Operation(
-                OperationEnum.DEL_RIP_NETWORK,
+                OperationType.DEL_RIP_NETWORK,
                 network=net,
             )
         )
@@ -503,7 +503,7 @@ class RoutingTab(QWidget):
         self.junos_rip_table.setItem(row, 1, QTableWidgetItem(iface))
         self.pending_ops.append(
             Operation(
-                OperationEnum.ADD_RIP_INTERFACE,
+                OperationType.ADD_RIP_INTERFACE,
                 group=group,
                 interface=iface,
             )
@@ -532,14 +532,14 @@ class RoutingTab(QWidget):
 
         self.pending_ops.append(
             Operation(
-                OperationEnum.DEL_RIP_INTERFACE,
+                OperationType.DEL_RIP_INTERFACE,
                 group=old_group,
                 interface=old_iface,
             )
         )
         self.pending_ops.append(
             Operation(
-                OperationEnum.ADD_RIP_INTERFACE,
+                OperationType.ADD_RIP_INTERFACE,
                 group=group,
                 interface=iface,
             )
@@ -560,7 +560,7 @@ class RoutingTab(QWidget):
         iface = self.junos_rip_table.item(row, 1).text()
         self.pending_ops.append(
             Operation(
-                OperationEnum.DEL_RIP_INTERFACE,
+                OperationType.DEL_RIP_INTERFACE,
                 group=group,
                 interface=iface,
             )
@@ -745,7 +745,7 @@ class RoutingTab(QWidget):
 
         self.pending_ops.append(
             Operation(
-                OperationEnum.ADD_OSPF_NETWORK,
+                OperationType.ADD_OSPF_NETWORK,
                 process=1,
                 network=net,
                 wildcard=wc,
@@ -784,7 +784,7 @@ class RoutingTab(QWidget):
 
         self.pending_ops.append(
             Operation(
-                OperationEnum.DEL_OSPF_NETWORK,
+                OperationType.DEL_OSPF_NETWORK,
                 process=1,
                 network=old_net,
                 wildcard=old_wc,
@@ -793,7 +793,7 @@ class RoutingTab(QWidget):
         )
         self.pending_ops.append(
             Operation(
-                OperationEnum.ADD_OSPF_NETWORK,
+                OperationType.ADD_OSPF_NETWORK,
                 process=1,
                 network=net,
                 wildcard=wc,
@@ -820,7 +820,7 @@ class RoutingTab(QWidget):
 
         self.pending_ops.append(
             Operation(
-                OperationEnum.DEL_OSPF_NETWORK,
+                OperationType.DEL_OSPF_NETWORK,
                 process=1,
                 network=net,
                 wildcard=w,
@@ -868,7 +868,7 @@ class RoutingTab(QWidget):
 
         self.pending_ops.append(
             Operation(
-                OperationEnum.ADD_OSPF_INTERFACE,
+                OperationType.ADD_OSPF_INTERFACE,
                 area=area,
                 interface=iface,
             )
@@ -897,14 +897,14 @@ class RoutingTab(QWidget):
 
         self.pending_ops.append(
             Operation(
-                OperationEnum.DEL_OSPF_INTERFACE,
+                OperationType.DEL_OSPF_INTERFACE,
                 area=old_area,
                 interface=old_iface,
             )
         )
         self.pending_ops.append(
             Operation(
-                OperationEnum.ADD_OSPF_INTERFACE,
+                OperationType.ADD_OSPF_INTERFACE,
                 area=area,
                 interface=iface,
             )
@@ -926,7 +926,7 @@ class RoutingTab(QWidget):
         iface = self.junos_ospf_table.item(row, 1).text()
         self.pending_ops.append(
             Operation(
-                OperationEnum.DEL_OSPF_INTERFACE,
+                OperationType.DEL_OSPF_INTERFACE,
                 area=area,
                 interface=iface,
             )

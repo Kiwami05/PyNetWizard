@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from devices.DeviceType import DeviceType
 from devices.Vendor import Vendor
-from operations.OperationEnum import OperationEnum
+from operations.operation_type import OperationType
 
 
 @dataclass(frozen=True)
@@ -10,91 +10,91 @@ class PlatformCapabilities:
     vendor: Vendor
     device_type: DeviceType
     tab_keys: tuple[str, ...]
-    operations: frozenset[OperationEnum]
+    operations: frozenset[OperationType]
     features: frozenset[str]
 
 
-GLOBAL_OPS = frozenset({OperationEnum.SET_HOSTNAME})
+GLOBAL_OPS = frozenset({OperationType.SET_HOSTNAME})
 
 INTERFACE_OPS = frozenset(
     {
-        OperationEnum.SET_INTERFACE_IP,
-        OperationEnum.CLEAR_INTERFACE_IP,
-        OperationEnum.SET_INTERFACE_STATUS,
-        OperationEnum.SET_INTERFACE_DESCRIPTION,
+        OperationType.SET_INTERFACE_IP,
+        OperationType.CLEAR_INTERFACE_IP,
+        OperationType.SET_INTERFACE_STATUS,
+        OperationType.SET_INTERFACE_DESCRIPTION,
     }
 )
 
 VLAN_OPS = frozenset(
     {
-        OperationEnum.CREATE_VLAN,
-        OperationEnum.DELETE_VLAN,
-        OperationEnum.RENAME_VLAN,
+        OperationType.CREATE_VLAN,
+        OperationType.DELETE_VLAN,
+        OperationType.RENAME_VLAN,
     }
 )
 
 SWITCHPORT_OPS = frozenset(
     {
-        OperationEnum.SET_SWITCHPORT_MODE_ACCESS,
-        OperationEnum.SET_SWITCHPORT_MODE_TRUNK,
-        OperationEnum.SET_SWITCHPORT_MODE_ROUTED,
-        OperationEnum.SET_ACCESS_VLAN,
-        OperationEnum.CLEAR_ACCESS_VLAN,
-        OperationEnum.SET_TRUNK_ALLOWED_VLANS,
-        OperationEnum.CLEAR_TRUNK_ALLOWED_VLANS,
+        OperationType.SET_SWITCHPORT_MODE_ACCESS,
+        OperationType.SET_SWITCHPORT_MODE_TRUNK,
+        OperationType.SET_SWITCHPORT_MODE_ROUTED,
+        OperationType.SET_ACCESS_VLAN,
+        OperationType.CLEAR_ACCESS_VLAN,
+        OperationType.SET_TRUNK_ALLOWED_VLANS,
+        OperationType.CLEAR_TRUNK_ALLOWED_VLANS,
     }
 )
 
 STATIC_ROUTING_OPS = frozenset(
     {
-        OperationEnum.ADD_STATIC_ROUTE,
-        OperationEnum.DEL_STATIC_ROUTE,
+        OperationType.ADD_STATIC_ROUTE,
+        OperationType.DEL_STATIC_ROUTE,
     }
 )
 
 CISCO_RIP_OPS = frozenset(
     {
-        OperationEnum.ENABLE_RIP,
-        OperationEnum.DISABLE_RIP,
-        OperationEnum.ADD_RIP_NETWORK,
-        OperationEnum.DEL_RIP_NETWORK,
+        OperationType.ENABLE_RIP,
+        OperationType.DISABLE_RIP,
+        OperationType.ADD_RIP_NETWORK,
+        OperationType.DEL_RIP_NETWORK,
     }
 )
 
 JUNIPER_RIP_OPS = frozenset(
     {
-        OperationEnum.ADD_RIP_INTERFACE,
-        OperationEnum.DEL_RIP_INTERFACE,
+        OperationType.ADD_RIP_INTERFACE,
+        OperationType.DEL_RIP_INTERFACE,
     }
 )
 
 CISCO_OSPF_OPS = frozenset(
     {
-        OperationEnum.ADD_OSPF_NETWORK,
-        OperationEnum.DEL_OSPF_NETWORK,
+        OperationType.ADD_OSPF_NETWORK,
+        OperationType.DEL_OSPF_NETWORK,
     }
 )
 
 JUNIPER_OSPF_OPS = frozenset(
     {
-        OperationEnum.ADD_OSPF_INTERFACE,
-        OperationEnum.DEL_OSPF_INTERFACE,
+        OperationType.ADD_OSPF_INTERFACE,
+        OperationType.DEL_OSPF_INTERFACE,
     }
 )
 
 ASA_ACL_OPS = frozenset(
     {
-        OperationEnum.ADD_ACL_RULE,
-        OperationEnum.DEL_ACL_RULE,
-        OperationEnum.BIND_ACL,
-        OperationEnum.UNBIND_ACL,
+        OperationType.ADD_ACL_RULE,
+        OperationType.DEL_ACL_RULE,
+        OperationType.BIND_ACL,
+        OperationType.UNBIND_ACL,
     }
 )
 
 SRX_POLICY_OPS = frozenset(
     {
-        OperationEnum.ADD_SRX_POLICY,
-        OperationEnum.DEL_SRX_POLICY,
+        OperationType.ADD_SRX_POLICY,
+        OperationType.DEL_SRX_POLICY,
     }
 )
 
@@ -103,7 +103,7 @@ def _caps(
     vendor: Vendor,
     device_type: DeviceType,
     tab_keys: tuple[str, ...],
-    operations: frozenset[OperationEnum],
+    operations: frozenset[OperationType],
     features: frozenset[str],
 ) -> PlatformCapabilities:
     return PlatformCapabilities(

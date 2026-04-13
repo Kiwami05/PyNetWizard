@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 
 from operations.Operation import Operation
-from operations.OperationEnum import OperationEnum
+from operations.operation_type import OperationType
 from services.parsed_config import ParsedConfig
 
 
@@ -186,7 +186,7 @@ class VLANsTab(QWidget):
 
         self.pending_ops.append(
             Operation(
-                OperationEnum.CREATE_VLAN,
+                OperationType.CREATE_VLAN,
                 vlan_id=int(vlan_id),
                 name=name or None,
             )
@@ -224,13 +224,13 @@ class VLANsTab(QWidget):
             # Komendy
             self.pending_ops.append(
                 Operation(
-                    OperationEnum.DELETE_VLAN,
+                    OperationType.DELETE_VLAN,
                     vlan_id=int(old_id),
                 )
             )
             self.pending_ops.append(
                 Operation(
-                    OperationEnum.CREATE_VLAN,
+                    OperationType.CREATE_VLAN,
                     vlan_id=int(new_id),
                     name=new_name or None,
                 )
@@ -248,7 +248,7 @@ class VLANsTab(QWidget):
 
             self.pending_ops.append(
                 Operation(
-                    OperationEnum.RENAME_VLAN,
+                    OperationType.RENAME_VLAN,
                     vlan_id=int(old_id),
                     name=new_name or None,
                 )
@@ -285,7 +285,7 @@ class VLANsTab(QWidget):
 
         self.pending_ops.append(
             Operation(
-                OperationEnum.DELETE_VLAN,
+                OperationType.DELETE_VLAN,
                 vlan_id=int(vlan_id),
             )
         )

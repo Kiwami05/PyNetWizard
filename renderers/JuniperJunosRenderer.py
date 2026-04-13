@@ -2,7 +2,7 @@ from typing import Iterable, List
 from ipaddress import IPv4Network
 
 from operations.Operation import Operation
-from operations.OperationEnum import OperationEnum
+from operations.operation_type import OperationType
 from renderers.base import OperationRenderer
 
 
@@ -19,11 +19,11 @@ class JuniperJunosRenderer(OperationRenderer):
             return cmds
 
         for op in ops:
-            if op.operation == OperationEnum.SET_HOSTNAME:
+            if op.operation == OperationType.SET_HOSTNAME:
                 hostname = op.args["hostname"]
                 cmds.append(f"set system host-name {hostname}")
             # === VLANS ===
-            elif op.operation == OperationEnum.CREATE_VLAN:
+            elif op.operation == OperationType.CREATE_VLAN:
                 vid = op.args["vlan_id"]
                 name = op.args.get("name")
 
@@ -31,10 +31,10 @@ class JuniperJunosRenderer(OperationRenderer):
                 if name:
                     cmds.append(f'set vlans vlan-{vid} description "{name}"')
 
-            elif op.operation == OperationEnum.DELETE_VLAN:
+            elif op.operation == OperationType.DELETE_VLAN:
                 cmds.append(f"delete vlans vlan-{op.args['vlan_id']}")
 
-            elif op.operation == OperationEnum.RENAME_VLAN:
+            elif op.operation == OperationType.RENAME_VLAN:
                 vid = op.args["vlan_id"]
                 name = op.args.get("name")
 
@@ -43,7 +43,7 @@ class JuniperJunosRenderer(OperationRenderer):
                 else:
                     cmds.append(f"delete vlans vlan-{vid} description")
             # === INTERFACES ===
-            elif op.operation == OperationEnum.SET_INTERFACE_DESCRIPTION:
+            elif op.operation == OperationType.SET_INTERFACE_DESCRIPTION:
                 iface = op.args["iface"]
                 desc = op.args.get("description")
 
@@ -52,7 +52,7 @@ class JuniperJunosRenderer(OperationRenderer):
                 else:
                     cmds.append(f"delete interfaces {iface} description")
 
-            elif op.operation == OperationEnum.SET_INTERFACE_IP:
+            elif op.operation == OperationType.SET_INTERFACE_IP:
                 iface = op.args["iface"]
                 ip = op.args["ip"]
                 mask = op.args["mask"]
@@ -63,11 +63,11 @@ class JuniperJunosRenderer(OperationRenderer):
                     f"set interfaces {iface} unit 0 family inet address {ip}/{cidr}"
                 )
 
-            elif op.operation == OperationEnum.CLEAR_INTERFACE_IP:
+            elif op.operation == OperationType.CLEAR_INTERFACE_IP:
                 iface = op.args["iface"]
                 cmds.append(f"delete interfaces {iface} unit 0 family inet address")
 
-            elif op.operation == OperationEnum.SET_INTERFACE_STATUS:
+            elif op.operation == OperationType.SET_INTERFACE_STATUS:
                 iface = op.args["iface"]
                 enabled = op.args["enabled"]
 
@@ -76,24 +76,24 @@ class JuniperJunosRenderer(OperationRenderer):
                 else:
                     cmds.append(f"set interfaces {iface} disable")
             # === SWITCH INTERFACES ===
-            elif op.operation == OperationEnum.SET_SWITCHPORT_MODE_ACCESS:
+            elif op.operation == OperationType.SET_SWITCHPORT_MODE_ACCESS:
                 iface = op.args["iface"]
                 cmds.append(
                     f"set interfaces {iface} unit 0 family ethernet-switching "
                     f"interface-mode access"
                 )
-            elif op.operation == OperationEnum.SET_SWITCHPORT_MODE_TRUNK:
+            elif op.operation == OperationType.SET_SWITCHPORT_MODE_TRUNK:
                 iface = op.args["iface"]
                 cmds.append(
                     f"set interfaces {iface} unit 0 family ethernet-switching "
                     f"interface-mode trunk"
                 )
-            elif op.operation == OperationEnum.SET_SWITCHPORT_MODE_ROUTED:
+            elif op.operation == OperationType.SET_SWITCHPORT_MODE_ROUTED:
                 iface = op.args["iface"]
                 cmds.append(
                     f"delete interfaces {iface} unit 0 family ethernet-switching"
                 )
-            elif op.operation == OperationEnum.SET_ACCESS_VLAN:
+            elif op.operation == OperationType.SET_ACCESS_VLAN:
                 iface = op.args["iface"]
                 vlan = _junos_vlan_name(op.args["vlan_id"])
                 cmds.append(
@@ -108,13 +108,13 @@ class JuniperJunosRenderer(OperationRenderer):
                     f"set interfaces {iface} unit 0 family ethernet-switching "
                     f"vlan members {vlan}"
                 )
-            elif op.operation == OperationEnum.CLEAR_ACCESS_VLAN:
+            elif op.operation == OperationType.CLEAR_ACCESS_VLAN:
                 iface = op.args["iface"]
                 cmds.append(
                     f"delete interfaces {iface} unit 0 family ethernet-switching "
                     f"vlan members"
                 )
-            elif op.operation == OperationEnum.SET_TRUNK_ALLOWED_VLANS:
+            elif op.operation == OperationType.SET_TRUNK_ALLOWED_VLANS:
                 iface = op.args["iface"]
                 vlans = [_junos_vlan_name(vlan) for vlan in op.args["vlans"]]
                 cmds.append(
@@ -130,56 +130,56 @@ class JuniperJunosRenderer(OperationRenderer):
                         f"set interfaces {iface} unit 0 family ethernet-switching "
                         f"vlan members [ {' '.join(vlans)} ]"
                     )
-            elif op.operation == OperationEnum.CLEAR_TRUNK_ALLOWED_VLANS:
+            elif op.operation == OperationType.CLEAR_TRUNK_ALLOWED_VLANS:
                 iface = op.args["iface"]
                 cmds.append(
                     f"delete interfaces {iface} unit 0 family ethernet-switching "
                     f"vlan members"
                 )
             # === ROUTING ===
-            elif op.operation == OperationEnum.ADD_STATIC_ROUTE:
+            elif op.operation == OperationType.ADD_STATIC_ROUTE:
                 prefix = _ipv4_prefix(op.args["dest"], op.args["mask"])
                 cmds.append(
                     f"set routing-options static route "
                     f"{prefix} next-hop {op.args['nh']}"
                 )
-            elif op.operation == OperationEnum.DEL_STATIC_ROUTE:
+            elif op.operation == OperationType.DEL_STATIC_ROUTE:
                 prefix = _ipv4_prefix(op.args["dest"], op.args["mask"])
                 cmds.append(f"delete routing-options static route {prefix}")
-            elif op.operation == OperationEnum.ADD_RIP_INTERFACE:
+            elif op.operation == OperationType.ADD_RIP_INTERFACE:
                 cmds.append(
                     f"set protocols rip group {op.args['group']} "
                     f"neighbor {op.args['interface']}"
                 )
-            elif op.operation == OperationEnum.DEL_RIP_INTERFACE:
+            elif op.operation == OperationType.DEL_RIP_INTERFACE:
                 cmds.append(
                     f"delete protocols rip group {op.args['group']} "
                     f"neighbor {op.args['interface']}"
                 )
-            elif op.operation == OperationEnum.ADD_OSPF_INTERFACE:
+            elif op.operation == OperationType.ADD_OSPF_INTERFACE:
                 cmds.append(
                     f"set protocols ospf area {op.args['area']} "
                     f"interface {op.args['interface']}"
                 )
-            elif op.operation == OperationEnum.DEL_OSPF_INTERFACE:
+            elif op.operation == OperationType.DEL_OSPF_INTERFACE:
                 cmds.append(
                     f"delete protocols ospf area {op.args['area']} "
                     f"interface {op.args['interface']}"
                 )
             elif op.operation in (
-                OperationEnum.ENABLE_RIP,
-                OperationEnum.DISABLE_RIP,
-                OperationEnum.ADD_RIP_NETWORK,
-                OperationEnum.DEL_RIP_NETWORK,
+                OperationType.ENABLE_RIP,
+                OperationType.DISABLE_RIP,
+                OperationType.ADD_RIP_NETWORK,
+                OperationType.DEL_RIP_NETWORK,
             ):
                 raise NotImplementedError("Cisco-style RIP is not supported on Junos")
             elif op.operation in (
-                OperationEnum.ADD_OSPF_NETWORK,
-                OperationEnum.DEL_OSPF_NETWORK,
+                OperationType.ADD_OSPF_NETWORK,
+                OperationType.DEL_OSPF_NETWORK,
             ):
                 raise NotImplementedError("Cisco-style OSPF is not supported on Junos")
             # === SRX POLICIES ===
-            elif op.operation == OperationEnum.ADD_SRX_POLICY:
+            elif op.operation == OperationType.ADD_SRX_POLICY:
                 from_zone = op.args["from_zone"]
                 to_zone = op.args["to_zone"]
                 name = op.args["name"]
@@ -191,16 +191,16 @@ class JuniperJunosRenderer(OperationRenderer):
                 cmds.append(f"{base} match destination-address {op.args['dst']}")
                 cmds.append(f"{base} match application {op.args['application']}")
                 cmds.append(f"{base} then {op.args['action']}")
-            elif op.operation == OperationEnum.DEL_SRX_POLICY:
+            elif op.operation == OperationType.DEL_SRX_POLICY:
                 cmds.append(
                     f"delete security policies from-zone {op.args['from_zone']} "
                     f"to-zone {op.args['to_zone']} policy {op.args['name']}"
                 )
             elif op.operation in (
-                OperationEnum.ADD_ACL_RULE,
-                OperationEnum.DEL_ACL_RULE,
-                OperationEnum.BIND_ACL,
-                OperationEnum.UNBIND_ACL,
+                OperationType.ADD_ACL_RULE,
+                OperationType.DEL_ACL_RULE,
+                OperationType.BIND_ACL,
+                OperationType.UNBIND_ACL,
             ):
                 raise NotImplementedError(
                     "ASA ACL operations are not supported on Juniper Junos"
