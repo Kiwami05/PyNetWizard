@@ -4,8 +4,8 @@ from netmiko import (
     NetmikoAuthenticationException,
 )
 from devices.device import Device
-from devices.vendor import Vendor
-from devices.device_type import DeviceType
+from platforms.vendor import Vendor
+from platforms.device_type import DeviceType
 import logging
 import os
 import tempfile

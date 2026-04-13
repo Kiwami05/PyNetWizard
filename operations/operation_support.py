@@ -1,6 +1,6 @@
-from devices.vendor import Vendor
-from devices.device_type import DeviceType
-from devices.platform_capabilities import (
+from platforms.vendor import Vendor
+from platforms.device_type import DeviceType
+from platforms.capabilities import (
     capabilities_for_device,
     capabilities_for_platform,
 )

@@ -2,8 +2,8 @@ import json
 import ipaddress
 
 from devices.device import Device
-from devices.device_type import DeviceType
-from devices.vendor import Vendor
+from platforms.device_type import DeviceType
+from platforms.vendor import Vendor
 
 
 class DeviceList:
