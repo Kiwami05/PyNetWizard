@@ -4,7 +4,7 @@ from devices.platform_capabilities import (
     capabilities_for_device,
     capabilities_for_platform,
 )
-from operations.Operation import Operation
+from operations.operation import Operation
 from operations.operation_type import OperationType
 
 
@@ -80,8 +80,8 @@ def unsupported_operations(
     supported = supported_operations(vendor)
     unsupported: list[OperationType] = []
     for op in operations:
-        if op.operation not in supported and op.operation not in unsupported:
-            unsupported.append(op.operation)
+        if op.operation_type not in supported and op.operation_type not in unsupported:
+            unsupported.append(op.operation_type)
     return unsupported
 
 
@@ -97,8 +97,8 @@ def validate_operations_supported_for_device(
     supported = supported_operations_for_device(device)
     unsupported: list[OperationType] = []
     for op in operations:
-        if op.operation not in supported and op.operation not in unsupported:
-            unsupported.append(op.operation)
+        if op.operation_type not in supported and op.operation_type not in unsupported:
+            unsupported.append(op.operation_type)
     if unsupported:
         raise UnsupportedOperationsError(device.vendor, unsupported)
 
