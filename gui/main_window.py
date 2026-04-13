@@ -14,14 +14,14 @@ from PySide6.QtWidgets import (
 )
 
 from devices.connection_manager import ConnectionManager
-from gui.AddDeviceDialog import AddDeviceDialog
+from gui.add_device_dialog import AddDeviceDialog
 from devices.device_list import DeviceList
 from devices.device import Device
-from gui.ConfigHistoryDialog import ConfigHistoryDialog
-from gui.LogViewerDialog import LogViewerDialog
-from gui.QueuedChangesDialog import QueuedChangesDialog
-from gui.SettingsDialog import SettingsDialog
-from gui.DeviceDetailWidget import DeviceDetailWidget
+from gui.config_history_dialog import ConfigHistoryDialog
+from gui.log_viewer_dialog import LogViewerDialog
+from gui.queued_changes_dialog import QueuedChangesDialog
+from gui.settings_dialog import SettingsDialog
+from gui.device_detail_widget import DeviceDetailWidget
 from operations.operation_support import UnsupportedOperationsError
 from services.config_history import save_snapshot
 from services.config_sync import ConfigSyncService
@@ -255,8 +255,8 @@ class MainWindow(QMainWindow):
                 print(f"[WARN] Nie udało się podpiąć GlobalTab: {e}")
 
     def scan_network(self):
-        from gui.NetworkScanDialog import NetworkScanDialog
-        from gui.ScanResultsDialog import ScanResultsDialog
+        from gui.network_scan_dialog import NetworkScanDialog
+        from gui.scan_results_dialog import ScanResultsDialog
 
         existing_hosts = [d.host for d in self.device_list.devices]
         dlg = NetworkScanDialog(self, exclude_hosts=existing_hosts)
@@ -549,7 +549,7 @@ class MainWindow(QMainWindow):
             self.detail_box.buffers.pop(host, None)
 
     def edit_device_dialog(self, device):
-        from gui.AddDeviceDialog import AddDeviceDialog
+        from gui.add_device_dialog import AddDeviceDialog
 
         dlg = AddDeviceDialog(self)
 

@@ -1,4 +1,3 @@
-# gui/RawDataDialog.py
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QTextEdit, QDialogButtonBox
 import json
 
