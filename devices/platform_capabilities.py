@@ -120,7 +120,11 @@ PLATFORM_CAPABILITIES = {
         Vendor.CISCO,
         DeviceType.ROUTER,
         ("GLOBAL", "ROUTING", "INTERFACES"),
-        GLOBAL_OPS | INTERFACE_OPS | STATIC_ROUTING_OPS | CISCO_RIP_OPS | CISCO_OSPF_OPS,
+        GLOBAL_OPS
+        | INTERFACE_OPS
+        | STATIC_ROUTING_OPS
+        | CISCO_RIP_OPS
+        | CISCO_OSPF_OPS,
         frozenset({"global", "interfaces", "static-routing", "rip", "ospf"}),
     ),
     (Vendor.JUNIPER, DeviceType.ROUTER): _caps(
