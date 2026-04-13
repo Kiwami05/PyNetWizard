@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
-from devices.DeviceType import DeviceType
-from devices.Vendor import Vendor
+from devices.device_type import DeviceType
+from devices.vendor import Vendor
 from operations.operation_type import OperationType
 
 

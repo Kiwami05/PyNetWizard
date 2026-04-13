@@ -1,5 +1,5 @@
-from devices.DeviceType import DeviceType
-from devices.Vendor import Vendor
+from devices.device_type import DeviceType
+from devices.vendor import Vendor
 
 
 class Device:

@@ -1,4 +1,4 @@
-from devices.Vendor import Vendor
+from devices.vendor import Vendor
 from renderers.base import OperationRenderer
 from renderers.CiscoIOSRenderer import CiscoIOSRenderer
 from renderers.JuniperJunosRenderer import JuniperJunosRenderer

@@ -13,10 +13,10 @@ from PySide6.QtWidgets import (
     QStatusBar,
 )
 
-from devices.ConnectionManager import ConnectionManager
+from devices.connection_manager import ConnectionManager
 from gui.AddDeviceDialog import AddDeviceDialog
-from devices.DeviceList import DeviceList
-from devices.Device import Device
+from devices.device_list import DeviceList
+from devices.device import Device
 from gui.ConfigHistoryDialog import ConfigHistoryDialog
 from gui.LogViewerDialog import LogViewerDialog
 from gui.QueuedChangesDialog import QueuedChangesDialog

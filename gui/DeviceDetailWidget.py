@@ -10,7 +10,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
-from devices.DeviceBuffer import DeviceBuffer
+from devices.device_buffer import DeviceBuffer
 from gui.tabs.GlobalTab import GlobalTab
 from gui.tabs.RoutingTab import RoutingTab
 from gui.tabs.InterfacesTab import InterfacesTab

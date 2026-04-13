@@ -2,7 +2,7 @@ import os
 import datetime
 from dataclasses import dataclass
 from pathlib import Path
-from devices.Device import Device
+from devices.device import Device
 
 
 BASE_DIR_NAME = "config_history"

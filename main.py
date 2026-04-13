@@ -2,7 +2,7 @@ import sys
 
 from PySide6.QtWidgets import QApplication
 
-from devices.DeviceList import DeviceList
+from devices.device_list import DeviceList
 from gui.MainWindow import MainWindow
 
 if __name__ == "__main__":
