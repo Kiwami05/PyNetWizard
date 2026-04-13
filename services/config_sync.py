@@ -1,12 +1,7 @@
-from typing import Protocol
 from devices.device import Device
 from services.parsed_config import ParsedConfig
 from services.parsers import parse_config
 from platforms.vendor import Vendor
-
-
-class SyncableTab(Protocol):
-    def sync_from_config(self, conf: ParsedConfig) -> None: ...
 
 
 class ConfigSyncService:

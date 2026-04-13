@@ -27,26 +27,6 @@ from services.config_history import save_snapshot
 from services.config_sync import ConfigSyncService
 
 
-# --- MOCK ConnectionManager ---
-class MockConnectionManager:
-    """Tymczasowa atrapa menedżera połączeń (bez Netmiko)."""
-
-    def __init__(self):
-        self.status = {}  # {host: "connected"/"disconnected"/"error"}
-
-    def toggle_status(self, host):
-        """Losowo przełącza status połączenia (do testów GUI)."""
-        current = self.status.get(host, "disconnected")
-        new = "connected" if current != "connected" else "disconnected"
-        self.status[host] = new
-
-    def is_alive(self, device):
-        return self.status.get(device.host, "disconnected") == "connected"
-
-    def get_status(self, device):
-        return self.status.get(device.host, "disconnected")
-
-
 class MainWindow(QMainWindow):
     def __init__(self, device_list: DeviceList):
         super().__init__()
