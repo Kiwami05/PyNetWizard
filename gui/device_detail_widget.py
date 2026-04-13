@@ -11,13 +11,13 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 
 from devices.device_buffer import DeviceBuffer
-from gui.tabs.GlobalTab import GlobalTab
-from gui.tabs.RoutingTab import RoutingTab
-from gui.tabs.InterfacesTab import InterfacesTab
-from gui.tabs.SwitchInterfacesTab import SwitchInterfacesTab
-from gui.tabs.VLANsTab import VLANsTab
-from gui.tabs.ACLTab import ACLTab
-from gui.tabs.SRXPoliciesTab import SRXPoliciesTab
+from gui.tabs.global_tab import GlobalTab
+from gui.tabs.routing_tab import RoutingTab
+from gui.tabs.interfaces_tab import InterfacesTab
+from gui.tabs.switch_interfaces_tab import SwitchInterfacesTab
+from gui.tabs.vlans_tab import VLANsTab
+from gui.tabs.acl_tab import ACLTab
+from gui.tabs.srx_policies_tab import SRXPoliciesTab
 from gui.tab_registry import tab_specs_for_device
 from operations.operation import Operation
 from operations.operation_support import validate_operations_supported_for_device
