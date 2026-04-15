@@ -16,7 +16,7 @@ from services.parsed_config import (
 # hostname
 _HOSTNAME = re.compile(r"^set system host-name (\S+)", re.M)
 
-# interfaces L3
+# interfejsy L3
 # set interfaces ge-0/0/0 unit 0 family inet address 10.0.0.1/24
 _IFACE_INET = re.compile(
     r"^set interfaces (\S+) unit (\d+) family inet address (\S+)",
@@ -88,11 +88,6 @@ _RIP_INTERFACE = re.compile(
 )
 
 
-# ==========================================================
-#                   HELPERY
-# ==========================================================
-
-
 def cidr_to_mask(cidr: int) -> str:
     cidr = int(cidr)
     bits = "1" * cidr + "0" * (32 - cidr)
@@ -136,20 +131,15 @@ def vlan_member_to_id(member: str, vlan_name_to_id: dict[str, str]) -> str:
     return vlan_name_to_id.get(member, member)
 
 
-# ==========================================================
-#                   PARSER GŁÓWNY
-# ==========================================================
-
-
 def parse(raw_config: str) -> ParsedConfig:
     cfg = ParsedConfig(vendor="JUNIPER", raw_running=raw_config)
 
-    # ---------------- hostname ----------------
+    # hostname
     m = _HOSTNAME.search(raw_config)
     if m:
         cfg.hostname = m.group(1)
 
-    # ---------------- VLANs ----------------
+    # VLANy
     vlans = ParsedVLANs()
     vlan_name_to_id: dict[str, str] = {}
 
@@ -163,14 +153,13 @@ def parse(raw_config: str) -> ParsedConfig:
 
     cfg.vlans = vlans
 
-    # ---------------- interfaces ----------------
+    # interfejsy
     ifaces = ParsedInterfaces()
 
-    # IP addresses
+    # adresy IP
     for m in _IFACE_INET.finditer(raw_config):
         iface, unit, addr = m.groups()
 
-        # v1: obsługujemy tylko unit 0
         if unit != "0":
             continue
 
@@ -186,7 +175,6 @@ def parse(raw_config: str) -> ParsedConfig:
         iface = m.group(1)
         ensure_iface(ifaces, iface)["status"] = "down"
 
-    # unit 0 descriptions are useful when physical description is absent
     for m in _IFACE_UNIT_DESC.finditer(raw_config):
         iface, unit, desc = m.groups()
         if unit != "0":
@@ -195,7 +183,6 @@ def parse(raw_config: str) -> ParsedConfig:
         if not info.get("description"):
             info["description"] = clean_junos_value(desc)
 
-    # physical interface descriptions match what the renderer writes
     for m in _IFACE_DESC.finditer(raw_config):
         iface, desc = m.groups()
         ensure_iface(ifaces, iface)["description"] = clean_junos_value(desc)
@@ -244,7 +231,7 @@ def parse(raw_config: str) -> ParsedConfig:
 
     cfg.interfaces = ifaces
 
-    # ---------------- Routing ----------------
+    # Routing
     routing = ParsedRouting()
 
     for m in _STATIC_ROUTE.finditer(raw_config):
@@ -281,7 +268,7 @@ def parse(raw_config: str) -> ParsedConfig:
 
     cfg.routing = routing
 
-    # ---------------- ACLs (puste) ----------------
+    # ACLe (puste)
     cfg.acls = ParsedACLs()
 
     return cfg

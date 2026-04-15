@@ -43,7 +43,7 @@ def parse(raw_running: str, raw_vlan: str | None = None) -> ParsedConfig:
     if m:
         cfg.hostname = m.group(1)
 
-    # interfaces
+    # interfejsy
     ifaces = ParsedInterfaces()
     for m in _INT_START.finditer(raw_running):
         name = m.group(1)
@@ -72,11 +72,10 @@ def parse(raw_running: str, raw_vlan: str | None = None) -> ParsedConfig:
         ifaces.items[name] = info
     cfg.interfaces = ifaces
 
-    # VLANs (z sekcji "vlan X")
+    # VLANy (z sekcji "vlan X")
     vlans = ParsedVLANs()
-    # ==============================================================
+
     # VLANy z `show vlan` (Cisco VLAN database)
-    # ==============================================================
     if raw_vlan:
         for m in _VLAN_SHOW.finditer(raw_vlan):
             vid, name, _ = m.groups()
@@ -85,17 +84,13 @@ def parse(raw_running: str, raw_vlan: str | None = None) -> ParsedConfig:
                 "ports": [],
             }
 
-    # ==============================================================
-    # 2. VLANy z interfejsów SVI (interface VlanX)
-    # ==============================================================
+    # VLANy z interfejsów SVI (interface VlanX)
     import re
 
     for svi in re.findall(r"^interface\s+Vlan(\d+)", raw_running, re.M):
         vlans.items.setdefault(svi, {"name": "", "ports": []})
 
-    # ==============================================================
-    # 3. VLANy z switchport access vlan X
-    # ==============================================================
+    # VLANy z switchport access vlan X
     for ifname, data in ifaces.items.items():
         short = ifname.replace("GigabitEthernet", "Gi")
         start = raw_running.find(f"interface {ifname}")
@@ -107,7 +102,8 @@ def parse(raw_running: str, raw_vlan: str | None = None) -> ParsedConfig:
             vid = m.group(1)
             vlans.items.setdefault(vid, {"name": "", "ports": []})
             vlans.items[vid]["ports"].append(short)
-    # przypięcia portów po śladach w interfejsach
+
+    # przypisania portów po śladach w interfejsach
     for ifname, data in ifaces.items.items():
         # heurystyka aliasu: Gi0/1 itd.
         short = ifname.replace("GigabitEthernet", "Gi")
@@ -124,7 +120,7 @@ def parse(raw_running: str, raw_vlan: str | None = None) -> ParsedConfig:
                     vlans.items[vlan_id]["ports"].append(short)
     cfg.vlans = vlans
 
-    # Routing
+    # ruting
     routing = ParsedRouting()
     for sm in _STATIC_ROUTE.finditer(raw_running):
         routing.static.append(
@@ -147,7 +143,7 @@ def parse(raw_running: str, raw_vlan: str | None = None) -> ParsedConfig:
             )
     cfg.routing = routing
 
-    # ACLs
+    # ACLe
     acls = ParsedACLs()
     for am in _ACL.finditer(raw_running):
         acl, action, proto, src, wc, dest = am.groups()
