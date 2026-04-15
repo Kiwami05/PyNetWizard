@@ -13,11 +13,9 @@ class DeviceBuffer:
         self.hostname = ""
         self.logs = ""
 
-        # dane zakładek (każda tab przechowuje własny podzbiór)
+        # dane zakładek (każdy tab przechowuje własny podzbiór)
         self.tabs = {}  # np. {"GLOBAL": {...}, "INTERFACES": {...}}
-        self.config: ParsedConfig | None = (
-            None  # 🆕 ostatnio pobrany i sparsowany config
-        )
+        self.config: ParsedConfig | None = None  # ostatnio pobrany i sparsowany config
 
     def export_all(self) -> dict:
         """Zwraca stan całego bufora jako dict (do ewentualnego zapisu JSON)."""

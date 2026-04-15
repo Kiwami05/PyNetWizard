@@ -1,5 +1,6 @@
 # network_scanner.py
 from PySide6.QtCore import QObject, Signal
+from pathlib import Path
 import time
 import xml.etree.ElementTree as ET
 
@@ -68,7 +69,6 @@ class NetworkScanner(QObject):
             # python-nmap nie obsłuży przerwania, ale subprocess – tak.
             import subprocess
             import tempfile
-            import os
 
             with tempfile.NamedTemporaryFile(delete=False) as tmpfile:
                 out_path = tmpfile.name
@@ -97,7 +97,7 @@ class NetworkScanner(QObject):
                 return
 
             # Jeśli plik jest pusty — nie parsujemy
-            if os.path.getsize(out_path) < 20:
+            if Path(out_path).stat().st_size < 20:
                 self.finished.emit([])  # 20 bajtów to minimalny poprawny XML
                 return
 
