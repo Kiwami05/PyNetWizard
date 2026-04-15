@@ -1,4 +1,3 @@
-import os
 import datetime
 from dataclasses import dataclass
 from pathlib import Path
@@ -16,8 +15,8 @@ class ConfigSnapshot:
     size: int
 
 
-def _base_dir() -> str:
-    return os.path.join(os.getcwd(), BASE_DIR_NAME)
+def _base_dir() -> Path:
+    return Path.cwd() / BASE_DIR_NAME
 
 
 def _safe_host(host: str) -> str:
@@ -36,13 +35,13 @@ def _safe_host(host: str) -> str:
 
 
 def device_dir(device: Device) -> str:
-    return os.path.join(_base_dir(), _safe_host(device.host))
+    return str(_base_dir() / _safe_host(device.host))
 
 
 def ensure_device_dir(device: Device) -> str:
-    d = device_dir(device)
-    os.makedirs(d, exist_ok=True)
-    return d
+    d = Path(device_dir(device))
+    d.mkdir(parents=True, exist_ok=True)
+    return str(d)
 
 
 def save_snapshot(device: Device, raw_config: str, kind: str = "running") -> str:
@@ -56,13 +55,12 @@ def save_snapshot(device: Device, raw_config: str, kind: str = "running") -> str
     d = ensure_device_dir(device)
     ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"{ts}_{kind}.txt"
-    path = os.path.join(d, filename)
+    path = Path(d) / filename
     try:
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(raw_config)
+        path.write_text(raw_config, encoding="utf-8")
     except OSError:
         return ""
-    return path
+    return str(path)
 
 
 def list_snapshots(device: Device) -> list[ConfigSnapshot]:

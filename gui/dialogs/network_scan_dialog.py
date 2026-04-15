@@ -49,7 +49,7 @@ class NetworkScanDialog(QDialog):
 
         layout = QVBoxLayout(self)
 
-        # --- sieć i maska ---
+        # sieć i maska
         row = QHBoxLayout()
         row.addWidget(QLabel("Sieć:"))
         self.input_network = QLineEdit()
@@ -63,7 +63,7 @@ class NetworkScanDialog(QDialog):
         row.addWidget(self.input_mask)
         layout.addLayout(row)
 
-        # --- checkbox szczegółowego skanu ---
+        # checkbox szczegółowego skanu
         self.checkbox_detailed = QCheckBox(
             "Szczegółowy skan (dłużej, wymaga uprawnień)"
         )
@@ -75,13 +75,13 @@ class NetworkScanDialog(QDialog):
             )
         layout.addWidget(self.checkbox_detailed)
 
-        # --- spinner ---
+        # spinner
         self.progress = QProgressBar()
         self.progress.setAlignment(Qt.AlignCenter)
         self.progress.setTextVisible(False)
         layout.addWidget(self.progress)
 
-        # --- przyciski ---
+        # przyciski
         btn_row = QHBoxLayout()
         self.btn_scan = QPushButton("Skanuj")
         self.btn_cancel = QPushButton("Anuluj")
@@ -98,7 +98,7 @@ class NetworkScanDialog(QDialog):
     def start_scan(self):
         network = self.input_network.text().strip()
         mask = self.input_mask.value()
-        # --- sprawdzamy czy nmap istnieje ---
+        # sprawdzamy czy nmap istnieje
         if not is_nmap_installed():
             QMessageBox.critical(
                 self,

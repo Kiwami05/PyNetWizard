@@ -23,7 +23,7 @@ class SettingsDialog(QDialog):
 
         layout = QVBoxLayout(self)
 
-        # --- Sekcja: Połączenie ---
+        # Połączenie
         layout.addWidget(QLabel("<b>Połączenie</b>"))
         self.combo_type = QComboBox()
         self.combo_type.addItems(["ssh", "telnet"])
@@ -49,7 +49,7 @@ class SettingsDialog(QDialog):
         )
         layout.addWidget(self.chk_save_passwords)
 
-        # --- Sekcja: Netmiko / logi ---
+        # Netmiko / logi
         layout.addWidget(QLabel("<b>Netmiko / logi</b>"))
         self.chk_verbose = QCheckBox("Tryb debugowania (verbose output)")
         self.chk_verbose.setChecked(self.settings.value("verbose", "false") == "true")
@@ -64,14 +64,14 @@ class SettingsDialog(QDialog):
         log_layout.addWidget(btn_browse)
         layout.addLayout(log_layout)
 
-        # --- Sekcja: Wygląd ---
+        # Wygląd
         layout.addWidget(QLabel("<b>Wygląd</b>"))
         self.combo_theme = QComboBox()
         self.combo_theme.addItems(["Jasny", "Ciemny"])
         self.combo_theme.setCurrentText(self.settings.value("theme", "Jasny"))
         layout.addWidget(self.combo_theme)
 
-        # --- Przyciski ---
+        # Przyciski
         btn_row = QHBoxLayout()
         btn_reset = QPushButton("Przywróć domyślne")
         btn_reset.clicked.connect(self.reset_defaults)

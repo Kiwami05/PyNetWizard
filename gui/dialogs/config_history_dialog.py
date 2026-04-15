@@ -1,4 +1,5 @@
 import html
+from pathlib import Path
 from typing import List, Tuple
 
 from PySide6.QtCore import Qt
@@ -246,13 +247,11 @@ class ConfigHistoryDialog(QDialog):
         if reply != QMessageBox.Yes:
             return
 
-        import os
-
         errors = []
         for r in rows:
             snap = self.snapshots[r]
             try:
-                os.remove(snap.path)
+                Path(snap.path).unlink()
             except OSError as e:
                 errors.append(f"{snap.path}: {e}")
 
