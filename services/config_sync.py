@@ -14,7 +14,7 @@ class ConfigSyncService:
             conf = parse_config(device, raw)
 
         else:
-            # === CISCO ===
+            # CISCO
             raw_running = self.cm.send_command(device, "show running-config")
             raw_vlan = self.cm.send_command(device, "show vlan")
 
