@@ -204,7 +204,7 @@ class SwitchInterfacesTab(InterfacesTab):
         spin_mask.setRange(0, 32)
         try:
             spin_mask.setValue(int(cidr_str))
-        except Exception:
+        except (TypeError, ValueError):
             spin_mask.setValue(0)
         spin_mask.setToolTip(
             "Maska w formacie CIDR (0–32). Do IOS trafia maska kropkowa."

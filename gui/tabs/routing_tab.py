@@ -33,7 +33,7 @@ def is_valid_ip(ip: str) -> bool:
     try:
         ipaddress.ip_address(ip)
         return True
-    except Exception:
+    except ValueError:
         return False
 
 
@@ -44,7 +44,7 @@ def is_valid_netmask(mask: str) -> bool:
             return False
         bits = "".join(f"{p:08b}" for p in parts)
         return "01" not in bits  # maska ciągła np. 11111000....
-    except Exception:
+    except (TypeError, ValueError):
         return False
 
 
@@ -57,7 +57,7 @@ def is_valid_wildcard(w: str) -> bool:
             if p < 0 or p > 255:
                 return False
         return True
-    except Exception:
+    except (TypeError, ValueError):
         return False
 
 
