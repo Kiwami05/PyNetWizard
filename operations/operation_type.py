@@ -5,18 +5,18 @@ class OperationType(Enum):
     # Global
     SET_HOSTNAME = auto()
 
-    # VLANs
+    # VLANy
     CREATE_VLAN = auto()
     DELETE_VLAN = auto()
     RENAME_VLAN = auto()
 
-    # Interfaces
+    # Interfejsy
     SET_INTERFACE_IP = auto()
     SET_INTERFACE_STATUS = auto()
     SET_INTERFACE_DESCRIPTION = auto()
     CLEAR_INTERFACE_IP = auto()
 
-    # Switch Interfaces
+    # Interfejsy switcha
     SET_SWITCHPORT_MODE_ACCESS = auto()
     SET_SWITCHPORT_MODE_TRUNK = auto()
     SET_SWITCHPORT_MODE_ROUTED = auto()
@@ -25,7 +25,7 @@ class OperationType(Enum):
     SET_TRUNK_ALLOWED_VLANS = auto()
     CLEAR_TRUNK_ALLOWED_VLANS = auto()
 
-    # Routing
+    # Ruting
     ADD_STATIC_ROUTE = auto()
     DEL_STATIC_ROUTE = auto()
     ENABLE_RIP = auto()
