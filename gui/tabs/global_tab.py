@@ -38,18 +38,18 @@ class GlobalTab(QWidget):
         main_layout.setContentsMargins(20, 15, 20, 15)
         main_layout.setSpacing(15)
 
-        # === Nagłówek ===
+        # Nagłówek
         title = QLabel("<h2>Ustawienia globalne</h2>")
         main_layout.addWidget(title)
 
-        # === Hostname ===
+        # Hostname
         form = QFormLayout()
         self.hostname = QLineEdit()
         self.hostname.setPlaceholderText("np. Router1")
         form.addRow(QLabel("Nazwa hosta:"), self.hostname)
         main_layout.addLayout(form)
 
-        # === NVRAM ===
+        # NVRAM
         nvram_box = self._make_box(
             "Pamięć NVRAM",
             [
@@ -59,7 +59,7 @@ class GlobalTab(QWidget):
         )
         main_layout.addWidget(nvram_box)
 
-        # === Startup-config ===
+        # Startup-config
         startup_box = self._make_box(
             "Startup-config",
             [
@@ -69,7 +69,7 @@ class GlobalTab(QWidget):
         )
         main_layout.addWidget(startup_box)
 
-        # === Running-config ===
+        # Running-config
         running_box = self._make_box(
             "Running-config",
             [
@@ -79,7 +79,7 @@ class GlobalTab(QWidget):
         )
         main_layout.addWidget(running_box)
 
-        # === Sync Configuration ===
+        # Sync Configuration
         self.btn_sync = QPushButton("🔄 Synchronizuj konfigurację")
         self.btn_sync.setToolTip(
             "Pobiera konfigurację z urządzenia i aktualizuje nazwę hosta."
@@ -87,26 +87,18 @@ class GlobalTab(QWidget):
         self.btn_sync.clicked.connect(self._action_sync)
         main_layout.addWidget(self.btn_sync)
 
-        # === Wypełniacz ===
+        # Spacer
         spacer = QSpacerItem(10, 10, QSizePolicy.Minimum, QSizePolicy.Expanding)
         main_layout.addItem(spacer)
-
-    # ==============================================================
-    #                    PUBLIC API
-    # ==============================================================
 
     def bind_device(self, device: Device, conn_mgr):
         """Podpina aktualne urządzenie i ConnectionManager."""
         self.device = device
         self.conn_mgr = conn_mgr
-        self._append_log(f"[INFO] Binded to {device.host}")
+        self._append_log(f"[INFO] Połączono z {device.host}")
 
     def set_logger(self, log_message):
         self._log_message = log_message or (lambda _text: None)
-
-    # ==============================================================
-    #                    PRZYCISKI (AKCJE)
-    # ==============================================================
 
     def _action_sync(self):
         """Pobiera konfigurację i aktualizuje hostname."""
@@ -196,7 +188,7 @@ class GlobalTab(QWidget):
                 QMessageBox.information(
                     self, "Zapisano", f"Startup-config zapisany do {filename}"
                 )
-            self._append_log("[EXPORT] Startup config saved.")
+            self._append_log("[EXPORT] Zapisano startup-config.")
         except Exception as e:
             self._append_log(f"[ERROR] {e}")
             QMessageBox.critical(self, "Błąd eksportu", str(e))
@@ -216,7 +208,7 @@ class GlobalTab(QWidget):
                 QMessageBox.information(
                     self, "Zapisano", f"Running-config zapisany do {filename}"
                 )
-            self._append_log("[EXPORT] Running config saved.")
+            self._append_log("[EXPORT] Zapisano running-config.")
         except Exception as e:
             self._append_log(f"[ERROR] {e}")
             QMessageBox.critical(self, "Błąd eksportu", str(e))
@@ -241,10 +233,6 @@ class GlobalTab(QWidget):
         except Exception as e:
             self._append_log(f"[ERROR] {e}")
             QMessageBox.critical(self, "Błąd merge", str(e))
-
-    # ==============================================================
-    #                    POMOCNICZE
-    # ==============================================================
 
     def _make_box(self, title: str, buttons: list[tuple[str, callable]]) -> QGroupBox:
         """Pomocniczy konstruktor sekcji (grup z przyciskami)."""
@@ -272,10 +260,6 @@ class GlobalTab(QWidget):
     def _append_log(self, text: str):
         self._log_message(text)
 
-    # ==============================================================
-    #                  API: export/import stanu
-    # ==============================================================
-
     def export_state(self) -> dict:
         return {
             "hostname": self.hostname.text(),
@@ -290,8 +274,12 @@ class GlobalTab(QWidget):
             self.hostname.setText(conf.hostname)
         # Podgląd — kilka pierwszych linii jako log
         if conf.raw_running:
-            head = "\n".join(conf.raw_running.splitlines()[:10])
-            self._append_log("[SYNC] Snapshot running-config (head):\n" + head)
+            head_len = 10
+            head = "\n".join(conf.raw_running.splitlines()[:head_len])
+            self._append_log(
+                f"[SYNC] Snapshot running-config (pierwsze {head_len} linijek):\n"
+                + head
+            )
 
     def build_pending_from_form(self, conf) -> list[Operation]:
         ops: list[Operation] = []
@@ -299,10 +287,3 @@ class GlobalTab(QWidget):
         if ui_host and ui_host != (conf.hostname or ""):
             ops.append(Operation(OperationType.SET_HOSTNAME, hostname=ui_host))
         return ops
-
-    def get_pending_commands(self, clear: bool = False):
-        # GlobalTab pending pochodzi wyłącznie z różnicy hostname
-        return []
-
-    def clear_pending_commands(self):
-        pass
