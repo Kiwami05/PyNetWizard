@@ -42,33 +42,22 @@ class DeviceDetailWidget(QWidget):
         main_layout.setContentsMargins(10, 10, 10, 10)
         main_layout.setSpacing(10)
 
-        # === GÓRNY PANEL (zakładki + widok treści) ===
+        # Górny panel: zakładki + widok treści)
         content_frame = QFrame()
         content_layout = QHBoxLayout(content_frame)
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.setSpacing(10)
         main_layout.addWidget(content_frame, 4)
 
-        # === LEWY PANEL: lista kategorii ===
+        # Lewy panel: lista kategorii
         self.category_list = QListWidget()
-        # self.category_list.setStyleSheet("""
-        #     QListWidget {
-        #         background-color: #f5f5f5;
-        #         font-weight: bold;
-        #         border: 1px solid #aaa;
-        #     }
-        #     QListWidget::item:selected {
-        #         background-color: #0078d7;
-        #         color: white;
-        #     }
-        # """)
         content_layout.addWidget(self.category_list, 1)
 
-        # === PRAWY PANEL: zawartość zakładek ===
+        # Prawy panel: zawartość zakładek
         self.stack = QStackedWidget()
         content_layout.addWidget(self.stack, 3)
 
-        # --- Strony (tworzone raz, ale dodawane dynamicznie) ---
+        # Strony (tworzone raz, ale dodawane dynamicznie)
         self.pages = {
             "GLOBAL": GlobalTab(),
             "ROUTING": RoutingTab(),
@@ -83,10 +72,10 @@ class DeviceDetailWidget(QWidget):
             if hasattr(page, "set_logger"):
                 page.set_logger(self.append_console)
 
-        # Po kliknięciu w liście zmieniamy stronę
+        # Po kliknięciu na liscie zmieniamy stronę
         self.category_list.currentRowChanged.connect(self.stack.setCurrentIndex)
 
-        # === DOLNA KONSOLA ===
+        # Konsola zdarzeń
         self.console = QPlainTextEdit()
         self.console.setReadOnly(True)
         self.console.setPlaceholderText("Podgląd komend...")
@@ -100,8 +89,6 @@ class DeviceDetailWidget(QWidget):
         """)
         main_layout.addWidget(self.console, 1)
 
-    # === Pomocnicze metody ===
-
     def clear_stack(self):
         """Usuwa wszystkie widgety ze stacka."""
         while self.stack.count():
@@ -110,7 +97,6 @@ class DeviceDetailWidget(QWidget):
 
     def show_for_device(self, device):
         """Aktualizuje zakładki w zależności od typu urządzenia i przywraca stan z bufora."""
-        # 🆕 zapisz stan poprzedniego urządzenia
         if self.current_device:
             self.save_tab_state(self.current_device)
 
@@ -136,7 +122,7 @@ class DeviceDetailWidget(QWidget):
 
         self.category_list.setCurrentRow(0)
 
-        # 🆕 wczytaj stan z bufora
+        # Wczytaj stan z bufora
         self.load_tab_state(device)
         self.load_console_state(device)
 
@@ -167,10 +153,6 @@ class DeviceDetailWidget(QWidget):
         if buf and buf.logs:
             self.console.setPlainText(buf.logs)
 
-    # =====================================================
-    #        OBSŁUGA BUFORA (export/import zakładek)
-    # =====================================================
-
     def save_tab_state(self, device):
         """Zapisuje stan aktualnych zakładek do bufora."""
         if not device:
@@ -190,7 +172,7 @@ class DeviceDetailWidget(QWidget):
 
         buf = self.buffers.get(device.host)
         if not buf:
-            # 🆕 brak bufora — wyczyść wszystkie taby
+            # Brak bufora — wyczyść wszystkie taby
             for name, tab in self.pages.items():
                 if hasattr(tab, "import_state"):
                     try:
@@ -199,7 +181,7 @@ class DeviceDetailWidget(QWidget):
                         pass
             return
 
-        # 🧠 bufor istnieje — przywróć stan
+        # bufor istnieje — przywróć stan
         for name, tab in self.pages.items():
             if name in buf.tabs and hasattr(tab, "import_state"):
                 try:
@@ -214,7 +196,7 @@ class DeviceDetailWidget(QWidget):
         buf.tabs.setdefault("GLOBAL", {})
         buf.config = conf  # zawsze aktualny snapshot
 
-        # Rozsyłanie do aktywnych tabów, tylko tych które istnieją teraz w stacku
+        # Rozsyłanie do aktywnych tabów, tylko tych, które istnieją teraz na stosie
         for idx in range(self.stack.count()):
             widget = self.stack.widget(idx)
             if hasattr(widget, "sync_from_config"):
@@ -255,19 +237,19 @@ class DeviceDetailWidget(QWidget):
             elif hasattr(w, "get_pending_commands"):
                 legacy_cmds.extend(w.get_pending_commands(clear=False))
 
-        # 2) GlobalTab → OPERACJE
+        # GlobalTab → OPERACJE
         g = self.pages.get("GLOBAL")
         if g and hasattr(g, "build_pending_from_form"):
             pending_ops.extend(g.build_pending_from_form(conf))
 
-        # 3) Renderowanie operacji → CLI
+        # Renderowanie operacji → CLI
         rendered_cmds: list[str] = []
         if pending_ops:
             validate_operations_supported_for_device(self.current_device, pending_ops)
             renderer = RendererFactory.for_vendor(self.current_device.vendor)
             rendered_cmds = renderer.render(pending_ops)
 
-        # 4) Finalna lista
+        # Finalna lista
         final_cmds = []
         final_cmds.extend(c.strip() for c in legacy_cmds if c.strip())
         final_cmds.extend(c.strip() for c in rendered_cmds if c.strip())

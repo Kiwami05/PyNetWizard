@@ -36,12 +36,12 @@ class MainWindow(QMainWindow):
         self.device_list = device_list
         self.current_device = None
 
-        # === CENTRALNY WIDGET ===
+        # Centralny widget
         central = QWidget()
         self.setCentralWidget(central)
         main_layout = QHBoxLayout(central)
 
-        # === LEWY PANEL: lista hostów + przyciski ===
+        # Lewy panel: lista hostów + przyciski
         left_panel = QVBoxLayout()
 
         btn_add = QPushButton("Dodaj urządzenie")
@@ -61,11 +61,11 @@ class MainWindow(QMainWindow):
 
         main_layout.addLayout(left_panel, 1)
 
-        # === PRAWY PANEL: detail box (taby) ===
+        # Prawy panel: rozwinięcie tabów
         self.detail_box = DeviceDetailWidget()
         main_layout.addWidget(self.detail_box, 2)
 
-        # === MENU BAR ===
+        # Pasek menu
         menubar = self.menuBar()
         file_menu = menubar.addMenu("Plik")
 
@@ -121,20 +121,20 @@ class MainWindow(QMainWindow):
         settings_action = menubar.addAction("Ustawienia")
         settings_action.triggered.connect(self.open_settings_dialog)
 
-        # --- NOWE: status bar ---
+        # Pasek stanu (połączenia)
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
         self.status_label = QLabel("Gotowy.")
         self.status_label.setStyleSheet("font-family: monospace;")
         self.status_bar.addPermanentWidget(self.status_label)
 
-        # --- NOWE: zegar i timer odświeżania ---
+        # Zegar i timer odświeżania
         self.last_check_time = QTime.currentTime()
         self.status_timer = QTimer(self)
         self.status_timer.timeout.connect(self.update_status_bar)
         self.status_timer.start(4000)  # co 4 sekundy
 
-        # --- ustawienia ---
+        # Ustawienia
         self.settings = QSettings("WEEiA", "PyNetWizard")
         self.connection_type = self.settings.value("connection_type", "ssh")
 
@@ -147,10 +147,7 @@ class MainWindow(QMainWindow):
 
         self.config_sync = ConfigSyncService(self.connection_manager)
 
-        # --- inicjalne urządzenia ---
         self.refresh_device_buttons()
-
-    # === METODY GUI ===
 
     def refresh_device_buttons(self):
         """Odświeża listę przycisków urządzeń w panelu po lewej."""
@@ -165,7 +162,7 @@ class MainWindow(QMainWindow):
             btn.setContextMenuPolicy(Qt.CustomContextMenu)
             btn.clicked.connect(lambda _, d=dev: self.show_device_details(d))
 
-            # klik PPM — usuń urządzenie
+            # PPM — usuń urządzenie
             def open_context_menu(pos, d=dev, b=btn):
                 from PySide6.QtWidgets import QMenu
 
@@ -225,7 +222,7 @@ class MainWindow(QMainWindow):
         self.detail_box.show_for_device(device)
         self.update_status_bar()
 
-        # 🔸 Po wybraniu urządzenia — powiąż zakładkę GLOBAL z ConnectionManagerem
+        # Po wybraniu urządzenia — powiąż zakładkę GLOBAL z ConnectionManagerem
         if device and "GLOBAL" in self.detail_box.pages:
             try:
                 global_tab = self.detail_box.pages["GLOBAL"]
@@ -285,7 +282,6 @@ class MainWindow(QMainWindow):
         if dialog.exec() == QDialog.Accepted:
             self.connection_type = dialog.get_connection_type()
 
-    # --- NOWE: aktualizacja statusu ---
     def update_status_bar(self):
         """Odświeża pasek statusu (co 4 sekundy)."""
         if not self.current_device:
@@ -310,8 +306,6 @@ class MainWindow(QMainWindow):
         self.settings.setValue("connection_type", self.connection_type)
         super().closeEvent(event)
 
-    # --- MOCKOWE FUNKCJE KONFIGURACYJNE ---
-
     def apply_current_device(self):
         if not self.current_device:
             QMessageBox.warning(self, "Brak urządzenia", "Nie wybrano urządzenia.")
@@ -330,7 +324,7 @@ class MainWindow(QMainWindow):
             if not self.connection_manager.connect(dev):
                 raise ConnectionError("Nie udało się nawiązać połączenia.")
 
-            # 1) Zbierz pending z aktualnych tabów
+            # Zbierz pending z aktualnych tabów
             cmds = self.detail_box.collect_pending_commands_current(buf.config)
             cmds = [c.strip() for c in cmds if c.strip()]
 
@@ -338,17 +332,17 @@ class MainWindow(QMainWindow):
                 QMessageBox.information(self, "Brak zmian", "Nie ma nic do wysłania.")
                 return
 
-            # 2) Wyślij
+            # Wyślij
             output = self.connection_manager.send_config(dev, cmds)
             self.detail_box.append_console(output)
 
-            # 3) Po sukcesie wyczyść pendingi w aktywnych tabach
+            # Po sukcesie wyczyść pendingi w aktywnych tabach
             self.detail_box.clear_pending_commands_current()
             self.detail_box.append_console(
                 f"[APPLY] Wysłano {len(cmds)} komend do {dev.host}"
             )
 
-            # 4) (Mocno zalecane) Odśwież snapshot i UI – jedna prawda
+            # Odśwież snapshot i UI
             self.sync_current_device()
             QMessageBox.information(
                 self, "Zatwierdzono", f"Konfiguracja zapisana na {dev.host}."
@@ -373,7 +367,7 @@ class MainWindow(QMainWindow):
         for dev in self.device_list.devices:
             buf = self.detail_box.buffers.get(dev.host)
             if not buf or not buf.config:
-                # brak snapshotu → pomiń, albo (opcjonalnie) zrób sync automatycznie
+                # brak snapshotu → pomiń albo (opcjonalnie) zrób sync automatycznie
                 continue
 
             try:
@@ -392,13 +386,10 @@ class MainWindow(QMainWindow):
                 self.detail_box.clear_pending_commands_in_buffer(dev.host)
                 applied += 1
 
-                # (Opcjonalnie) szybki resync każdego urządzenia:
-                # Tu można pominąć dla wydajności, a zrobić zbiorczy komunikat,
-                # ale najczyściej: po apply — sync, żeby snapshot pasował.
+                # szybki resync każdego urządzenia
                 if dev == self.current_device:
-                    self.sync_current_device()  # pokaże od razu aktualizację
+                    self.sync_current_device()
                 else:
-                    # light-weight: pobierz i zaktualizuj tylko snapshot, bez przełączania UI
                     try:
                         conf = self.config_sync.fetch_and_parse(dev)
                         buf.config = conf
@@ -428,18 +419,18 @@ class MainWindow(QMainWindow):
         try:
             if not self.connection_manager.connect(dev):
                 raise ConnectionError("Nie udało się połączyć.")
-            # 🆕 pobranie + parsowanie
+            # Pobranie + parsowanie
             conf = self.config_sync.fetch_and_parse(dev)
 
-            # 🆕 rozesłanie do tabów
+            # Sync-owanie tab-ów
             self.detail_box.sync_tabs_from_config(conf)
 
-            # 🆕 zapis snapshotu do historii (raw_running)
+            # Zapis snapshotu do historii (raw_running)
             try:
                 if conf.raw_running:
                     save_snapshot(dev, conf.raw_running, kind="running")
             except Exception:
-                # nie chcemy wywracać całego SYNC-a przez problem z dyskiem
+                # nie chcemy wywracać całego sync-a przez problem z dyskiem
                 pass
 
             # 🧾 konsola globalna + status
@@ -533,23 +524,23 @@ class MainWindow(QMainWindow):
 
         dlg = AddDeviceDialog(self)
 
-        # wypełnij istniejącymi danymi
+        # Wypełnij istniejącymi danymi
         dlg.input_host.setText(device.host)
         dlg.input_username.setText(device.username)
         dlg.input_password.setText(device.password)
 
-        # vendor
+        # Producent
         if device.vendor.name == "CISCO":
             dlg.radio_cisco.setChecked(True)
         else:
             dlg.radio_juniper.setChecked(True)
 
-        # typ urządzenia
+        # Typ urządzenia
         dlg.combo_devtype.setCurrentText(device.device_type.name.title())
 
         if dlg.exec():
             new_device = dlg.get_data()
-            # aktualizacja obiektu
+            # Aktualizacja obiektu
             device.host = new_device.host
             device.username = new_device.username
             device.password = new_device.password
@@ -558,7 +549,7 @@ class MainWindow(QMainWindow):
 
             self.device_list.sort_devices()
             self.refresh_device_buttons()
-            # odśwież widok jeśli edytowaliśmy aktualnie wybrane urządzenie
+            # Odśwież widok, jeśli edytowaliśmy aktualnie wybrane urządzenie
             if self.current_device == device:
                 self.show_device_details(device)
 
