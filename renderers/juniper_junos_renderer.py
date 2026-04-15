@@ -22,7 +22,7 @@ class JuniperJunosRenderer(OperationRenderer):
             if op.operation_type == OperationType.SET_HOSTNAME:
                 hostname = op.args["hostname"]
                 cmds.append(f"set system host-name {hostname}")
-            # === VLANS ===
+            # VLANy
             elif op.operation_type == OperationType.CREATE_VLAN:
                 vid = op.args["vlan_id"]
                 name = op.args.get("name")
@@ -42,7 +42,7 @@ class JuniperJunosRenderer(OperationRenderer):
                     cmds.append(f'set vlans vlan-{vid} description "{name}"')
                 else:
                     cmds.append(f"delete vlans vlan-{vid} description")
-            # === INTERFACES ===
+            # Interfejsy
             elif op.operation_type == OperationType.SET_INTERFACE_DESCRIPTION:
                 iface = op.args["iface"]
                 desc = op.args.get("description")
@@ -75,7 +75,7 @@ class JuniperJunosRenderer(OperationRenderer):
                     cmds.append(f"delete interfaces {iface} disable")
                 else:
                     cmds.append(f"set interfaces {iface} disable")
-            # === SWITCH INTERFACES ===
+            # Interfejsy switcha
             elif op.operation_type == OperationType.SET_SWITCHPORT_MODE_ACCESS:
                 iface = op.args["iface"]
                 cmds.append(
@@ -136,7 +136,7 @@ class JuniperJunosRenderer(OperationRenderer):
                     f"delete interfaces {iface} unit 0 family ethernet-switching "
                     f"vlan members"
                 )
-            # === ROUTING ===
+            # Ruting
             elif op.operation_type == OperationType.ADD_STATIC_ROUTE:
                 prefix = _ipv4_prefix(op.args["dest"], op.args["mask"])
                 cmds.append(
@@ -178,7 +178,7 @@ class JuniperJunosRenderer(OperationRenderer):
                 OperationType.DEL_OSPF_NETWORK,
             ):
                 raise NotImplementedError("Cisco-style OSPF is not supported on Junos")
-            # === SRX POLICIES ===
+            # Polityki SRX
             elif op.operation_type == OperationType.ADD_SRX_POLICY:
                 from_zone = op.args["from_zone"]
                 to_zone = op.args["to_zone"]
@@ -214,12 +214,12 @@ class JuniperJunosRenderer(OperationRenderer):
 
 
 def _ipv4_prefix(address: str, mask: str) -> str:
-    """Converts GUI route fields to Junos prefix notation, e.g. 10.0.0.0/24."""
+    """Konwertuje pola tras w interfejsie graficznym na notację prefiksową Junos, np. 10.0.0.0/24."""
     return str(IPv4Network(f"{address}/{mask}", strict=False))
 
 
 def _junos_vlan_name(vlan_id) -> str:
-    """Matches the current Junos VLAN object naming convention used by the app."""
+    """Zgodne z aktualnymi zasadami nazewnictwa obiektów VLAN w systemie Junos stosowanymi przez aplikację"""
     return f"vlan-{vlan_id}"
 
 

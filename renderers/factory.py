@@ -16,4 +16,4 @@ class RendererFactory:
         if vendor == Vendor.JUNIPER:
             return JuniperJunosRenderer()
 
-        raise ValueError(f"No renderer available for vendor {vendor}")
+        raise ValueError(f"Brak renderer-a dla producenta {vendor}")

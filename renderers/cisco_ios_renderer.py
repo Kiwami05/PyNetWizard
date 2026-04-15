@@ -18,13 +18,11 @@ class CiscoIOSRenderer(OperationRenderer):
         if not ops:
             return cmds
 
-        # cmds.append("configure terminal")
-
         for op in ops:
             if op.operation_type == OperationType.SET_HOSTNAME:
                 hostname = op.args["hostname"]
                 cmds.append(f"hostname {hostname}")
-            # === VLANS ===
+            # VLANy
             elif op.operation_type == OperationType.CREATE_VLAN:
                 vid = op.args["vlan_id"]
                 name = op.args.get("name")
@@ -45,7 +43,7 @@ class CiscoIOSRenderer(OperationRenderer):
                 else:
                     cmds.append(" no name")
                 cmds.append(" exit")
-            # === INTERFACES ===
+            # Interfejsy
             elif op.operation_type == OperationType.SET_INTERFACE_DESCRIPTION:
                 iface = op.args["iface"]
                 desc = op.args.get("description")
@@ -80,7 +78,7 @@ class CiscoIOSRenderer(OperationRenderer):
                 cmds.append(f"interface {iface}")
                 cmds.append(" no shutdown" if enabled else " shutdown")
                 cmds.append(" exit")
-            # === SWITCH INTERFACES ===
+            # Interfejsy switcha
             elif op.operation_type == OperationType.SET_SWITCHPORT_MODE_ACCESS:
                 iface = op.args["iface"]
 
@@ -126,7 +124,7 @@ class CiscoIOSRenderer(OperationRenderer):
                 cmds.append(f"interface {iface}")
                 cmds.append(" no switchport trunk allowed vlan")
                 cmds.append(" exit")
-            # === ROUTING ===
+            # Ruting
             elif op.operation_type == OperationType.ADD_STATIC_ROUTE:
                 cmds.append(
                     f"ip route {op.args['dest']} {op.args['mask']} {op.args['nh']}"
@@ -181,7 +179,7 @@ class CiscoIOSRenderer(OperationRenderer):
                         " exit",
                     ]
                 )
-            # === ACL ===
+            # ACLe
             elif op.operation_type == OperationType.ADD_ACL_RULE:
                 cmd = (
                     f"access-list {op.args['acl_name']} extended "
