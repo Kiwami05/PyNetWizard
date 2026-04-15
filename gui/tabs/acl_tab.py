@@ -23,7 +23,7 @@ import re
 
 class ACLTab(QWidget):
     """
-    ASA-only ACL configuration tab.
+    Zakłada ASA ACL.
 
     Obsługuje:
       - named ACL w formacie ASA:
@@ -62,14 +62,10 @@ class ACLTab(QWidget):
         main.setContentsMargins(20, 15, 20, 15)
         main.setSpacing(10)
 
-        # ----------------------------------------------------------
-        # HEADER
-        # ----------------------------------------------------------
+        # Nagłówek
         main.addWidget(QLabel("<h2>Listy ACL dla Cisco ASA</h2>"))
 
-        # ----------------------------------------------------------
-        # ACL NAME SELECTION
-        # ----------------------------------------------------------
+        # Wybór ACL
         acl_box = QGroupBox("Wybierz lub utwórz ACL")
         acl_form = QFormLayout(acl_box)
         acl_form.setRowWrapPolicy(QFormLayout.WrapLongRows)
@@ -85,9 +81,7 @@ class ACLTab(QWidget):
 
         main.addWidget(acl_box)
 
-        # ----------------------------------------------------------
-        # ADD RULE
-        # ----------------------------------------------------------
+        # Dodawanie reguł
         rule_box = QGroupBox("Dodaj regułę do ACL")
         rule_form = QFormLayout(rule_box)
 
@@ -118,9 +112,7 @@ class ACLTab(QWidget):
 
         main.addWidget(rule_box)
 
-        # ----------------------------------------------------------
-        # RULE TABLE
-        # ----------------------------------------------------------
+        # Tabela reguł
         self.table_rules = QTableWidget(0, 5)
         self.table_rules.setHorizontalHeaderLabels(
             ["Akcja", "Protokół", "Źródło", "Cel", "Opcje portu"]
@@ -131,7 +123,7 @@ class ACLTab(QWidget):
 
         main.addWidget(self.table_rules, 4)
 
-        # Delete rule
+        # Usuwanie reguł
         row = QHBoxLayout()
         btn_del_rule = QPushButton("Usuń regułę")
         btn_del_rule.clicked.connect(self._delete_rule)
@@ -139,9 +131,7 @@ class ACLTab(QWidget):
         row.addStretch()
         main.addLayout(row)
 
-        # ----------------------------------------------------------
-        # BINDINGS (access-group)
-        # ----------------------------------------------------------
+        # Przypisywanie ACL-i
         bind_box = QGroupBox("Przypisanie ACL do interfejsu")
         bind_form = QFormLayout(bind_box)
         bind_form.setRowWrapPolicy(QFormLayout.WrapLongRows)
@@ -182,7 +172,7 @@ class ACLTab(QWidget):
 
         # Dodajemy do głównego layoutu:
         main.addWidget(bind_box)  # bind_form jest wewnątrz bind_box
-        main.addLayout(bind_bottom)  # tabela + delete-button — osobny layout
+        main.addLayout(bind_bottom)  # tabela + delete-button w osobnym layoucie
 
     def set_logger(self, log_message):
         self._log_message = log_message or (lambda _text: None)
@@ -190,21 +180,13 @@ class ACLTab(QWidget):
     def _append_log(self, text: str):
         self._log_message(text)
 
-    # ==============================================================
-    # SELECT ACL NAME
-    # ==============================================================
-
     def _select_acl(self):
         name = self.input_acl_name.text().strip()
         if not name:
             QMessageBox.warning(self, "Błąd", "Wpisz nazwę ACL.")
             return
         self.current_acl_name = name
-        self._append_log(f"! Using ASA ACL: {name}")
-
-    # ==============================================================
-    # ADD RULE (ASA FORMAT)
-    # ==============================================================
+        self._append_log(f"! Używanie ASA ACL: {name}")
 
     def _add_rule(self):
         if not self.current_acl_name:
@@ -217,7 +199,7 @@ class ACLTab(QWidget):
         dest = self.dest_input.text().strip() or "any"
         port = self.port_input.text().strip()
 
-        # Dodaj do tabeli reguł
+        # Dodawanie do tabeli reguł
         r = self.table_rules.rowCount()
         self.table_rules.insertRow(r)
         self.table_rules.setItem(r, 0, QTableWidgetItem(action))
@@ -238,17 +220,13 @@ class ACLTab(QWidget):
                 port=port or None,
             )
         )
-        self._append_log(f"[OP] added ACL {self.current_acl_name} rule")
+        self._append_log(f"[OP] Dodano regułę {self.current_acl_name}")
 
-        # Wyczyść inputy
+        # Czyszczenie inputów
         self.proto_input.clear()
         self.src_input.clear()
         self.dest_input.clear()
         self.port_input.clear()
-
-    # ==============================================================
-    # DELETE RULE
-    # ==============================================================
 
     def _delete_rule(self):
         r = self.table_rules.currentRow()
@@ -277,12 +255,8 @@ class ACLTab(QWidget):
                 port=port or None,
             )
         )
-        self._append_log(f"[OP] removed ACL {self.current_acl_name} rule")
+        self._append_log(f"[OP] Usunięto regułę {self.current_acl_name}")
         self.table_rules.removeRow(r)
-
-    # ==============================================================
-    # BIND ACL TO INTERFACE (access-group)
-    # ==============================================================
 
     def _bind_acl(self):
         if not self.current_acl_name:
@@ -318,7 +292,7 @@ class ACLTab(QWidget):
                 )
                 self.table_bindings.removeRow(existing_row)
 
-        # Dodaj nowe wiązanie
+        # Dodawanie nowego wiązania
         self.pending_ops.append(
             Operation(
                 OperationType.UNBIND_ACL,
@@ -328,7 +302,7 @@ class ACLTab(QWidget):
             )
         )
         self._append_log(
-            f"[OP] bound ACL {self.current_acl_name} to {nameif} interface."
+            f"[OP] Przypisano ACL {self.current_acl_name} do interfejsu {nameif}."
         )
 
         r = self.table_bindings.rowCount()
@@ -365,12 +339,8 @@ class ACLTab(QWidget):
                 interface=nameif,
             )
         )
-        self._append_log(f"[OP] unbound ACL {acl}")
+        self._append_log(f"[OP] Usunięto przypisanie ACL {acl}")
         self.table_bindings.removeRow(r)
-
-    # ==============================================================
-    # PENDING COMMAND API
-    # ==============================================================
 
     def get_pending_operations(self, clear=False) -> list[Operation]:
         ops = list(self.pending_ops)
@@ -380,10 +350,6 @@ class ACLTab(QWidget):
 
     def clear_pending_operations(self):
         self.pending_ops.clear()
-
-    # ==============================================================
-    # SYNC FROM CONFIG (ASA FORMAT + INTERFACES + BINDINGS)
-    # ==============================================================
 
     def sync_from_config(self, conf: ParsedConfig):
         """
@@ -418,21 +384,16 @@ class ACLTab(QWidget):
             # 3) access-group powiązania
             self._parse_access_groups(text)
 
-            self._append_log("[SYNC] ASA ACLs and bindings loaded from running-config.")
+            self._append_log(
+                "[SYNC] Listy kontrolne ACL ASA i powiązania zaczytane z running-config."
+            )
 
-            # auto-select pierwszej ACL jeśli żadna nie ustawiona
+            # auto-select pierwszego ACL, jeśli żadna nie ustawiona
             if self.current_acl_name is None and self.table_rules.rowCount() > 0:
-                # spróbuj zebrać unikalne nazwy ACL z rules
-                # (tu ich nie trzymamy per wiersz, więc jeśli chcesz multi-ACL
-                #  trzeba by rozbudować model; na razie zakładamy jedną ACL na tab)
                 pass
 
         finally:
             self._loading = False
-
-    # --------------------------------------------------------------
-    # Parsing helpers
-    # --------------------------------------------------------------
 
     def _parse_interfaces_with_nameif(self, lines: list[str]):
         """
@@ -457,8 +418,6 @@ class ACLTab(QWidget):
                 if m_nm:
                     nameif = m_nm.group(1)
                     self._iface_map.append((nameif, current_iface))
-                    # nie resetujemy current_iface, bo inne komendy też mogą być w bloku
-                    # ale nameif mamy już zapisany
                     continue
 
     def _populate_iface_combo(self):
@@ -493,7 +452,7 @@ class ACLTab(QWidget):
             self.table_rules.setItem(r, 3, QTableWidgetItem(dest))
             self.table_rules.setItem(r, 4, QTableWidgetItem(tail))
 
-            # jeśli nie mamy jeszcze current_acl_name, ustaw z pierwszej znalezionej
+            # jeśli nie mamy jeszcze current_acl_name, ustawia pierwszy znaleziony
             if self.current_acl_name is None:
                 self.current_acl_name = name
                 self.input_acl_name.setText(name)
@@ -517,7 +476,7 @@ class ACLTab(QWidget):
             self.table_bindings.setItem(r, 1, QTableWidgetItem(direction))
             self.table_bindings.setItem(r, 2, QTableWidgetItem(nameif))
 
-            # jeśli ACL nie ustawione, a znaleźliśmy binding, weź nazwę z bindingu
+            # jeśli ACL nie ustawione, a znaleźliśmy binding, bierzemy nazwę z bindingu
             if self.current_acl_name is None:
                 self.current_acl_name = acl
                 self.input_acl_name.setText(acl)

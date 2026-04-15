@@ -20,11 +20,6 @@ from operations.operation_type import OperationType
 from services.parsed_config import ParsedConfig
 
 
-# ================================================================
-#                    WALIDACJE + KONWERSJE MASK
-# ================================================================
-
-
 def is_valid_ip(addr: str) -> bool:
     try:
         ipaddress.ip_address(addr)
@@ -62,11 +57,6 @@ def mask_to_cidr(mask: str) -> int:
         return 0
 
 
-# ================================================================
-#                         KLASA TABA
-# ================================================================
-
-
 class InterfacesTab(QWidget):
     """
     Bazowy tab interfejsów (bez trybu portu).
@@ -88,17 +78,13 @@ class InterfacesTab(QWidget):
         self._loading: bool = False  # blokuje eventy podczas sync/import
         self._log_message = lambda _text: None
 
-        # ============================================================
-        #                           UI
-        # ============================================================
-
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(20, 15, 20, 15)
         main_layout.setSpacing(10)
 
         main_layout.addWidget(QLabel("<h2>Konfiguracja interfejsów</h2>"))
 
-        # --- Tabela interfejsów ---
+        # Tabela interfejsów
         self.table = QTableWidget(0, 5)
         self.table.setHorizontalHeaderLabels(
             ["Nazwa", "Opis", "Adres IP", "Maska (/CIDR)", "Status"]
@@ -107,7 +93,7 @@ class InterfacesTab(QWidget):
 
         main_layout.addWidget(self.table, 4)
 
-        # --- Przyciski operacyjne (Enable/Disable) ---
+        # Przyciski operacyjne (Enable/Disable)
         btns = QHBoxLayout()
         self.btn_enable = QPushButton("Włącz")
         self.btn_disable = QPushButton("Wyłącz")
@@ -127,34 +113,30 @@ class InterfacesTab(QWidget):
     def _append_log(self, text: str):
         self._log_message(text)
 
-    # ================================================================
-    #                       TWORZENIE WIERSZA
-    # ================================================================
-
     def _create_interface_row(self, name, desc, ip, cidr_str, status):
         row = self.table.rowCount()
         self.table.insertRow(row)
 
-        # ==== NAME ====
+        # Nazwa interfejsu
         item_name = QTableWidgetItem(name)
         item_name.setFlags(item_name.flags() & ~Qt.ItemIsEditable)
         self.table.setItem(row, self.COL_NAME, item_name)
 
-        # ==== DESC ====
+        # Opis
         edit_desc = QLineEdit(desc)
         edit_desc.setToolTip("Opis interfejsu (opcjonalny).")
         edit_desc.setProperty("iface", name)
         edit_desc.editingFinished.connect(self._on_desc_changed)
         self.table.setCellWidget(row, self.COL_DESC, edit_desc)
 
-        # ==== IP ====
+        # IP
         edit_ip = QLineEdit(ip)
         edit_ip.setToolTip("Adres IPv4 (np. 192.168.1.1).")
         edit_ip.setProperty("iface", name)
         edit_ip.editingFinished.connect(self._on_ip_changed)
         self.table.setCellWidget(row, self.COL_IP, edit_ip)
 
-        # ==== MASK (CIDR) ====
+        # Maska (CIDR)
         spin_mask = QSpinBox()
         spin_mask.setRange(0, 32)
         spin_mask.setValue(int(cidr_str))
@@ -165,7 +147,7 @@ class InterfacesTab(QWidget):
         spin_mask.valueChanged.connect(self._on_mask_changed)
         self.table.setCellWidget(row, self.COL_MASK, spin_mask)
 
-        # ==== STATUS ====
+        # Status
         chk_status = QCheckBox("up")
         chk_status.setToolTip(
             "Stan interfejsu: zaznaczone = up (no shutdown), odznaczone = down (shutdown)."
@@ -181,10 +163,6 @@ class InterfacesTab(QWidget):
             if item and item.text() == iface:
                 return r
         return -1
-
-    # ================================================================
-    #                   HANDLERY ZMIAN (AUTO-COMMANDS)
-    # ================================================================
 
     def _on_desc_changed(self):
         if self._loading:
@@ -202,7 +180,9 @@ class InterfacesTab(QWidget):
             )
         )
 
-        self._append_log(f"[OP] set description on {iface}: {desc or '(clear)'}")
+        self._append_log(
+            f"[OP] Ustawiono opis na interfejsie {iface}: {desc or '(BRAK)'}"
+        )
 
     def _on_ip_changed(self):
         if self._loading:
@@ -249,7 +229,7 @@ class InterfacesTab(QWidget):
                     iface=iface,
                 )
             )
-            self._append_log(f"[OP] clear IP on {iface}")
+            self._append_log(f"[OP] Wyczyszczono adres IP na {iface}")
 
         else:
             mask = cidr_to_mask(cidr)
@@ -261,7 +241,7 @@ class InterfacesTab(QWidget):
                     mask=mask,
                 )
             )
-            self._append_log(f"[OP] set IP on {iface}: {ip}/{cidr}")
+            self._append_log(f"[OP] Ustawiono adres IP na {iface}: {ip}/{cidr}")
 
     def _on_status_changed(self, is_up: bool):
         if self._loading:
@@ -278,11 +258,7 @@ class InterfacesTab(QWidget):
             )
         )
 
-        self._append_log(f"[OP] {'enable' if is_up else 'disable'} {iface}")
-
-    # ================================================================
-    #                   PRZYCISKI Enable/Disable
-    # ================================================================
+        self._append_log(f"[OP] {'Włączono' if is_up else 'Wyłączono'} {iface}")
 
     def _cmd_on_selected(self, cmd: str):
         row = self.table.currentRow()
@@ -300,12 +276,8 @@ class InterfacesTab(QWidget):
         )
 
         self._append_log(
-            f"[OP] {'enable' if cmd == 'no shutdown' else 'disable'} {iface}"
+            f"[OP] {'Włączono' if cmd == 'no shutdown' else 'Wyłączono'} {iface}"
         )
-
-    # ================================================================
-    #                        BUFORY / PENDING CMDS
-    # ================================================================
 
     def get_pending_operations(self, clear=False) -> list[Operation]:
         ops = list(self.pending_ops)
@@ -315,10 +287,6 @@ class InterfacesTab(QWidget):
 
     def clear_pending_operations(self):
         self.pending_ops.clear()
-
-    # ================================================================
-    #                        EXPORT / IMPORT
-    # ================================================================
 
     def export_state(self):
         rows = []
@@ -353,10 +321,6 @@ class InterfacesTab(QWidget):
         finally:
             self._loading = False
 
-    # ================================================================
-    #                      SYNC Z PARSED CONFIG
-    # ================================================================
-
     def sync_from_config(self, conf: ParsedConfig):
         self._loading = True
         try:
@@ -378,6 +342,6 @@ class InterfacesTab(QWidget):
                 )
 
             self.pending_ops.clear()
-            self._append_log("[SYNC] Interfaces updated from running-config.")
+            self._append_log("[SYNC] Interfejsy zaktualizowane z running-config.")
         finally:
             self._loading = False
