@@ -61,7 +61,7 @@ class UnsupportedOperationsError(ValueError):
 
 
 def supported_operations(vendor: Vendor) -> set[OperationType]:
-    """Compatibility fallback for older call sites that only know vendor."""
+    """Rozwiązanie awaryjne zapewniające zgodność dla starszych wywołań, które znają wyłącznie dostawcę"""
     if vendor == Vendor.CISCO:
         return set(_ALL_OPERATIONS)
     supported: set[OperationType] = set()
