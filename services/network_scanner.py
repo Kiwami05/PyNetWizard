@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 
 
 def get_local_ipv4s():
-    """Zwraca set lokalnych IPv4, żeby je potem pominąć."""
+    """Zwraca zbiór lokalnych IPv4, żeby je potem pominąć."""
     local_ips = set()
     try:
         import psutil
@@ -65,8 +65,6 @@ class NetworkScanner(QObject):
             results = []
             args = "-sV -O -Pn" if self.detailed else "-sn"
 
-            # Użyjemy nmap w trybie JSON, żeby łatwo sparsować wynik
-            # python-nmap nie obsłuży przerwania, ale subprocess – tak.
             import subprocess
             import tempfile
 
@@ -92,7 +90,6 @@ class NetworkScanner(QObject):
 
             # Jeśli proces został zakończony z błędem albo XML nie istnieje → nie parsujemy
             if self._abort:
-                # safety — nie powinno tu wejść, ale utrzymujemy
                 self.finished.emit([])
                 return
 
