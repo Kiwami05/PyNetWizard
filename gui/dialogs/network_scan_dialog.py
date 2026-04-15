@@ -22,14 +22,14 @@ def is_privileged_user() -> bool:
     try:
         if os.name == "posix":
             return os.geteuid() == 0
-    except Exception:
+    except AttributeError:
         pass
     try:
         if os.name == "nt":
             import ctypes
 
             return ctypes.windll.shell32.IsUserAnAdmin() != 0
-    except Exception:
+    except (AttributeError, ImportError, OSError):
         pass
     return False
 

@@ -2,6 +2,7 @@ from netmiko import (
     ConnectHandler,
     NetmikoTimeoutException,
     NetmikoAuthenticationException,
+    NetmikoBaseException,
 )
 from devices.device import Device
 from platforms.vendor import Vendor
@@ -39,14 +40,14 @@ class ConnectionManager:
                 new_name = logfile.with_name(f"{logfile.name}.old")
                 logfile.rename(new_name)
                 print(f"[WARN] Brak uprawnień do {logfile}, przeniesiono do {new_name}")
-            except Exception:
+            except OSError:
                 tmp_log = Path(tempfile.gettempdir()) / f"netmiko_{os.getuid()}.log"
                 print(f"[WARN] Nie można pisać do {logfile}, używam {tmp_log}")
                 logfile = tmp_log
 
         try:
             logfile.touch(exist_ok=True)
-        except Exception:
+        except OSError:
             tmp_log = Path(tempfile.gettempdir()) / f"netmiko_{os.getuid()}.log"
             print(f"[WARN] Nie udało się utworzyć {logfile}, fallback do {tmp_log}")
             logfile = tmp_log
@@ -94,7 +95,7 @@ class ConnectionManager:
         except (NetmikoTimeoutException, NetmikoAuthenticationException) as e:
             logging.error(f"[CONNECTION ERROR] {device.host}: {e}")
             return False
-        except Exception as e:
+        except NetmikoBaseException as e:
             logging.exception(f"[UNEXPECTED ERROR] {device.host}: {e}")
             return False
 
@@ -103,7 +104,7 @@ class ConnectionManager:
         if device.host in self.sessions:
             try:
                 self.sessions[device.host].disconnect()
-            except Exception:
+            except (NetmikoBaseException, OSError, EOFError):
                 pass
             del self.sessions[device.host]
             logging.info(f"[DISCONNECTED] {device.host}")
@@ -116,7 +117,7 @@ class ConnectionManager:
         try:
             conn.write_channel("\n")
             return True
-        except Exception:
+        except (NetmikoBaseException, OSError, EOFError):
             self.disconnect(device)
             return False
 
@@ -179,7 +180,7 @@ class ConnectionManager:
             )
             try:
                 conn.save_config()
-            except Exception:
+            except NetmikoBaseException:
                 pass
         else:
             output = conn.send_config_set(commands)
@@ -192,11 +193,11 @@ class ConnectionManager:
         try:
             if conn.check_config_mode():
                 conn.exit_config_mode()
-        except Exception:
+        except NetmikoBaseException:
             try:
                 conn.write_channel("\n")
                 conn.exit_config_mode()
-            except Exception:
+            except NetmikoBaseException:
                 pass
 
     def _device_to_netmiko(self, device: Device) -> dict:
@@ -230,7 +231,7 @@ class ConnectionManager:
         session_log = self.log_path / f"{device.host}_session.txt"
         try:
             session_log.touch(exist_ok=True)
-        except Exception:
+        except OSError:
             tmp_log = Path(tempfile.gettempdir()) / f"{device.host}_session.txt"
             print(f"[WARN] Nie można pisać do {session_log}, używam {tmp_log}")
             session_log = tmp_log

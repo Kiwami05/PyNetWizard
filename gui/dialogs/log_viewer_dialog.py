@@ -158,7 +158,7 @@ class LogViewerDialog(QDialog):
 
         try:
             raw = file_path.read_text(encoding="utf-8", errors="replace")
-        except Exception as e:
+        except OSError as e:
             self.text.setHtml(f"<b>Błąd odczytu pliku:</b><br>{e}")
             return
 

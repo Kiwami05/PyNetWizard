@@ -24,7 +24,7 @@ def is_valid_ip(addr: str) -> bool:
     try:
         ipaddress.ip_address(addr)
         return True
-    except Exception:
+    except ValueError:
         return False
 
 
@@ -53,7 +53,7 @@ def mask_to_cidr(mask: str) -> int:
         if "01" in bits:  # maski muszą mieć blok 1...10...0
             return 0
         return bits.count("1")
-    except Exception:
+    except (TypeError, ValueError):
         return 0
 
 
