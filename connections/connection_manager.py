@@ -10,6 +10,7 @@ from platforms.device_type import DeviceType
 import logging
 import os
 import tempfile
+import threading
 from pathlib import Path
 
 
@@ -26,6 +27,7 @@ class ConnectionManager:
         self.connection_type = connection_type
         self.timeout = int(timeout)
         self.verbose = verbose
+        self._lock = threading.RLock()
 
         # Tworzenie katalogu logów
         self.log_path = Path(log_path)
@@ -60,133 +62,146 @@ class ConnectionManager:
         logging.info("=== PyNetWizard session started ===")
 
     def connect(self, device: Device) -> bool:
-        if device.host in self.sessions:
-            return True
+        with self._lock:
+            if device.host in self.sessions:
+                return True
 
-        try:
-            params = self._device_to_netmiko(device)
-            conn = ConnectHandler(**params)
+            try:
+                params = self._device_to_netmiko(device)
+                conn = ConnectHandler(**params)
 
-            # ASA
+                # ASA
+                if (
+                    device.vendor == Vendor.CISCO
+                    and device.device_type == DeviceType.FIREWALL
+                ):
+                    if not conn.check_enable_mode():
+                        conn.enable()
+                    conn.send_command_timing("pager 0")
+
+                # JUNIPER
+                elif device.vendor == Vendor.JUNIPER:
+                    # Junos nie ma żadnych specjalnych kroków
+                    pass
+
+                # CISCO IOS
+                else:
+                    if not conn.check_enable_mode():
+                        conn.enable()
+                    conn.send_command("terminal length 0")
+                    conn.send_command("terminal width 512")
+
+                self.sessions[device.host] = conn
+                logging.info(f"[CONNECTED] {device.host}")
+                return True
+
+            except (NetmikoTimeoutException, NetmikoAuthenticationException) as e:
+                logging.error(f"[CONNECTION ERROR] {device.host}: {e}")
+                return False
+            except NetmikoBaseException as e:
+                logging.exception(f"[UNEXPECTED ERROR] {device.host}: {e}")
+                return False
+
+    def disconnect(self, device: Device):
+        """Zamyka połączenie."""
+        with self._lock:
+            if device.host in self.sessions:
+                try:
+                    self.sessions[device.host].disconnect()
+                except (NetmikoBaseException, OSError, EOFError):
+                    pass
+                del self.sessions[device.host]
+                logging.info(f"[DISCONNECTED] {device.host}")
+
+    def is_connected(self, device: Device) -> bool:
+        """Sprawdza, czy połączenie istnieje i działa."""
+        with self._lock:
+            conn = self.sessions.get(device.host)
+            if not conn:
+                return False
+            try:
+                conn.write_channel("\n")
+                return True
+            except (NetmikoBaseException, OSError, EOFError):
+                self.disconnect(device)
+                return False
+
+    def has_session(self, device: Device) -> bool:
+        """Zwraca stan cache'owany bez odpytywania kanału SSH/Telnet."""
+        with self._lock:
+            return device.host in self.sessions
+
+    def send_command(self, device: Device, command: str) -> str:
+        """Wysyła pojedyncze polecenie i zwraca wynik."""
+        with self._lock:
+            if not self.connect(device):
+                raise ConnectionError(f"Nie udało się połączyć z {device.host}")
+
+            conn = self.sessions[device.host]
+            logging.info(f"[COMMAND] {device.host}: {command}")
+
+            # specjalny tryb ASA
             if (
                 device.vendor == Vendor.CISCO
                 and device.device_type == DeviceType.FIREWALL
             ):
-                if not conn.check_enable_mode():
-                    conn.enable()
-                conn.send_command_timing("pager 0")
-
-            # JUNIPER
+                output = conn.send_command(
+                    command,
+                    expect_string=r"[>#]",
+                    read_timeout=25,
+                    delay_factor=2,
+                    strip_prompt=False,
+                    strip_command=False,
+                )
             elif device.vendor == Vendor.JUNIPER:
-                # Junos nie ma żadnych specjalnych kroków
-                pass
-
-            # CISCO IOS
+                self._ensure_juniper_operational_mode(conn)
+                output = conn.send_command(
+                    command,
+                    read_timeout=60,
+                    strip_prompt=True,
+                    strip_command=True,
+                    cmd_verify=False,
+                )
             else:
-                if not conn.check_enable_mode():
-                    conn.enable()
-                conn.send_command("terminal length 0")
-                conn.send_command("terminal width 512")
-
-            self.sessions[device.host] = conn
-            logging.info(f"[CONNECTED] {device.host}")
-            return True
-
-        except (NetmikoTimeoutException, NetmikoAuthenticationException) as e:
-            logging.error(f"[CONNECTION ERROR] {device.host}: {e}")
-            return False
-        except NetmikoBaseException as e:
-            logging.exception(f"[UNEXPECTED ERROR] {device.host}: {e}")
-            return False
-
-    def disconnect(self, device: Device):
-        """Zamyka połączenie."""
-        if device.host in self.sessions:
-            try:
-                self.sessions[device.host].disconnect()
-            except (NetmikoBaseException, OSError, EOFError):
-                pass
-            del self.sessions[device.host]
-            logging.info(f"[DISCONNECTED] {device.host}")
-
-    def is_connected(self, device: Device) -> bool:
-        """Sprawdza, czy połączenie istnieje i działa."""
-        conn = self.sessions.get(device.host)
-        if not conn:
-            return False
-        try:
-            conn.write_channel("\n")
-            return True
-        except (NetmikoBaseException, OSError, EOFError):
-            self.disconnect(device)
-            return False
-
-    def send_command(self, device: Device, command: str) -> str:
-        """Wysyła pojedyncze polecenie i zwraca wynik."""
-        if not self.connect(device):
-            raise ConnectionError(f"Nie udało się połączyć z {device.host}")
-
-        conn = self.sessions[device.host]
-        logging.info(f"[COMMAND] {device.host}: {command}")
-
-        # specjalny tryb ASA
-        if device.vendor == Vendor.CISCO and device.device_type == DeviceType.FIREWALL:
-            output = conn.send_command(
-                command,
-                expect_string=r"[>#]",
-                read_timeout=25,
-                delay_factor=2,
-                strip_prompt=False,
-                strip_command=False,
-            )
-        elif device.vendor == Vendor.JUNIPER:
-            self._ensure_juniper_operational_mode(conn)
-            output = conn.send_command(
-                command,
-                read_timeout=60,
-                strip_prompt=True,
-                strip_command=True,
-                cmd_verify=False,
-            )
-        else:
-            output = conn.send_command(command, strip_prompt=False, read_timeout=20)
-        return output.strip()
+                output = conn.send_command(command, strip_prompt=False, read_timeout=20)
+            return output.strip()
 
     def send_config(self, device: Device, commands: list[str]) -> str:
         """Wysyła listę komend konfiguracyjnych."""
-        if not self.connect(device):
-            raise ConnectionError(f"Nie udało się połączyć z {device.host}")
+        with self._lock:
+            if not self.connect(device):
+                raise ConnectionError(f"Nie udało się połączyć z {device.host}")
 
-        conn = self.sessions[device.host]
-        logging.info(f"[CONFIG] {device.host}: {commands}")
+            conn = self.sessions[device.host]
+            logging.info(f"[CONFIG] {device.host}: {commands}")
 
-        if device.vendor == Vendor.JUNIPER:
-            output = conn.send_config_set(commands)
-            try:
-                commit_output = conn.commit()
-                if commit_output:
-                    output = f"{output}\n{commit_output}"
-            except AttributeError:
-                save_output = conn.save_config()
-                if save_output:
-                    output = f"{output}\n{save_output}"
-            self._ensure_juniper_operational_mode(conn)
-        elif device.device_type == DeviceType.FIREWALL:
-            output = conn.send_config_set(
-                commands,
-                read_timeout=30,
-                delay_factor=2,
-                exit_config_mode=False,  # ASA nie zawsze ma "end"
-            )
-            try:
+            if device.vendor == Vendor.JUNIPER:
+                output = conn.send_config_set(commands)
+                try:
+                    commit_output = conn.commit()
+                    if commit_output:
+                        output = f"{output}\n{commit_output}"
+                except AttributeError:
+                    save_output = conn.save_config()
+                    if save_output:
+                        output = f"{output}\n{save_output}"
+                self._ensure_juniper_operational_mode(conn)
+            elif device.device_type == DeviceType.FIREWALL:
+                output = conn.send_config_set(
+                    commands,
+                    read_timeout=30,
+                    delay_factor=2,
+                    exit_config_mode=False,  # ASA nie zawsze ma "end"
+                )
+                try:
+                    conn.save_config()
+                except NetmikoBaseException:
+                    pass
+            else:
+                output = conn.send_config_set(commands)
                 conn.save_config()
-            except NetmikoBaseException:
-                pass
-        else:
-            output = conn.send_config_set(commands)
-            conn.save_config()
 
-        return output.strip()
+            return output.strip()
 
     def _ensure_juniper_operational_mode(self, conn):
         """Polecenie `junos commit` może zakończyć sesję w trybie konfiguracyjnym; polecenia `show` muszą być wykonywane w trybie operacyjnym"""
