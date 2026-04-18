@@ -1,4 +1,3 @@
-# gui/RawDataDialog.py
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QTextEdit, QDialogButtonBox
 import json
 
@@ -15,7 +14,7 @@ class RawDataDialog(QDialog):
 
         try:
             pretty = json.dumps(raw_info, indent=2, ensure_ascii=False)
-        except Exception:
+        except (TypeError, ValueError):
             pretty = str(raw_info)
 
         text.setText(pretty)

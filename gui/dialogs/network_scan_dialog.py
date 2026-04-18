@@ -22,14 +22,14 @@ def is_privileged_user() -> bool:
     try:
         if os.name == "posix":
             return os.geteuid() == 0
-    except Exception:
+    except AttributeError:
         pass
     try:
         if os.name == "nt":
             import ctypes
 
             return ctypes.windll.shell32.IsUserAnAdmin() != 0
-    except Exception:
+    except (AttributeError, ImportError, OSError):
         pass
     return False
 
@@ -49,7 +49,7 @@ class NetworkScanDialog(QDialog):
 
         layout = QVBoxLayout(self)
 
-        # --- sieć i maska ---
+        # sieć i maska
         row = QHBoxLayout()
         row.addWidget(QLabel("Sieć:"))
         self.input_network = QLineEdit()
@@ -63,25 +63,30 @@ class NetworkScanDialog(QDialog):
         row.addWidget(self.input_mask)
         layout.addLayout(row)
 
-        # --- checkbox szczegółowego skanu ---
+        # checkbox szczegółowego skanu
         self.checkbox_detailed = QCheckBox(
-            "Szczegółowy skan (dłużej, wymaga uprawnień)"
+            "Szczegółowy skan usług (dłużej, pomaga wykryć producenta i typ)"
         )
-        privileged = is_privileged_user()
-        self.checkbox_detailed.setEnabled(privileged)
-        if not privileged:
-            self.checkbox_detailed.setToolTip(
-                "Szczegółowy skan wymaga uprawnień administratora/root."
+        self.privileged = is_privileged_user()
+        self.checkbox_detailed.setToolTip(
+            "Bez uprawnień administratora/root używany jest skan usług. "
+            "Z uprawnieniami aplikacja dodatkowo używa fingerprintingu OS."
+        )
+        if not self.privileged:
+            layout.addWidget(
+                QLabel(
+                    "Wykrywanie OS jest niedostępne bez uprawnień administratora/root."
+                )
             )
         layout.addWidget(self.checkbox_detailed)
 
-        # --- spinner ---
+        # spinner
         self.progress = QProgressBar()
         self.progress.setAlignment(Qt.AlignCenter)
         self.progress.setTextVisible(False)
         layout.addWidget(self.progress)
 
-        # --- przyciski ---
+        # przyciski
         btn_row = QHBoxLayout()
         self.btn_scan = QPushButton("Skanuj")
         self.btn_cancel = QPushButton("Anuluj")
@@ -98,7 +103,7 @@ class NetworkScanDialog(QDialog):
     def start_scan(self):
         network = self.input_network.text().strip()
         mask = self.input_mask.value()
-        # --- sprawdzamy czy nmap istnieje ---
+        # sprawdzamy czy nmap istnieje
         if not is_nmap_installed():
             QMessageBox.critical(
                 self,
@@ -125,6 +130,7 @@ class NetworkScanDialog(QDialog):
         self.worker = NetworkScanner(
             subnet=subnet,
             detailed=self.checkbox_detailed.isChecked(),
+            os_detection=self.checkbox_detailed.isChecked() and self.privileged,
             exclude_hosts=list(self.exclude_hosts),
         )
         self.worker.moveToThread(self.thread)

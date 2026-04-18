@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt, QSettings, QTimer, QTime
+from PySide6.QtCore import Qt, QSettings, QThread, QTimer, QTime, Slot
 from PySide6.QtWidgets import (
     QMainWindow,
     QHBoxLayout,
@@ -13,38 +13,20 @@ from PySide6.QtWidgets import (
     QStatusBar,
 )
 
-from devices.ConnectionManager import ConnectionManager
-from gui.AddDeviceDialog import AddDeviceDialog
-from devices.DeviceList import DeviceList
-from devices.Device import Device
-from gui.ConfigHistoryDialog import ConfigHistoryDialog
-from gui.LogViewerDialog import LogViewerDialog
-from gui.QueuedChangesDialog import QueuedChangesDialog
-from gui.SettingsDialog import SettingsDialog
-from gui.DeviceDetailWidget import DeviceDetailWidget
-from operations.capabilities import UnsupportedOperationsError
+from connections.connection_manager import ConnectionManager
+from gui.dialogs.add_device_dialog import AddDeviceDialog
+from devices.device_buffer import DeviceBuffer
+from devices.device_list import DeviceList
+from devices.device import Device
+from gui.dialogs.config_history_dialog import ConfigHistoryDialog
+from gui.device_operation_worker import DeviceOperationWorker
+from gui.dialogs.log_viewer_dialog import LogViewerDialog
+from gui.dialogs.queued_changes_dialog import QueuedChangesDialog
+from gui.dialogs.settings_dialog import SettingsDialog
+from gui.device_detail_widget import DeviceDetailWidget
+from operations.operation_support import UnsupportedOperationsError
 from services.config_history import save_snapshot
 from services.config_sync import ConfigSyncService
-
-
-# --- MOCK ConnectionManager ---
-class MockConnectionManager:
-    """Tymczasowa atrapa menedżera połączeń (bez Netmiko)."""
-
-    def __init__(self):
-        self.status = {}  # {host: "connected"/"disconnected"/"error"}
-
-    def toggle_status(self, host):
-        """Losowo przełącza status połączenia (do testów GUI)."""
-        current = self.status.get(host, "disconnected")
-        new = "connected" if current != "connected" else "disconnected"
-        self.status[host] = new
-
-    def is_alive(self, device):
-        return self.status.get(device.host, "disconnected") == "connected"
-
-    def get_status(self, device):
-        return self.status.get(device.host, "disconnected")
 
 
 class MainWindow(QMainWindow):
@@ -56,12 +38,12 @@ class MainWindow(QMainWindow):
         self.device_list = device_list
         self.current_device = None
 
-        # === CENTRALNY WIDGET ===
+        # Centralny widget
         central = QWidget()
         self.setCentralWidget(central)
         main_layout = QHBoxLayout(central)
 
-        # === LEWY PANEL: lista hostów + przyciski ===
+        # Lewy panel: lista hostów + przyciski
         left_panel = QVBoxLayout()
 
         btn_add = QPushButton("Dodaj urządzenie")
@@ -81,11 +63,11 @@ class MainWindow(QMainWindow):
 
         main_layout.addLayout(left_panel, 1)
 
-        # === PRAWY PANEL: detail box (taby) ===
+        # Prawy panel: rozwinięcie tabów
         self.detail_box = DeviceDetailWidget()
         main_layout.addWidget(self.detail_box, 2)
 
-        # === MENU BAR ===
+        # Pasek menu
         menubar = self.menuBar()
         file_menu = menubar.addMenu("Plik")
 
@@ -141,20 +123,20 @@ class MainWindow(QMainWindow):
         settings_action = menubar.addAction("Ustawienia")
         settings_action.triggered.connect(self.open_settings_dialog)
 
-        # --- NOWE: status bar ---
+        # Pasek stanu (połączenia)
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
         self.status_label = QLabel("Gotowy.")
         self.status_label.setStyleSheet("font-family: monospace;")
         self.status_bar.addPermanentWidget(self.status_label)
 
-        # --- NOWE: zegar i timer odświeżania ---
+        # Zegar i timer odświeżania
         self.last_check_time = QTime.currentTime()
         self.status_timer = QTimer(self)
         self.status_timer.timeout.connect(self.update_status_bar)
         self.status_timer.start(4000)  # co 4 sekundy
 
-        # --- ustawienia ---
+        # Ustawienia
         self.settings = QSettings("WEEiA", "PyNetWizard")
         self.connection_type = self.settings.value("connection_type", "ssh")
 
@@ -166,11 +148,15 @@ class MainWindow(QMainWindow):
         )
 
         self.config_sync = ConfigSyncService(self.connection_manager)
+        self._operation_busy = False
+        self._active_operation = None
+        self._running_operations = []
 
-        # --- inicjalne urządzenia ---
+        global_tab = self.detail_box.pages.get("GLOBAL")
+        if global_tab and hasattr(global_tab, "set_operation_runner"):
+            global_tab.set_operation_runner(self._run_device_operation)
+
         self.refresh_device_buttons()
-
-    # === METODY GUI ===
 
     def refresh_device_buttons(self):
         """Odświeża listę przycisków urządzeń w panelu po lewej."""
@@ -185,7 +171,7 @@ class MainWindow(QMainWindow):
             btn.setContextMenuPolicy(Qt.CustomContextMenu)
             btn.clicked.connect(lambda _, d=dev: self.show_device_details(d))
 
-            # klik PPM — usuń urządzenie
+            # PPM — usuń urządzenie
             def open_context_menu(pos, d=dev, b=btn):
                 from PySide6.QtWidgets import QMenu
 
@@ -245,7 +231,7 @@ class MainWindow(QMainWindow):
         self.detail_box.show_for_device(device)
         self.update_status_bar()
 
-        # 🔸 Po wybraniu urządzenia — powiąż zakładkę GLOBAL z ConnectionManagerem
+        # Po wybraniu urządzenia — powiąż zakładkę GLOBAL z ConnectionManagerem
         if device and "GLOBAL" in self.detail_box.pages:
             try:
                 global_tab = self.detail_box.pages["GLOBAL"]
@@ -255,8 +241,8 @@ class MainWindow(QMainWindow):
                 print(f"[WARN] Nie udało się podpiąć GlobalTab: {e}")
 
     def scan_network(self):
-        from gui.NetworkScanDialog import NetworkScanDialog
-        from gui.ScanResultsDialog import ScanResultsDialog
+        from gui.dialogs.network_scan_dialog import NetworkScanDialog
+        from gui.dialogs.scan_results_dialog import ScanResultsDialog
 
         existing_hosts = [d.host for d in self.device_list.devices]
         dlg = NetworkScanDialog(self, exclude_hosts=existing_hosts)
@@ -305,32 +291,127 @@ class MainWindow(QMainWindow):
         if dialog.exec() == QDialog.Accepted:
             self.connection_type = dialog.get_connection_type()
 
-    # --- NOWE: aktualizacja statusu ---
     def update_status_bar(self):
-        """Odświeża pasek statusu (co 4 sekundy)."""
+        """Odświeża pasek statusu bez wykonywania I/O w wątku GUI."""
         if not self.current_device:
             self.status_label.setText("Brak aktywnego urządzenia.")
             return
 
         dev = self.current_device
-        alive = self.connection_manager.is_connected(dev)
+        alive = self.connection_manager.has_session(dev)
         color = "#0f0" if alive else "#f00"
-        state = "POŁĄCZONO" if alive else "ODŁĄCZONO"
+        state = "SESJA OTWARTA" if alive else "ODŁĄCZONO"
+        if self._operation_busy:
+            state = "OPERACJA W TOKU"
+            color = "#ffaa00"
         time_str = QTime.currentTime().toString("HH:mm:ss")
 
         self.status_label.setText(
-            f"<b>{dev.host}</b> — <span style='color:{color}'>{state}</span> | Sprawdzono: {time_str}"
+            f"<b>{dev.host}</b> — <span style='color:{color}'>{state}</span> | Aktualizacja: {time_str}"
         )
 
+    def _run_device_operation(
+        self,
+        title: str,
+        work,
+        on_success,
+        on_error=None,
+    ) -> bool:
+        if self._operation_busy:
+            QMessageBox.information(
+                self,
+                "Operacja w toku",
+                "Poczekaj na zakończenie bieżącej operacji na urządzeniu.",
+            )
+            return False
+
+        self._operation_busy = True
+        self.status_label.setText(f"{title}...")
+
+        thread = QThread(self)
+        worker = DeviceOperationWorker(work)
+        worker.moveToThread(thread)
+        record = {"thread": thread, "worker": worker}
+        record["on_success"] = on_success
+        record["on_error"] = on_error
+        self._running_operations.append(record)
+        self._active_operation = record
+
+        def cleanup():
+            if record in self._running_operations:
+                self._running_operations.remove(record)
+            if self._active_operation is record:
+                self._active_operation = None
+            thread.deleteLater()
+
+        thread.started.connect(worker.run)
+        worker.finished.connect(self._handle_device_operation_success)
+        worker.finished.connect(worker.deleteLater)
+        worker.finished.connect(thread.quit)
+        worker.error.connect(self._handle_device_operation_error)
+        worker.error.connect(worker.deleteLater)
+        worker.error.connect(thread.quit)
+        thread.finished.connect(cleanup)
+        thread.start()
+        return True
+
+    @Slot(object)
+    def _handle_device_operation_success(self, result):
+        record = self._active_operation
+        self._operation_busy = False
+        self.update_status_bar()
+        if record and record.get("on_success"):
+            record["on_success"](result)
+
+    @Slot(str)
+    def _handle_device_operation_error(self, message):
+        record = self._active_operation
+        self._operation_busy = False
+        self.update_status_bar()
+        if record and record.get("on_error"):
+            record["on_error"](message)
+        else:
+            QMessageBox.critical(self, "Błąd", message)
+
+    def _append_console_for_device(self, device: Device, text: str):
+        message = text.strip()
+        if not message:
+            return
+        if device == self.current_device:
+            self.detail_box.append_console(message)
+            return
+
+        buf = self.detail_box.buffers.setdefault(device.host, DeviceBuffer())
+        if buf.logs:
+            buf.logs += "\n" + message
+        else:
+            buf.logs = message
+
+    def _store_config_for_device(self, device: Device, conf):
+        if device == self.current_device:
+            self.detail_box.sync_tabs_from_config(conf)
+            return
+
+        buf = self.detail_box.buffers.setdefault(device.host, DeviceBuffer())
+        buf.hostname = conf.hostname or buf.hostname
+        buf.tabs.setdefault("GLOBAL", {})
+        buf.config = conf
+
     def closeEvent(self, event):
+        if self._operation_busy:
+            QMessageBox.information(
+                self,
+                "Operacja w toku",
+                "Poczekaj na zakończenie bieżącej operacji przed zamknięciem programu.",
+            )
+            event.ignore()
+            return
         for dev in list(self.connection_manager.sessions.keys()):
             d = next((x for x in self.device_list.devices if x.host == dev), None)
             if d:
                 self.connection_manager.disconnect(d)
         self.settings.setValue("connection_type", self.connection_type)
         super().closeEvent(event)
-
-    # --- MOCKOWE FUNKCJE KONFIGURACYJNE ---
 
     def apply_current_device(self):
         if not self.current_device:
@@ -347,97 +428,130 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            if not self.connection_manager.connect(dev):
-                raise ConnectionError("Nie udało się nawiązać połączenia.")
-
-            # 1) Zbierz pending z aktualnych tabów
+            # Zbierz pending z aktualnych tabów w wątku GUI.
             cmds = self.detail_box.collect_pending_commands_current(buf.config)
             cmds = [c.strip() for c in cmds if c.strip()]
+        except UnsupportedOperationsError as e:
+            QMessageBox.warning(self, "Nieobsługiwana funkcja", _format_exception(e))
+            return
+        except Exception as e:
+            QMessageBox.critical(self, "Błąd", _format_exception(e))
+            return
 
-            if not cmds:
-                QMessageBox.information(self, "Brak zmian", "Nie ma nic do wysłania.")
-                return
+        if not cmds:
+            QMessageBox.information(self, "Brak zmian", "Nie ma nic do wysłania.")
+            return
 
-            # 2) Wyślij
+        def work():
+            if not self.connection_manager.connect(dev):
+                raise ConnectionError("Nie udało się nawiązać połączenia.")
             output = self.connection_manager.send_config(dev, cmds)
-            self.detail_box.append_console(output)
+            conf = self.config_sync.fetch_and_parse(dev)
+            if conf.raw_running:
+                save_snapshot(dev, conf.raw_running, kind="running")
+            return {"output": output, "conf": conf}
 
-            # 3) Po sukcesie wyczyść pendingi w aktywnych tabach
-            self.detail_box.clear_pending_commands_current()
-            self.detail_box.append_console(
-                f"[APPLY] Wysłano {len(cmds)} komend do {dev.host}"
+        def on_success(result):
+            output = result["output"]
+            conf = result["conf"]
+            self._append_console_for_device(dev, output)
+            if dev == self.current_device:
+                self.detail_box.clear_pending_commands_current()
+            else:
+                self.detail_box.clear_pending_commands_in_buffer(dev.host)
+            self._append_console_for_device(
+                dev, f"[APPLY] Wysłano {len(cmds)} komend do {dev.host}"
             )
-
-            # 4) (Mocno zalecane) Odśwież snapshot i UI – jedna prawda
-            self.sync_current_device()
+            self._store_config_for_device(dev, conf)
             QMessageBox.information(
                 self, "Zatwierdzono", f"Konfiguracja zapisana na {dev.host}."
             )
-        except UnsupportedOperationsError as e:
-            QMessageBox.warning(self, "Nieobsługiwana funkcja", _format_exception(e))
-        except Exception as e:
-            QMessageBox.critical(self, "Błąd", _format_exception(e))
+
+        self._run_device_operation(
+            f"Zatwierdzanie konfiguracji {dev.host}",
+            work,
+            on_success,
+            lambda message: QMessageBox.critical(self, "Błąd", message),
+        )
 
     def apply_all_devices(self):
         if not self.device_list.devices:
             QMessageBox.information(self, "Brak urządzeń", "Lista urządzeń jest pusta.")
             return
 
-        applied = 0
-        errors = []
-
         # Upewnij się, że bieżący stan GUI jest w buforze
         if self.current_device:
             self.detail_box.save_tab_state(self.current_device)
 
+        jobs = []
         for dev in self.device_list.devices:
             buf = self.detail_box.buffers.get(dev.host)
             if not buf or not buf.config:
-                # brak snapshotu → pomiń, albo (opcjonalnie) zrób sync automatycznie
+                # brak snapshotu → pomiń albo (opcjonalnie) zrób sync automatycznie
                 continue
 
             try:
                 cmds = self.detail_box.collect_pending_commands_from_buffer(
-                    dev.host, dev.vendor
+                    dev.host, dev
                 )
-                if not cmds:
-                    continue
-
-                if not self.connection_manager.connect(dev):
-                    raise ConnectionError("Nie udało się nawiązać połączenia.")
-
-                output = self.connection_manager.send_config(dev, cmds)
-                self.detail_box.append_console(f"[APPLY ALL:{dev.host}] {output}")
-
-                self.detail_box.clear_pending_commands_in_buffer(dev.host)
-                applied += 1
-
-                # (Opcjonalnie) szybki resync każdego urządzenia:
-                # Tu można pominąć dla wydajności, a zrobić zbiorczy komunikat,
-                # ale najczyściej: po apply — sync, żeby snapshot pasował.
-                if dev == self.current_device:
-                    self.sync_current_device()  # pokaże od razu aktualizację
-                else:
-                    # light-weight: pobierz i zaktualizuj tylko snapshot, bez przełączania UI
-                    try:
-                        conf = self.config_sync.fetch_and_parse(dev)
-                        buf.config = conf
-                    except Exception:
-                        pass
-
             except Exception as e:
-                errors.append(f"{dev.host}: {_format_exception(e)}")
+                QMessageBox.critical(
+                    self, "Błąd", f"{dev.host}: {_format_exception(e)}"
+                )
+                return
+            cmds = [c.strip() for c in cmds if c.strip()]
+            if cmds:
+                jobs.append((dev, cmds))
 
-        if applied == 0 and not errors:
+        if not jobs:
             QMessageBox.information(
                 self, "Brak zmian", "Nie znaleziono zmian do wysłania."
             )
             return
 
-        msg = f"Zastosowano zmiany na {applied} urządzeniach."
-        if errors:
-            msg += "\nBłędy:\n- " + "\n- ".join(errors)
-        QMessageBox.information(self, "Zakończono", msg)
+        def work():
+            applied_results = []
+            errors = []
+            for job_dev, cmds in jobs:
+                try:
+                    if not self.connection_manager.connect(job_dev):
+                        raise ConnectionError("Nie udało się nawiązać połączenia.")
+                    output = self.connection_manager.send_config(job_dev, cmds)
+                    conf = self.config_sync.fetch_and_parse(job_dev)
+                    if conf.raw_running:
+                        save_snapshot(job_dev, conf.raw_running, kind="running")
+                    applied_results.append(
+                        {
+                            "device": job_dev,
+                            "commands": cmds,
+                            "output": output,
+                            "conf": conf,
+                        }
+                    )
+                except Exception as exc:
+                    errors.append(f"{job_dev.host}: {_format_exception(exc)}")
+            return {"applied": applied_results, "errors": errors}
+
+        def on_success(result):
+            for item in result["applied"]:
+                item_dev = item["device"]
+                self._append_console_for_device(
+                    item_dev, f"[APPLY ALL:{item_dev.host}] {item['output']}"
+                )
+                self.detail_box.clear_pending_commands_in_buffer(item_dev.host)
+                self._store_config_for_device(item_dev, item["conf"])
+
+            msg = f"Zastosowano zmiany na {len(result['applied'])} urządzeniach."
+            if result["errors"]:
+                msg += "\nBłędy:\n- " + "\n- ".join(result["errors"])
+            QMessageBox.information(self, "Zakończono", msg)
+
+        self._run_device_operation(
+            "Zatwierdzanie konfiguracji na wszystkich urządzeniach",
+            work,
+            on_success,
+            lambda message: QMessageBox.critical(self, "Błąd", message),
+        )
 
     def sync_current_device(self):
         if not self.current_device:
@@ -445,34 +559,32 @@ class MainWindow(QMainWindow):
             return
 
         dev = self.current_device
-        try:
+
+        def work():
             if not self.connection_manager.connect(dev):
                 raise ConnectionError("Nie udało się połączyć.")
-            # 🆕 pobranie + parsowanie
             conf = self.config_sync.fetch_and_parse(dev)
+            if conf.raw_running:
+                save_snapshot(dev, conf.raw_running, kind="running")
+            return conf
 
-            # 🆕 rozesłanie do tabów
-            self.detail_box.sync_tabs_from_config(conf)
-
-            # 🆕 zapis snapshotu do historii (raw_running)
-            try:
-                if conf.raw_running:
-                    save_snapshot(dev, conf.raw_running, kind="running")
-            except Exception:
-                # nie chcemy wywracać całego SYNC-a przez problem z dyskiem
-                pass
-
-            # 🧾 konsola globalna + status
-            self.detail_box.append_console(
-                f"[SYNC] Nazwa hosta: {conf.hostname or '-'}"
+        def on_success(conf):
+            self._store_config_for_device(dev, conf)
+            self._append_console_for_device(
+                dev, f"[SYNC] Nazwa hosta: {conf.hostname or '-'}"
             )
             QMessageBox.information(
                 self,
                 "Pobrano",
                 f"Konfiguracja {dev.host} zsynchronizowana z zakładkami.",
             )
-        except Exception as e:
-            QMessageBox.critical(self, "Błąd", _format_exception(e))
+
+        self._run_device_operation(
+            f"Synchronizacja konfiguracji {dev.host}",
+            work,
+            on_success,
+            lambda message: QMessageBox.critical(self, "Błąd", message),
+        )
 
     def reset_current_device(self):
         """Przywraca ostatni snapshot (bez pobierania z urządzenia)."""
@@ -549,27 +661,27 @@ class MainWindow(QMainWindow):
             self.detail_box.buffers.pop(host, None)
 
     def edit_device_dialog(self, device):
-        from gui.AddDeviceDialog import AddDeviceDialog
+        from gui.dialogs.add_device_dialog import AddDeviceDialog
 
         dlg = AddDeviceDialog(self)
 
-        # wypełnij istniejącymi danymi
+        # Wypełnij istniejącymi danymi
         dlg.input_host.setText(device.host)
         dlg.input_username.setText(device.username)
         dlg.input_password.setText(device.password)
 
-        # vendor
+        # Producent
         if device.vendor.name == "CISCO":
             dlg.radio_cisco.setChecked(True)
         else:
             dlg.radio_juniper.setChecked(True)
 
-        # typ urządzenia
+        # Typ urządzenia
         dlg.combo_devtype.setCurrentText(device.device_type.name.title())
 
         if dlg.exec():
             new_device = dlg.get_data()
-            # aktualizacja obiektu
+            # Aktualizacja obiektu
             device.host = new_device.host
             device.username = new_device.username
             device.password = new_device.password
@@ -578,7 +690,7 @@ class MainWindow(QMainWindow):
 
             self.device_list.sort_devices()
             self.refresh_device_buttons()
-            # odśwież widok jeśli edytowaliśmy aktualnie wybrane urządzenie
+            # Odśwież widok, jeśli edytowaliśmy aktualnie wybrane urządzenie
             if self.current_device == device:
                 self.show_device_details(device)
 

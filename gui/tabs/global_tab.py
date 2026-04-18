@@ -14,10 +14,10 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
-from devices.Device import Device
-from operations.Operation import Operation
+from devices.device import Device
+from operations.operation import Operation
 
-from operations.OperationEnum import OperationEnum
+from operations.operation_type import OperationType
 from services.parsed_config import ParsedConfig
 
 
@@ -32,24 +32,25 @@ class GlobalTab(QWidget):
         self.device: Device | None = None
         self.conn_mgr = None  # przypisane z MainWindow
         self._log_message = lambda _text: None
+        self._operation_runner = None
 
         main_layout = QVBoxLayout(self)
         main_layout.setAlignment(Qt.AlignTop)
         main_layout.setContentsMargins(20, 15, 20, 15)
         main_layout.setSpacing(15)
 
-        # === Nagłówek ===
+        # Nagłówek
         title = QLabel("<h2>Ustawienia globalne</h2>")
         main_layout.addWidget(title)
 
-        # === Hostname ===
+        # Hostname
         form = QFormLayout()
         self.hostname = QLineEdit()
         self.hostname.setPlaceholderText("np. Router1")
         form.addRow(QLabel("Nazwa hosta:"), self.hostname)
         main_layout.addLayout(form)
 
-        # === NVRAM ===
+        # NVRAM
         nvram_box = self._make_box(
             "Pamięć NVRAM",
             [
@@ -59,7 +60,7 @@ class GlobalTab(QWidget):
         )
         main_layout.addWidget(nvram_box)
 
-        # === Startup-config ===
+        # Startup-config
         startup_box = self._make_box(
             "Startup-config",
             [
@@ -69,7 +70,7 @@ class GlobalTab(QWidget):
         )
         main_layout.addWidget(startup_box)
 
-        # === Running-config ===
+        # Running-config
         running_box = self._make_box(
             "Running-config",
             [
@@ -79,7 +80,7 @@ class GlobalTab(QWidget):
         )
         main_layout.addWidget(running_box)
 
-        # === Sync Configuration ===
+        # Sync Configuration
         self.btn_sync = QPushButton("🔄 Synchronizuj konfigurację")
         self.btn_sync.setToolTip(
             "Pobiera konfigurację z urządzenia i aktualizuje nazwę hosta."
@@ -87,35 +88,34 @@ class GlobalTab(QWidget):
         self.btn_sync.clicked.connect(self._action_sync)
         main_layout.addWidget(self.btn_sync)
 
-        # === Wypełniacz ===
+        # Spacer
         spacer = QSpacerItem(10, 10, QSizePolicy.Minimum, QSizePolicy.Expanding)
         main_layout.addItem(spacer)
-
-    # ==============================================================
-    #                    PUBLIC API
-    # ==============================================================
 
     def bind_device(self, device: Device, conn_mgr):
         """Podpina aktualne urządzenie i ConnectionManager."""
         self.device = device
         self.conn_mgr = conn_mgr
-        self._append_log(f"[INFO] Binded to {device.host}")
 
     def set_logger(self, log_message):
         self._log_message = log_message or (lambda _text: None)
 
-    # ==============================================================
-    #                    PRZYCISKI (AKCJE)
-    # ==============================================================
+    def set_operation_runner(self, runner):
+        self._operation_runner = runner
 
     def _action_sync(self):
         """Pobiera konfigurację i aktualizuje hostname."""
         if not self._check_ready():
             return
-        try:
-            output = self.conn_mgr.send_command(
-                self.device, "show running-config | include hostname"
+        device = self.device
+        conn_mgr = self.conn_mgr
+
+        def work():
+            return conn_mgr.send_command(
+                device, "show running-config | include hostname"
             )
+
+        def on_success(output):
             # przykład: "hostname s1"
             for line in output.splitlines():
                 if line.strip().startswith("hostname"):
@@ -126,21 +126,31 @@ class GlobalTab(QWidget):
             QMessageBox.information(
                 self, "Sukces", "Pobrano konfigurację i zaktualizowano hostname."
             )
-        except Exception as e:
-            self._append_log(f"[ERROR] {e}")
-            QMessageBox.critical(self, "Błąd synchronizacji", str(e))
+
+        self._start_operation(
+            "Synchronizacja hostname",
+            work,
+            on_success,
+            "Błąd synchronizacji",
+        )
 
     def _action_save(self):
         """Zapisuje konfigurację w NVRAM (write memory)."""
         if not self._check_ready():
             return
-        try:
-            output = self.conn_mgr.send_command(self.device, "write memory")
+        device = self.device
+        conn_mgr = self.conn_mgr
+
+        def work():
+            return conn_mgr.send_command(device, "write memory")
+
+        def on_success(output):
             self._append_log(output)
             QMessageBox.information(self, "Zapisano", "Konfiguracja zapisana w NVRAM.")
-        except Exception as e:
-            self._append_log(f"[ERROR] {e}")
-            QMessageBox.critical(self, "Błąd zapisu", str(e))
+
+        self._start_operation(
+            "Zapis konfiguracji w NVRAM", work, on_success, "Błąd zapisu"
+        )
 
     def _action_erase(self):
         """Kasuje konfigurację (write erase)."""
@@ -155,76 +165,108 @@ class GlobalTab(QWidget):
         )
         if reply == QMessageBox.No:
             return
-        try:
-            output = self.conn_mgr.send_command(self.device, "write erase")
+        device = self.device
+        conn_mgr = self.conn_mgr
+
+        def work():
+            return conn_mgr.send_command(device, "write erase")
+
+        def on_success(output):
             self._append_log(output)
             QMessageBox.information(
                 self,
                 "Wykonano",
                 "Urządzenie zresetowano do domyślnej konfiguracji (po reload).",
             )
-        except Exception as e:
-            self._append_log(f"[ERROR] {e}")
-            QMessageBox.critical(self, "Błąd", str(e))
+
+        self._start_operation("Kasowanie konfiguracji", work, on_success, "Błąd")
 
     def _action_load_startup(self):
         """Wczytuje startup-config (copy startup-config running-config)."""
         if not self._check_ready():
             return
-        try:
-            output = self.conn_mgr.send_command(
-                self.device, "copy startup-config running-config"
-            )
+        device = self.device
+        conn_mgr = self.conn_mgr
+
+        def work():
+            return conn_mgr.send_command(device, "copy startup-config running-config")
+
+        def on_success(output):
             self._append_log(output)
             QMessageBox.information(self, "Wczytano", "Startup-config został wczytany.")
-        except Exception as e:
-            self._append_log(f"[ERROR] {e}")
-            QMessageBox.critical(self, "Błąd", str(e))
+
+        self._start_operation("Wczytywanie startup-config", work, on_success, "Błąd")
 
     def _action_export_startup(self):
         """Eksportuje startup-config do pliku."""
         if not self._check_ready():
             return
-        try:
-            output = self.conn_mgr.send_command(self.device, "show startup-config")
-            filename, _ = QFileDialog.getSaveFileName(
-                self, "Zapisz startup-config", "startup-config.txt"
-            )
-            if filename:
+        device = self.device
+        conn_mgr = self.conn_mgr
+        filename, _ = QFileDialog.getSaveFileName(
+            self, "Zapisz startup-config", "startup-config.txt"
+        )
+        if not filename:
+            return
+
+        def work():
+            return conn_mgr.send_command(device, "show startup-config")
+
+        def on_success(output):
+            try:
                 with open(filename, "w") as f:
                     f.write(output)
-                QMessageBox.information(
-                    self, "Zapisano", f"Startup-config zapisany do {filename}"
-                )
-            self._append_log("[EXPORT] Startup config saved.")
-        except Exception as e:
-            self._append_log(f"[ERROR] {e}")
-            QMessageBox.critical(self, "Błąd eksportu", str(e))
+            except OSError as e:
+                self._append_log(f"[ERROR] {e}")
+                QMessageBox.critical(self, "Błąd eksportu", str(e))
+                return
+            QMessageBox.information(
+                self, "Zapisano", f"Startup-config zapisany do {filename}"
+            )
+            self._append_log("[EXPORT] Zapisano startup-config.")
+
+        self._start_operation(
+            "Eksport startup-config", work, on_success, "Błąd eksportu"
+        )
 
     def _action_export_running(self):
         """Eksportuje running-config do pliku."""
         if not self._check_ready():
             return
-        try:
-            output = self.conn_mgr.send_command(self.device, "show running-config")
-            filename, _ = QFileDialog.getSaveFileName(
-                self, "Zapisz running-config", "running-config.txt"
-            )
-            if filename:
+        device = self.device
+        conn_mgr = self.conn_mgr
+        filename, _ = QFileDialog.getSaveFileName(
+            self, "Zapisz running-config", "running-config.txt"
+        )
+        if not filename:
+            return
+
+        def work():
+            return conn_mgr.send_command(device, "show running-config")
+
+        def on_success(output):
+            try:
                 with open(filename, "w") as f:
                     f.write(output)
-                QMessageBox.information(
-                    self, "Zapisano", f"Running-config zapisany do {filename}"
-                )
-            self._append_log("[EXPORT] Running config saved.")
-        except Exception as e:
-            self._append_log(f"[ERROR] {e}")
-            QMessageBox.critical(self, "Błąd eksportu", str(e))
+            except OSError as e:
+                self._append_log(f"[ERROR] {e}")
+                QMessageBox.critical(self, "Błąd eksportu", str(e))
+                return
+            QMessageBox.information(
+                self, "Zapisano", f"Running-config zapisany do {filename}"
+            )
+            self._append_log("[EXPORT] Zapisano running-config.")
+
+        self._start_operation(
+            "Eksport running-config", work, on_success, "Błąd eksportu"
+        )
 
     def _action_merge_running(self):
         """Łączy lokalny plik konfiguracyjny z running-config."""
         if not self._check_ready():
             return
+        device = self.device
+        conn_mgr = self.conn_mgr
         filename, _ = QFileDialog.getOpenFileName(
             self, "Wybierz plik konfiguracyjny", "", "Text Files (*.txt)"
         )
@@ -233,18 +275,21 @@ class GlobalTab(QWidget):
         try:
             with open(filename, "r") as f:
                 lines = [line.strip() for line in f.readlines() if line.strip()]
-            output = self.conn_mgr.send_config(self.device, lines)
+        except OSError as e:
+            self._append_log(f"[ERROR] {e}")
+            QMessageBox.critical(self, "Błąd merge", str(e))
+            return
+
+        def work():
+            return conn_mgr.send_config(device, lines)
+
+        def on_success(output):
             self._append_log(output)
             QMessageBox.information(
                 self, "Wykonano", f"Plik {filename} został zaaplikowany do urządzenia."
             )
-        except Exception as e:
-            self._append_log(f"[ERROR] {e}")
-            QMessageBox.critical(self, "Błąd merge", str(e))
 
-    # ==============================================================
-    #                    POMOCNICZE
-    # ==============================================================
+        self._start_operation("Scalanie running-config", work, on_success, "Błąd merge")
 
     def _make_box(self, title: str, buttons: list[tuple[str, callable]]) -> QGroupBox:
         """Pomocniczy konstruktor sekcji (grup z przyciskami)."""
@@ -272,9 +317,19 @@ class GlobalTab(QWidget):
     def _append_log(self, text: str):
         self._log_message(text)
 
-    # ==============================================================
-    #                  API: export/import stanu
-    # ==============================================================
+    def _start_operation(self, title, work, on_success, error_title):
+        def on_error(message):
+            self._append_log(f"[ERROR] {message}")
+            QMessageBox.critical(self, error_title, message)
+
+        if self._operation_runner:
+            self._operation_runner(title, work, on_success, on_error)
+            return
+
+        try:
+            on_success(work())
+        except Exception as e:
+            on_error(str(e).strip() or type(e).__name__)
 
     def export_state(self) -> dict:
         return {
@@ -290,19 +345,16 @@ class GlobalTab(QWidget):
             self.hostname.setText(conf.hostname)
         # Podgląd — kilka pierwszych linii jako log
         if conf.raw_running:
-            head = "\n".join(conf.raw_running.splitlines()[:10])
-            self._append_log("[SYNC] Snapshot running-config (head):\n" + head)
+            head_len = 10
+            head = "\n".join(conf.raw_running.splitlines()[:head_len])
+            self._append_log(
+                f"[SYNC] Snapshot running-config (pierwsze {head_len} linijek):\n"
+                + head
+            )
 
     def build_pending_from_form(self, conf) -> list[Operation]:
         ops: list[Operation] = []
         ui_host = (self.hostname.text() or "").strip()
         if ui_host and ui_host != (conf.hostname or ""):
-            ops.append(Operation(OperationEnum.SET_HOSTNAME, hostname=ui_host))
+            ops.append(Operation(OperationType.SET_HOSTNAME, hostname=ui_host))
         return ops
-
-    def get_pending_commands(self, clear: bool = False):
-        # GlobalTab pending pochodzi wyłącznie z różnicy hostname
-        return []
-
-    def clear_pending_commands(self):
-        pass

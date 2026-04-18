@@ -15,11 +15,11 @@ from PySide6.QtWidgets import (
     QMenu,
 )
 
-from gui.RawDataDialog import RawDataDialog
-from devices.Device import Device
-from devices.DeviceList import DeviceList
-from devices.Vendor import Vendor
-from devices.DeviceType import DeviceType
+from gui.dialogs.raw_data_dialog import RawDataDialog
+from devices.device import Device
+from devices.device_list import DeviceList
+from platforms.vendor import Vendor
+from platforms.device_type import DeviceType
 
 DEBUG = True  # ustaw True, jeśli chcesz zobaczyć raw_data
 
@@ -40,7 +40,7 @@ class ScanResultsDialog(QDialog):
         self.table = QTableWidget(len(results), len(cols))
         self.table.setHorizontalHeaderLabels(cols)
 
-        # --- ustawienia tabeli ---
+        # ustawienia tabeli
         header = self.table.horizontalHeader()
         header.setStretchLastSection(True)
         header.setSectionResizeMode(QHeaderView.Interactive)
@@ -48,7 +48,7 @@ class ScanResultsDialog(QDialog):
         self.table.setMinimumWidth(600)
         self.table.setMinimumHeight(300)
 
-        # --- wypełnianie tabeli ---
+        # wypełnianie tabeli
         for row, dev in enumerate(results):
             host = dev.get("host", "")
             vendor = dev.get("vendor", "")
@@ -102,13 +102,12 @@ class ScanResultsDialog(QDialog):
         self.table.customContextMenuRequested.connect(self.show_context_menu)
         layout.addWidget(self.table)
 
-        # --- przyciski OK/Cancel ---
+        # przyciski OK/Cancel
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         buttons.accepted.connect(self.validate_and_accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
 
-    # --- funkcje pomocnicze ---
     def _make_show_raw_handler(self, btn):
         @Slot()
         def handler():
@@ -131,7 +130,6 @@ class ScanResultsDialog(QDialog):
                 return
         self.accept()
 
-    # --- główna metoda: zwraca DeviceList ---
     def get_selected_devices(self) -> DeviceList:
         devices = DeviceList()
         for row in range(self.table.rowCount()):

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Iterable, List
 
-from operations.Operation import Operation
+from operations.operation import Operation
 
 
 class OperationRenderer(ABC):

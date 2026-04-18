@@ -20,6 +20,9 @@ class ParsedRouting:
         default_factory=list
     )  # [{"dest":"", "mask":"", "nh":""}, ...]
     rip_networks: List[str] = field(default_factory=list)
+    rip_interfaces: List[Dict[str, str]] = field(
+        default_factory=list
+    )  # Juniper: [{"group":"default","interface":"ge-0/0/0.0"}]
     ospf: List[Dict[str, str]] = field(
         default_factory=list
     )  # [{"process":"1","network":"x.x.x.x","wildcard":"0.0.0.255","area":"0"}]

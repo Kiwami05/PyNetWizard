@@ -17,29 +17,19 @@ from PySide6.QtWidgets import (
 )
 
 
-# ============================================
-#  BLOKI LOGÓW (multiline entries)
-# ============================================
-
-
 class LogEntry:
     def __init__(self, level: str, lines: list[str]):
         self.level = level
         self.lines = lines
 
 
-# ============================================
-#  GŁÓWNY DIALOG
-# ============================================
-
-
 class LogViewerDialog(QDialog):
     """
-    Viewer logów z groupingiem multiline:
+    Viewer logów z grouping-iem multiline:
     - kolorowanie (ERROR/WARNING/INFO/DEBUG)
     - filtrowanie
     - wyszukiwanie
-    - auto-refresh (tail -f tylko gdy jesteś na dole)
+    - auto-refresh
     """
 
     LOG_DIR = Path("./logs")
@@ -61,9 +51,7 @@ class LogViewerDialog(QDialog):
         # flaga: czy użytkownik przewinął w górę (jeśli tak, pauzujemy auto-refresh)
         self._user_scrolled_up = False
 
-        # ---------------------------------------
-        #  Górny pasek: wybór pliku logu
-        # ---------------------------------------
+        # Górny pasek — wybór pliku logu
         top_bar = QHBoxLayout()
         main.addLayout(top_bar)
 
@@ -79,9 +67,7 @@ class LogViewerDialog(QDialog):
         self.btn_open_folder.clicked.connect(self._open_log_folder)
         top_bar.addWidget(self.btn_open_folder)
 
-        # ---------------------------------------
-        #  Pasek filtrów
-        # ---------------------------------------
+        # Pasek filtrów
         filter_bar = QHBoxLayout()
         main.addLayout(filter_bar)
 
@@ -90,7 +76,7 @@ class LogViewerDialog(QDialog):
         self.chk_info = QCheckBox("INFO")
         self.chk_debug = QCheckBox("DEBUG")
 
-        # domyślnie wszystko włączone
+        # Domyślnie wszystko włączone
         for chk in (self.chk_error, self.chk_warning, self.chk_info, self.chk_debug):
             chk.setChecked(True)
             chk.stateChanged.connect(self._apply_filters)
@@ -106,9 +92,7 @@ class LogViewerDialog(QDialog):
         self.chk_show_only_matches.stateChanged.connect(self._apply_filters)
         filter_bar.addWidget(self.chk_show_only_matches)
 
-        # ---------------------------------------
         #  Pasek wyszukiwania
-        # ---------------------------------------
         search_bar = QHBoxLayout()
         main.addLayout(search_bar)
 
@@ -121,39 +105,28 @@ class LogViewerDialog(QDialog):
         self.btn_reload.clicked.connect(self._manual_reload)
         search_bar.addWidget(self.btn_reload)
 
-        # ---------------------------------------
         #  Pole logu
-        # ---------------------------------------
         self.text = QTextEdit()
         self.text.setReadOnly(True)
         self.text.setLineWrapMode(QTextEdit.NoWrap)
         self.text.setStyleSheet("font-family: monospace; font-size: 11px;")
         main.addWidget(self.text, 10)
 
-        # wykrywanie ręcznego scrollowania
+        # Wykrywanie ręcznego scrollowania
         self.text.verticalScrollBar().valueChanged.connect(self._on_scroll)
 
-        # timer do auto-refresh
+        # Timer do auto-refresh
         self.timer = QTimer(self)
         self.timer.setInterval(1500)
         self.timer.timeout.connect(self._auto_refresh)
 
-        # inicjalizacja listy plików
+        # Inicjalizacja listy plików
         self._reload_file_list()
         self.combo_files.currentIndexChanged.connect(self._on_file_changed)
 
-    # ===============================================================
-    #   SCROLL DETECTOR
-    # ===============================================================
-
     def _on_scroll(self):
         bar = self.text.verticalScrollBar()
-        # user_scrolled_up = True, jeśli NIE jesteśmy na samym dole
         self._user_scrolled_up = bar.value() < bar.maximum()
-
-    # ===============================================================
-    #   FILE LIST
-    # ===============================================================
 
     def _reload_file_list(self):
         self.combo_files.blockSignals(True)
@@ -177,10 +150,6 @@ class LogViewerDialog(QDialog):
         self._user_scrolled_up = False
         self._load_current_file()
 
-    # ===============================================================
-    #   FILE LOADING + MULTILINE GROUPING
-    # ===============================================================
-
     def _load_current_file(self):
         file_path: Path = self.combo_files.currentData()
         if not file_path or not file_path.exists():
@@ -189,7 +158,7 @@ class LogViewerDialog(QDialog):
 
         try:
             raw = file_path.read_text(encoding="utf-8", errors="replace")
-        except Exception as e:
+        except OSError as e:
             self.text.setHtml(f"<b>Błąd odczytu pliku:</b><br>{e}")
             return
 
@@ -216,10 +185,6 @@ class LogViewerDialog(QDialog):
 
         self._apply_filters()
 
-    # ===============================================================
-    #   FILTERING + SEARCH + COLORING
-    # ===============================================================
-
     def _apply_filters(self):
         if not hasattr(self, "_entries"):
             return
@@ -240,31 +205,31 @@ class LogViewerDialog(QDialog):
         html = ["<html><body style='font-family: monospace; white-space: pre;'>"]
 
         for entry in self._entries:
-            # --- filtr poziomu ---
+            # filtr poziomu
             if entry.level not in allowed:
                 continue
 
             block_text = "\n".join(entry.lines)
             block_lower = block_text.lower()
 
-            # --- filtr wyszukiwania ---
+            # filtr wyszukiwania
             if search_term:
                 if search_term not in block_lower:
                     if only_matches:
                         continue
 
-            # --- kolor tła ---
+            # kolor tła
             bg = self._severity_background_color(entry.level)
             bg_css = f"rgb({bg.red()}, {bg.green()}, {bg.blue()})"
 
-            # --- escape HTML ---
+            # escape HTML
             escaped_lines = [
                 line.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
                 for line in entry.lines
             ]
             combined = "\n".join(escaped_lines)
 
-            # --- highlight search ---
+            # highlight search
             if search_term:
                 combined = re.sub(
                     re.escape(search_term),
@@ -288,14 +253,10 @@ class LogViewerDialog(QDialog):
         html.append("</body></html>")
         self.text.setHtml("\n".join(html))
 
-        # auto-scroll tylko gdy użytkownik NIE przewinął w górę
+        # auto-scroll tylko, gdy użytkownik NIE przewinął w górę
         bar = self.text.verticalScrollBar()
         if not self._user_scrolled_up:
             bar.setValue(bar.maximum())
-
-    # ===============================================================
-    #   LEVEL PARSING
-    # ===============================================================
 
     def _extract_level(self, line: str):
         """
@@ -304,10 +265,6 @@ class LogViewerDialog(QDialog):
         """
         m = re.search(r"\[(ERROR|WARNING|INFO|DEBUG)\]", line)
         return m.group(1) if m else None
-
-    # ===============================================================
-    #   AUTO REFRESH
-    # ===============================================================
 
     def _auto_refresh(self):
         # jeśli użytkownik przewinął w górę – pauzujemy auto-refresh

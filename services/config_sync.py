@@ -1,12 +1,7 @@
-from typing import Protocol
-from devices.Device import Device
+from devices.device import Device
 from services.parsed_config import ParsedConfig
 from services.parsers import parse_config
-from devices.Vendor import Vendor
-
-
-class SyncableTab(Protocol):
-    def sync_from_config(self, conf: ParsedConfig) -> None: ...
+from platforms.vendor import Vendor
 
 
 class ConfigSyncService:
@@ -19,7 +14,7 @@ class ConfigSyncService:
             conf = parse_config(device, raw)
 
         else:
-            # === CISCO ===
+            # CISCO
             raw_running = self.cm.send_command(device, "show running-config")
             raw_vlan = self.cm.send_command(device, "show vlan")
 

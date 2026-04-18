@@ -1,7 +1,7 @@
-from devices.Vendor import Vendor
+from platforms.vendor import Vendor
 from renderers.base import OperationRenderer
-from renderers.CiscoIOSRenderer import CiscoIOSRenderer
-from renderers.JuniperJunosRenderer import JuniperJunosRenderer
+from renderers.cisco_ios_renderer import CiscoIOSRenderer
+from renderers.juniper_junos_renderer import JuniperJunosRenderer
 
 
 class RendererFactory:
@@ -16,4 +16,4 @@ class RendererFactory:
         if vendor == Vendor.JUNIPER:
             return JuniperJunosRenderer()
 
-        raise ValueError(f"No renderer available for vendor {vendor}")
+        raise ValueError(f"Brak renderer-a dla producenta {vendor}")

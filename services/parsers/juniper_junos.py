@@ -9,14 +9,10 @@ from services.parsed_config import (
 )
 
 
-# ==========================================================
-#                     REGEXY
-# ==========================================================
-
 # hostname
 _HOSTNAME = re.compile(r"^set system host-name (\S+)", re.M)
 
-# interfaces L3
+# interfejsy L3
 # set interfaces ge-0/0/0 unit 0 family inet address 10.0.0.1/24
 _IFACE_INET = re.compile(
     r"^set interfaces (\S+) unit (\d+) family inet address (\S+)",
@@ -51,6 +47,21 @@ _VLAN = re.compile(
     re.M,
 )
 
+# interface-mode
+# set interfaces ge-0/0/1 unit 0 family ethernet-switching interface-mode access
+_IFACE_SWITCH_MODE = re.compile(
+    r"^set interfaces (\S+) unit (\d+) family ethernet-switching interface-mode (\S+)",
+    re.M,
+)
+
+# VLAN membership
+# set interfaces ge-0/0/1 unit 0 family ethernet-switching vlan members VLAN10
+# set interfaces ge-0/0/2 unit 0 family ethernet-switching vlan members [ VLAN10 VLAN20 ]
+_IFACE_VLAN_MEMBERS = re.compile(
+    r"^set interfaces (\S+) unit (\d+) family ethernet-switching vlan members (.+)$",
+    re.M,
+)
+
 # static routing
 # set routing-options static route 0.0.0.0/0 next-hop 10.0.0.1
 _STATIC_ROUTE = re.compile(
@@ -58,10 +69,19 @@ _STATIC_ROUTE = re.compile(
     re.M,
 )
 
+# OSPF
+# set protocols ospf area 0.0.0.0 interface ge-0/0/0.0
+_OSPF_INTERFACE = re.compile(
+    r"^set protocols ospf area (\S+) interface (\S+)",
+    re.M,
+)
 
-# ==========================================================
-#                   HELPERY
-# ==========================================================
+# RIP
+# set protocols rip group default neighbor ge-0/0/0.0
+_RIP_INTERFACE = re.compile(
+    r"^set protocols rip group (\S+) neighbor (\S+)",
+    re.M,
+)
 
 
 def cidr_to_mask(cidr: int) -> str:
@@ -93,27 +113,49 @@ def ensure_iface(ifaces: ParsedInterfaces, iface: str) -> dict:
     return ifaces.items[iface]
 
 
-# ==========================================================
-#                   PARSER GŁÓWNY
-# ==========================================================
+def parse_junos_list(value: str) -> list[str]:
+    value = value.strip()
+    if value.startswith("[") and value.endswith("]"):
+        value = value[1:-1].strip()
+    try:
+        return shlex.split(value)
+    except ValueError:
+        return [part for part in value.split() if part]
+
+
+def vlan_member_to_id(member: str, vlan_name_to_id: dict[str, str]) -> str:
+    return vlan_name_to_id.get(member, member)
 
 
 def parse(raw_config: str) -> ParsedConfig:
     cfg = ParsedConfig(vendor="JUNIPER", raw_running=raw_config)
 
-    # ---------------- hostname ----------------
+    # hostname
     m = _HOSTNAME.search(raw_config)
     if m:
         cfg.hostname = m.group(1)
 
-    # ---------------- interfaces ----------------
+    # VLANy
+    vlans = ParsedVLANs()
+    vlan_name_to_id: dict[str, str] = {}
+
+    for m in _VLAN.finditer(raw_config):
+        name, vid = m.groups()
+        vlans.items[vid] = {
+            "name": name,
+            "ports": [],
+        }
+        vlan_name_to_id[name] = vid
+
+    cfg.vlans = vlans
+
+    # interfejsy
     ifaces = ParsedInterfaces()
 
-    # IP addresses
+    # adresy IP
     for m in _IFACE_INET.finditer(raw_config):
         iface, unit, addr = m.groups()
 
-        # v1: obsługujemy tylko unit 0
         if unit != "0":
             continue
 
@@ -129,7 +171,6 @@ def parse(raw_config: str) -> ParsedConfig:
         iface = m.group(1)
         ensure_iface(ifaces, iface)["status"] = "down"
 
-    # unit 0 descriptions are useful when physical description is absent
     for m in _IFACE_UNIT_DESC.finditer(raw_config):
         iface, unit, desc = m.groups()
         if unit != "0":
@@ -138,26 +179,55 @@ def parse(raw_config: str) -> ParsedConfig:
         if not info.get("description"):
             info["description"] = clean_junos_value(desc)
 
-    # physical interface descriptions match what the renderer writes
     for m in _IFACE_DESC.finditer(raw_config):
         iface, desc = m.groups()
         ensure_iface(ifaces, iface)["description"] = clean_junos_value(desc)
 
+    # switchport mode
+    for m in _IFACE_SWITCH_MODE.finditer(raw_config):
+        iface, unit, mode = m.groups()
+        if unit != "0":
+            continue
+        mode = mode.lower()
+        if mode in ("access", "trunk"):
+            ensure_iface(ifaces, iface)["mode"] = mode
+
+    # VLAN membership
+    for m in _IFACE_VLAN_MEMBERS.finditer(raw_config):
+        iface, unit, members_raw = m.groups()
+        if unit != "0":
+            continue
+
+        info = ensure_iface(ifaces, iface)
+        members = [
+            vlan_member_to_id(member, vlan_name_to_id)
+            for member in parse_junos_list(members_raw)
+        ]
+        members = [member for member in members if member]
+
+        if not members:
+            continue
+
+        mode = (info.get("mode") or "").lower()
+        if mode == "trunk":
+            existing = [str(v) for v in info.get("trunk_vlans", [])]
+            for member in members:
+                if member not in existing:
+                    existing.append(member)
+            info["trunk_vlans"] = existing
+        else:
+            if mode not in ("access", "trunk"):
+                info["mode"] = "access"
+            info["access_vlan"] = members[0]
+
+        for member in members:
+            vlan = vlans.items.get(member)
+            if vlan is not None and iface not in vlan["ports"]:
+                vlan["ports"].append(iface)
+
     cfg.interfaces = ifaces
 
-    # ---------------- VLANs ----------------
-    vlans = ParsedVLANs()
-
-    for m in _VLAN.finditer(raw_config):
-        name, vid = m.groups()
-        vlans.items[vid] = {
-            "name": name,
-            "ports": [],  # Juniper: porty później (bridge-domains)
-        }
-
-    cfg.vlans = vlans
-
-    # ---------------- Routing ----------------
+    # Routing
     routing = ParsedRouting()
 
     for m in _STATIC_ROUTE.finditer(raw_config):
@@ -172,9 +242,29 @@ def parse(raw_config: str) -> ParsedConfig:
             }
         )
 
+    for m in _OSPF_INTERFACE.finditer(raw_config):
+        area, iface = m.groups()
+        routing.ospf.append(
+            {
+                "type": "interface",
+                "area": area,
+                "interface": iface,
+            }
+        )
+
+    routing.rip_interfaces = []
+    for m in _RIP_INTERFACE.finditer(raw_config):
+        group, iface = m.groups()
+        routing.rip_interfaces.append(
+            {
+                "group": group,
+                "interface": iface,
+            }
+        )
+
     cfg.routing = routing
 
-    # ---------------- ACLs (puste) ----------------
+    # ACLe (puste)
     cfg.acls = ParsedACLs()
 
     return cfg

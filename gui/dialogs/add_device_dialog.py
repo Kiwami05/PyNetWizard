@@ -13,9 +13,9 @@ from PySide6.QtWidgets import (
     QComboBox,
 )
 
-from devices.Device import Device
-from devices.DeviceType import DeviceType
-from devices.Vendor import Vendor
+from devices.device import Device
+from platforms.device_type import DeviceType
+from platforms.vendor import Vendor
 
 
 class AddDeviceDialog(QDialog):
@@ -37,11 +37,12 @@ class AddDeviceDialog(QDialog):
         form.addRow("Host", self.input_host)
         form.addRow("Użytkownik:", self.input_username)
         form.addRow("Hasło:", self.input_password)
-        # --- Radio buttony dla typu urządzenia ---
+
+        # Radio buttony dla typu urządzenia
         type_layout = QHBoxLayout()
         self.radio_cisco = QRadioButton("Cisco")
         self.radio_juniper = QRadioButton("Juniper")
-        self.radio_cisco.setChecked(True)  # domyślnie
+        self.radio_cisco.setChecked(True)
 
         self.combo_devtype = QComboBox()
         self.combo_devtype.addItems(["Router", "Switch", "Firewall"])
@@ -55,7 +56,7 @@ class AddDeviceDialog(QDialog):
 
         layout.addLayout(form)
 
-        # --- OK / Cancel ---
+        # OK / Cancel
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
@@ -69,12 +70,12 @@ class AddDeviceDialog(QDialog):
         password = self.input_password.text().strip()
         device_type = "Cisco" if self.radio_cisco.isChecked() else "Juniper"
 
-        # --- Sprawdź, czy wszystkie pola są wypełnione ---
+        # Sprawdź, czy wszystkie pola są wypełnione
         if not host or not username or not password or not device_type:
             QMessageBox.warning(self, "Błąd", "Wszystkie pola muszą być wypełnione.")
             return
 
-        # --- Walidacja hosta ---
+        # Walidacja hosta
         if not validate_host(host):
             QMessageBox.warning(self, "Błąd", "Niepoprawna nazwa hosta lub adres IP.")
             return

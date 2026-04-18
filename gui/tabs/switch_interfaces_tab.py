@@ -15,9 +15,9 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
-from gui.tabs.InterfacesTab import InterfacesTab, mask_to_cidr
-from operations.Operation import Operation
-from operations.OperationEnum import OperationEnum
+from gui.tabs.interfaces_tab import InterfacesTab, mask_to_cidr
+from operations.operation import Operation
+from operations.operation_type import OperationType
 from services.parsed_config import ParsedConfig
 
 
@@ -153,10 +153,6 @@ class SwitchInterfacesTab(InterfacesTab):
         # VLANy dostępne do wyboru (uzupełniane w sync_from_config)
         self.available_vlans: dict[str, dict] = {}
 
-    # ===================================================================
-    #                    TWORZENIE WIERSZA (OVERRIDE)
-    # ===================================================================
-
     def _create_interface_row(
         self,
         name: str,
@@ -180,31 +176,27 @@ class SwitchInterfacesTab(InterfacesTab):
         row = self.table.rowCount()
         self.table.insertRow(row)
 
-        # === NAME (read-only) ===
         name_item = QTableWidgetItem(name)
         name_item.setFlags(name_item.flags() & ~Qt.ItemIsEditable)
         self.table.setItem(row, self.COL_NAME, name_item)
 
-        # === DESC ===
         edit_desc = QLineEdit(desc)
         edit_desc.setToolTip("Opis interfejsu (opcjonalny).")
         edit_desc.setProperty("iface", name)
         edit_desc.editingFinished.connect(self._on_desc_changed)
         self.table.setCellWidget(row, self.COL_DESC, edit_desc)
 
-        # === IP ===
         edit_ip = QLineEdit(ip)
         edit_ip.setToolTip("Adres IPv4 (np. 192.168.1.1).")
         edit_ip.setProperty("iface", name)
         edit_ip.editingFinished.connect(self._on_ip_changed)
         self.table.setCellWidget(row, self.COL_IP, edit_ip)
 
-        # === MASK (CIDR) ===
         spin_mask = QSpinBox()
         spin_mask.setRange(0, 32)
         try:
             spin_mask.setValue(int(cidr_str))
-        except Exception:
+        except (TypeError, ValueError):
             spin_mask.setValue(0)
         spin_mask.setToolTip(
             "Maska w formacie CIDR (0–32). Do IOS trafia maska kropkowa."
@@ -213,7 +205,6 @@ class SwitchInterfacesTab(InterfacesTab):
         spin_mask.valueChanged.connect(self._on_mask_changed)
         self.table.setCellWidget(row, self.COL_MASK, spin_mask)
 
-        # === MODE ===
         combo_mode = QComboBox()
         combo_mode.addItems(["access", "trunk", "routed"])
         combo_mode.setToolTip("Tryb portu: access / trunk / routed.")
@@ -224,7 +215,6 @@ class SwitchInterfacesTab(InterfacesTab):
         combo_mode.currentTextChanged.connect(self._on_mode_changed)
         self.table.setCellWidget(row, self.COL_MODE, combo_mode)
 
-        # === VLAN(s) ===
         vlan_btn = QPushButton()
         vlan_btn.setToolTip("Konfiguracja VLAN-ów dla tego portu.")
         vlan_btn.setProperty("iface", name)
@@ -233,7 +223,6 @@ class SwitchInterfacesTab(InterfacesTab):
         vlan_btn.setText(vlan_text if vlan_text else "...")
         self.table.setCellWidget(row, self.COL_VLANS, vlan_btn)
 
-        # === STATUS ===
         chk_status = QCheckBox("up")
         chk_status.setToolTip(
             "Stan interfejsu: zaznaczone = up (no shutdown), odznaczone = down (shutdown)."
@@ -242,10 +231,6 @@ class SwitchInterfacesTab(InterfacesTab):
         chk_status.setProperty("iface", name)
         chk_status.toggled.connect(self._on_status_changed)
         self.table.setCellWidget(row, self.COL_STATUS, chk_status)
-
-    # ===================================================================
-    #                       HANDLER TRYBU (MODE)
-    # ===================================================================
 
     def _on_mode_changed(self, mode: str):
         if self._loading:
@@ -258,30 +243,26 @@ class SwitchInterfacesTab(InterfacesTab):
         if mode == "access":
             self.pending_ops.append(
                 Operation(
-                    OperationEnum.SET_SWITCHPORT_MODE_ACCESS,
+                    OperationType.SET_SWITCHPORT_MODE_ACCESS,
                     iface=iface,
                 )
             )
         elif mode == "trunk":
             self.pending_ops.append(
                 Operation(
-                    OperationEnum.SET_SWITCHPORT_MODE_TRUNK,
+                    OperationType.SET_SWITCHPORT_MODE_TRUNK,
                     iface=iface,
                 )
             )
         elif mode == "routed":
             self.pending_ops.append(
                 Operation(
-                    OperationEnum.SET_SWITCHPORT_MODE_ROUTED,
+                    OperationType.SET_SWITCHPORT_MODE_ROUTED,
                     iface=iface,
                 )
             )
 
             self._append_log(f"[OP] set mode {mode} on {iface}")
-
-    # ===================================================================
-    #                   HANDLER PRZYCISKU VLAN(s)
-    # ===================================================================
 
     def _on_vlans_button_clicked(self):
         if self._loading:
@@ -330,7 +311,6 @@ class SwitchInterfacesTab(InterfacesTab):
 
         selected = dlg.selected_vlans()
         if not selected:
-            # na razie wymagamy co najmniej jednego VLAN-u
             from PySide6.QtWidgets import QMessageBox
 
             QMessageBox.warning(
@@ -348,21 +328,17 @@ class SwitchInterfacesTab(InterfacesTab):
             # zakładamy jeden VLAN
             vid = selected[0]
             self.pending_ops.append(
-                Operation(OperationEnum.SET_ACCESS_VLAN, iface=iface, vlan_id=vid)
+                Operation(OperationType.SET_ACCESS_VLAN, iface=iface, vlan_id=vid)
             )
         else:  # trunk
             self.pending_ops.append(
                 Operation(
-                    OperationEnum.SET_TRUNK_ALLOWED_VLANS,
+                    OperationType.SET_TRUNK_ALLOWED_VLANS,
                     iface=iface,
                     vlans=[int(v) for v in selected],
                 )
             )
         self._append_log(f"[OP] set VLAN(s) {','.join(selected)} on {iface} ({mode})")
-
-    # ===================================================================
-    #                     STATE EXPORT / IMPORT
-    # ===================================================================
 
     def export_state(self) -> dict:
         rows = []
@@ -420,10 +396,6 @@ class SwitchInterfacesTab(InterfacesTab):
         finally:
             self._loading = False
 
-    # ===================================================================
-    #                       SYNC Z PARSED CONFIG
-    # ===================================================================
-
     def sync_from_config(self, conf: ParsedConfig):
         """
         Odczytuje interfejsy z ParsedConfig:
@@ -470,57 +442,5 @@ class SwitchInterfacesTab(InterfacesTab):
 
             self.pending_ops.clear()
             self._append_log("[SYNC] Switch interfaces updated from running-config.")
-        finally:
-            self._loading = False
-
-    # ===================================================================
-    #           KOMPATYBILNOŚĆ: add_interface_to_table dla switchy
-    # ===================================================================
-
-    def add_interface_to_table(self, name, desc, ip, mask, mode, vlans_text: str = ""):
-        """
-        Zostawione na wypadek, gdyby gdzieś było wołane ręcznie.
-        mask może być CIDR lub kropkowa.
-        vlans_text: np. '10' lub '10,20,30'.
-        """
-        try:
-            if mask and "." in str(mask):
-                cidr = mask_to_cidr(str(mask))
-            else:
-                cidr = int(mask) if mask not in (None, "") else 0
-        except Exception:
-            cidr = 0
-
-        vlans = (
-            [v.strip() for v in vlans_text.split(",") if v.strip()]
-            if vlans_text
-            else []
-        )
-
-        row = self._find_row(name)
-        if row == -1:
-            self._create_interface_row(
-                name, desc, ip, str(cidr), mode or "", "up", vlans
-            )
-            return
-
-        self._loading = True
-        try:
-            desc_w = self.table.cellWidget(row, self.COL_DESC)
-            ip_w = self.table.cellWidget(row, self.COL_IP)
-            mask_w = self.table.cellWidget(row, self.COL_MASK)
-            mode_w = self.table.cellWidget(row, self.COL_MODE)
-            vlans_w = self.table.cellWidget(row, self.COL_VLANS)
-
-            if isinstance(desc_w, QLineEdit):
-                desc_w.setText(desc)
-            if isinstance(ip_w, QLineEdit):
-                ip_w.setText(ip)
-            if isinstance(mask_w, QSpinBox):
-                mask_w.setValue(cidr)
-            if isinstance(mode_w, QComboBox) and mode:
-                mode_w.setCurrentText(mode)
-            if isinstance(vlans_w, QPushButton):
-                vlans_w.setText(", ".join(vlans) if vlans else "...")
         finally:
             self._loading = False

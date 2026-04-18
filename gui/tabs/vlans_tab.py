@@ -14,16 +14,16 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
-from operations.Operation import Operation
-from operations.OperationEnum import OperationEnum
+from operations.operation import Operation
+from operations.operation_type import OperationType
 from services.parsed_config import ParsedConfig
 
 
 class VLANsTab(QWidget):
     """
-    VLANs tab w stylu Packet Tracera:
+    Tab VLAN-ów
     - tylko dodawanie / modyfikacja / usuwanie VLANów,
-    - przypisywanie portów odbywa się gdzie indziej (SwitchInterfacesTab),
+    - przypisywanie portów odbywa się w SwitchInterfacesTab,
     - kliknięcie w wiersz wypełnia pola VLAN ID / Name,
     - zmiana ID realizowana jako: no vlan OLD + vlan NEW (+ name ...),
     - generuje pending_cmds oraz log w dolnej konsoli.
@@ -31,7 +31,7 @@ class VLANsTab(QWidget):
 
     COL_ID = 0
     COL_NAME = 1
-    COL_PORTS = 2  # tylko do wyświetlania (read-only), ports z ParsedConfig
+    COL_PORTS = 2  # tylko do wyświetlania (read-only), porty z ParsedConfig
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -43,10 +43,10 @@ class VLANsTab(QWidget):
         main_layout.setContentsMargins(20, 15, 20, 15)
         main_layout.setSpacing(10)
 
-        # === Nagłówek ===
+        # Nagłówek
         main_layout.addWidget(QLabel("<h2>Konfiguracja VLAN-ów</h2>"))
 
-        # === Sekcja dodawania / edycji VLAN-u ===
+        # Sekcja dodawania / edycji VLAN-u
         add_box = QGroupBox("Dodaj / edytuj VLAN")
         form = QFormLayout(add_box)
         self.vlan_id = QLineEdit()
@@ -66,7 +66,7 @@ class VLANsTab(QWidget):
         form.addRow(self.btn_add_update)
         main_layout.addWidget(add_box)
 
-        # === Tabela VLAN-ów ===
+        # Tabela VLAN-ów
         self.table = QTableWidget(0, 3)
         self.table.setHorizontalHeaderLabels(["VLAN ID", "Nazwa", "Porty"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
@@ -75,7 +75,7 @@ class VLANsTab(QWidget):
         self.table.itemSelectionChanged.connect(self._on_table_selection_changed)
         main_layout.addWidget(self.table, 4)
 
-        # === Przyciski operacyjne ===
+        # Przyciski operacyjne
         btn_row = QHBoxLayout()
         self.btn_delete = QPushButton("Usuń VLAN")
         self.btn_delete.clicked.connect(self._on_delete_vlan)
@@ -85,10 +85,6 @@ class VLANsTab(QWidget):
 
     def set_logger(self, log_message):
         self._log_message = log_message or (lambda _text: None)
-
-    # ==========================================================
-    #                       HELPERY UI
-    # ==========================================================
 
     def _append_console(self, text: str):
         self._log_message(text.rstrip())
@@ -119,10 +115,6 @@ class VLANsTab(QWidget):
             return False
         return True
 
-    # ==========================================================
-    #                       SELEKCJA W TABELI
-    # ==========================================================
-
     def _on_table_selection_changed(self):
         row = self._get_selected_row()
         if row is None:
@@ -134,10 +126,6 @@ class VLANsTab(QWidget):
         # Wypełnij pola formularza
         self.vlan_id.setText(vlan_id)
         self.vlan_name.setText(vlan_name)
-
-    # ==========================================================
-    #                DODAWANIE / AKTUALIZACJA VLANU
-    # ==========================================================
 
     def _on_add_update_vlan(self):
         new_id = self.vlan_id.text().strip()
@@ -155,10 +143,6 @@ class VLANsTab(QWidget):
             # Zaznaczony istniejący VLAN — modyfikacja (ID i/lub nazwy)
             self._update_existing_vlan(selected_row, new_id, new_name)
 
-        # Po operacji można wyczyścić pola (jak w PT raczej zostają, ale to drobny UX)
-        # self.vlan_id.clear()
-        # self.vlan_name.clear()
-
     def _create_new_vlan(self, vlan_id: str, name: str):
         # Sprawdź, czy VLAN o takim ID już istnieje
         existing_row = self._find_vlan_row_by_id(vlan_id)
@@ -175,7 +159,7 @@ class VLANsTab(QWidget):
         self.table.insertRow(row)
         self.table.setItem(row, self.COL_ID, QTableWidgetItem(vlan_id))
         self.table.setItem(row, self.COL_NAME, QTableWidgetItem(name))
-        # Ports zostawiamy pusty (to jest tylko wyświetlanie z configu)
+        # Ports zostawiamy pusty
         self.table.setItem(row, self.COL_PORTS, QTableWidgetItem(""))
 
         # Pending commands
@@ -186,7 +170,7 @@ class VLANsTab(QWidget):
 
         self.pending_ops.append(
             Operation(
-                OperationEnum.CREATE_VLAN,
+                OperationType.CREATE_VLAN,
                 vlan_id=int(vlan_id),
                 name=name or None,
             )
@@ -224,13 +208,13 @@ class VLANsTab(QWidget):
             # Komendy
             self.pending_ops.append(
                 Operation(
-                    OperationEnum.DELETE_VLAN,
+                    OperationType.DELETE_VLAN,
                     vlan_id=int(old_id),
                 )
             )
             self.pending_ops.append(
                 Operation(
-                    OperationEnum.CREATE_VLAN,
+                    OperationType.CREATE_VLAN,
                     vlan_id=int(new_id),
                     name=new_name or None,
                 )
@@ -241,24 +225,20 @@ class VLANsTab(QWidget):
             name_item.setText(new_name)
 
         else:
-            # ID bez zmian, sprawdzamy czy nazwa się zmieniła
+            # ID bez zmian. Sprawdzamy, czy nazwa się zmieniła
             if new_name == old_name:
                 # nic się nie zmieniło
                 return
 
             self.pending_ops.append(
                 Operation(
-                    OperationEnum.RENAME_VLAN,
+                    OperationType.RENAME_VLAN,
                     vlan_id=int(old_id),
                     name=new_name or None,
                 )
             )
 
             name_item.setText(new_name)
-
-    # ==========================================================
-    #                     USUWANIE VLANU
-    # ==========================================================
 
     def _on_delete_vlan(self):
         row = self._get_selected_row()
@@ -285,7 +265,7 @@ class VLANsTab(QWidget):
 
         self.pending_ops.append(
             Operation(
-                OperationEnum.DELETE_VLAN,
+                OperationType.DELETE_VLAN,
                 vlan_id=int(vlan_id),
             )
         )
@@ -293,13 +273,9 @@ class VLANsTab(QWidget):
         # Usunięcie z tabeli
         self.table.removeRow(row)
 
-        # Wyczyść pola formularza, jeśli usuńnięty był aktualnie wczytany
+        # Wyczyść pola formularza, jeśli wczytano usunięty
         self.vlan_id.clear()
         self.vlan_name.clear()
-
-    # ==========================================================
-    #                     BUFORY / PENDING
-    # ==========================================================
 
     def get_pending_operations(self, clear: bool = False) -> list[Operation]:
         ops = list(self.pending_ops)
@@ -332,10 +308,6 @@ class VLANsTab(QWidget):
                 self.table.setItem(r, c, QTableWidgetItem(val))
         self.pending_ops = list(data.get("pending_ops", []))
 
-    # ==========================================================
-    #                     SYNC Z PARSED CONFIG
-    # ==========================================================
-
     def sync_from_config(self, conf: ParsedConfig):
         """
         Wypełnia tabelę VLAN-ami z ParsedConfig.
@@ -360,4 +332,4 @@ class VLANsTab(QWidget):
             self.table.setItem(r, self.COL_PORTS, ports_item)
 
         self.pending_ops.clear()
-        self._append_console("[SYNC] VLANs updated from running-config.")
+        self._append_console("[SYNC] VLANy zaktualizowane z running-config.")

@@ -10,16 +10,18 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
-from devices.DeviceBuffer import DeviceBuffer
-from devices.DeviceType import DeviceType
-from gui.tabs.GlobalTab import GlobalTab
-from gui.tabs.RoutingTab import RoutingTab
-from gui.tabs.InterfacesTab import InterfacesTab
-from gui.tabs.SwitchInterfacesTab import SwitchInterfacesTab
-from gui.tabs.VLANsTab import VLANsTab
-from gui.tabs.ACLTab import ACLTab
-from operations.Operation import Operation
-from operations.capabilities import validate_operations_supported
+from devices.device_buffer import DeviceBuffer
+from gui.tabs.global_tab import GlobalTab
+from gui.tabs.routing_tab import RoutingTab
+from gui.tabs.interfaces_tab import InterfacesTab
+from gui.tabs.switch_interfaces_tab import SwitchInterfacesTab
+from gui.tabs.vlans_tab import VLANsTab
+from gui.tabs.acl_tab import ACLTab
+from gui.tabs.srx_policies_tab import SRXPoliciesTab
+from gui.tab_registry import tab_specs_for_device
+from operations.operation import Operation
+from operations.operation_type import OperationType
+from operations.operation_support import validate_operations_supported_for_device
 from renderers.factory import RendererFactory
 from services.parsed_config import ParsedConfig
 
@@ -41,33 +43,22 @@ class DeviceDetailWidget(QWidget):
         main_layout.setContentsMargins(10, 10, 10, 10)
         main_layout.setSpacing(10)
 
-        # === GÓRNY PANEL (zakładki + widok treści) ===
+        # Górny panel: zakładki + widok treści)
         content_frame = QFrame()
         content_layout = QHBoxLayout(content_frame)
         content_layout.setContentsMargins(0, 0, 0, 0)
         content_layout.setSpacing(10)
         main_layout.addWidget(content_frame, 4)
 
-        # === LEWY PANEL: lista kategorii ===
+        # Lewy panel: lista kategorii
         self.category_list = QListWidget()
-        # self.category_list.setStyleSheet("""
-        #     QListWidget {
-        #         background-color: #f5f5f5;
-        #         font-weight: bold;
-        #         border: 1px solid #aaa;
-        #     }
-        #     QListWidget::item:selected {
-        #         background-color: #0078d7;
-        #         color: white;
-        #     }
-        # """)
         content_layout.addWidget(self.category_list, 1)
 
-        # === PRAWY PANEL: zawartość zakładek ===
+        # Prawy panel: zawartość zakładek
         self.stack = QStackedWidget()
         content_layout.addWidget(self.stack, 3)
 
-        # --- Strony (tworzone raz, ale dodawane dynamicznie) ---
+        # Strony (tworzone raz, ale dodawane dynamicznie)
         self.pages = {
             "GLOBAL": GlobalTab(),
             "ROUTING": RoutingTab(),
@@ -75,16 +66,17 @@ class DeviceDetailWidget(QWidget):
             "SWITCH_INTERFACES": SwitchInterfacesTab(),  # dla switchy
             "VLANs": VLANsTab(),
             "ACL": ACLTab(),
+            "SRX_POLICIES": SRXPoliciesTab(),
         }
 
         for page in self.pages.values():
             if hasattr(page, "set_logger"):
                 page.set_logger(self.append_console)
 
-        # Po kliknięciu w liście zmieniamy stronę
+        # Po kliknięciu na liscie zmieniamy stronę
         self.category_list.currentRowChanged.connect(self.stack.setCurrentIndex)
 
-        # === DOLNA KONSOLA ===
+        # Konsola zdarzeń
         self.console = QPlainTextEdit()
         self.console.setReadOnly(True)
         self.console.setPlaceholderText("Podgląd komend...")
@@ -98,8 +90,6 @@ class DeviceDetailWidget(QWidget):
         """)
         main_layout.addWidget(self.console, 1)
 
-    # === Pomocnicze metody ===
-
     def clear_stack(self):
         """Usuwa wszystkie widgety ze stacka."""
         while self.stack.count():
@@ -108,11 +98,14 @@ class DeviceDetailWidget(QWidget):
 
     def show_for_device(self, device):
         """Aktualizuje zakładki w zależności od typu urządzenia i przywraca stan z bufora."""
-        # 🆕 zapisz stan poprzedniego urządzenia
         if self.current_device:
             self.save_tab_state(self.current_device)
 
         self.current_device = device
+        for page in self.pages.values():
+            if hasattr(page, "set_device_context"):
+                page.set_device_context(device)
+
         self.category_list.clear()
         self.clear_stack()
 
@@ -124,33 +117,13 @@ class DeviceDetailWidget(QWidget):
             self.load_console_state(None)
             return
 
-        # Ustal, które zakładki mają się pojawić
-        # Ustal, które zakładki mają się pojawić
-        if device.device_type == DeviceType.ROUTER:
-            tab_keys = ["GLOBAL", "ROUTING", "INTERFACES"]
-        elif device.device_type == DeviceType.SWITCH:
-            tab_keys = ["GLOBAL", "VLANs", "SWITCH_INTERFACES"]
-        elif device.device_type == DeviceType.FIREWALL:
-            tab_keys = ["GLOBAL", "INTERFACES", "ACL"]
-        else:
-            tab_keys = ["GLOBAL"]
-
-        for key in tab_keys:
-            # Etykieta w bocznej liście
-            if key in ("INTERFACES", "SWITCH_INTERFACES"):
-                label = "INTERFEJSY"
-            elif key == "GLOBAL":
-                label = "OGÓLNE"
-            elif key == "VLANs":
-                label = "VLAN-y"
-            else:
-                label = key
-            self.category_list.addItem(label)
-            self.stack.addWidget(self.pages[key])
+        for tab in tab_specs_for_device(device):
+            self.category_list.addItem(tab.label)
+            self.stack.addWidget(self.pages[tab.key])
 
         self.category_list.setCurrentRow(0)
 
-        # 🆕 wczytaj stan z bufora
+        # Wczytaj stan z bufora
         self.load_tab_state(device)
         self.load_console_state(device)
 
@@ -181,10 +154,6 @@ class DeviceDetailWidget(QWidget):
         if buf and buf.logs:
             self.console.setPlainText(buf.logs)
 
-    # =====================================================
-    #        OBSŁUGA BUFORA (export/import zakładek)
-    # =====================================================
-
     def save_tab_state(self, device):
         """Zapisuje stan aktualnych zakładek do bufora."""
         if not device:
@@ -204,7 +173,7 @@ class DeviceDetailWidget(QWidget):
 
         buf = self.buffers.get(device.host)
         if not buf:
-            # 🆕 brak bufora — wyczyść wszystkie taby
+            # Brak bufora — wyczyść wszystkie taby
             for name, tab in self.pages.items():
                 if hasattr(tab, "import_state"):
                     try:
@@ -213,7 +182,7 @@ class DeviceDetailWidget(QWidget):
                         pass
             return
 
-        # 🧠 bufor istnieje — przywróć stan
+        # bufor istnieje — przywróć stan
         for name, tab in self.pages.items():
             if name in buf.tabs and hasattr(tab, "import_state"):
                 try:
@@ -228,7 +197,7 @@ class DeviceDetailWidget(QWidget):
         buf.tabs.setdefault("GLOBAL", {})
         buf.config = conf  # zawsze aktualny snapshot
 
-        # Rozsyłanie do aktywnych tabów, tylko tych które istnieją teraz w stacku
+        # Rozsyłanie do aktywnych tabów, tylko tych, które istnieją teraz na stosie
         for idx in range(self.stack.count()):
             widget = self.stack.widget(idx)
             if hasattr(widget, "sync_from_config"):
@@ -269,19 +238,19 @@ class DeviceDetailWidget(QWidget):
             elif hasattr(w, "get_pending_commands"):
                 legacy_cmds.extend(w.get_pending_commands(clear=False))
 
-        # 2) GlobalTab → OPERACJE
+        # GlobalTab → OPERACJE
         g = self.pages.get("GLOBAL")
         if g and hasattr(g, "build_pending_from_form"):
             pending_ops.extend(g.build_pending_from_form(conf))
 
-        # 3) Renderowanie operacji → CLI
+        # Renderowanie operacji → CLI
         rendered_cmds: list[str] = []
         if pending_ops:
-            validate_operations_supported(self.current_device.vendor, pending_ops)
+            validate_operations_supported_for_device(self.current_device, pending_ops)
             renderer = RendererFactory.for_vendor(self.current_device.vendor)
             rendered_cmds = renderer.render(pending_ops)
 
-        # 4) Finalna lista
+        # Finalna lista
         final_cmds = []
         final_cmds.extend(c.strip() for c in legacy_cmds if c.strip())
         final_cmds.extend(c.strip() for c in rendered_cmds if c.strip())
@@ -299,7 +268,7 @@ class DeviceDetailWidget(QWidget):
             elif hasattr(w, "clear_pending_commands"):
                 w.clear_pending_commands()
 
-    def collect_pending_commands_from_buffer(self, host: str, vendor=None) -> list[str]:
+    def collect_pending_commands_from_buffer(self, host: str, device=None) -> list[str]:
         buf = self.buffers.get(host)
         if not buf:
             return []
@@ -329,15 +298,19 @@ class DeviceDetailWidget(QWidget):
                 )
 
         conf = buf.config
-        global_tab = self.pages.get("GLOBAL")
-        if conf and global_tab and hasattr(global_tab, "build_pending_from_form"):
-            pending_ops.extend(global_tab.build_pending_from_form(conf))
+        global_state = tabs_data.get("GLOBAL")
+        if conf and isinstance(global_state, dict):
+            ui_host = (global_state.get("hostname") or "").strip()
+            if ui_host and ui_host != (conf.hostname or ""):
+                pending_ops.append(
+                    Operation(OperationType.SET_HOSTNAME, hostname=ui_host)
+                )
 
         rendered_cmds: list[str] = []
         if pending_ops:
-            target_vendor = vendor or self.current_device.vendor
-            validate_operations_supported(target_vendor, pending_ops)
-            renderer = RendererFactory.for_vendor(target_vendor)
+            target_device = device or self.current_device
+            validate_operations_supported_for_device(target_device, pending_ops)
+            renderer = RendererFactory.for_vendor(target_device.vendor)
             rendered_cmds = renderer.render(pending_ops)
 
         final_cmds: list[str] = []
