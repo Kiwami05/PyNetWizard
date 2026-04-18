@@ -20,6 +20,7 @@ from gui.tabs.acl_tab import ACLTab
 from gui.tabs.srx_policies_tab import SRXPoliciesTab
 from gui.tab_registry import tab_specs_for_device
 from operations.operation import Operation
+from operations.operation_type import OperationType
 from operations.operation_support import validate_operations_supported_for_device
 from renderers.factory import RendererFactory
 from services.parsed_config import ParsedConfig
@@ -297,9 +298,13 @@ class DeviceDetailWidget(QWidget):
                 )
 
         conf = buf.config
-        global_tab = self.pages.get("GLOBAL")
-        if conf and global_tab and hasattr(global_tab, "build_pending_from_form"):
-            pending_ops.extend(global_tab.build_pending_from_form(conf))
+        global_state = tabs_data.get("GLOBAL")
+        if conf and isinstance(global_state, dict):
+            ui_host = (global_state.get("hostname") or "").strip()
+            if ui_host and ui_host != (conf.hostname or ""):
+                pending_ops.append(
+                    Operation(OperationType.SET_HOSTNAME, hostname=ui_host)
+                )
 
         rendered_cmds: list[str] = []
         if pending_ops:

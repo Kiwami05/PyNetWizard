@@ -198,8 +198,16 @@ class ConnectionManager:
                 except NetmikoBaseException:
                     pass
             else:
-                output = conn.send_config_set(commands)
-                conn.save_config()
+                try:
+                    output = conn.send_config_set(
+                        commands,
+                        read_timeout=60,
+                        cmd_verify=False,
+                    )
+                    conn.save_config()
+                except NetmikoBaseException:
+                    self.disconnect(device)
+                    raise
 
             return output.strip()
 

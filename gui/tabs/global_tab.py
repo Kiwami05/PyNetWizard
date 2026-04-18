@@ -96,7 +96,6 @@ class GlobalTab(QWidget):
         """Podpina aktualne urządzenie i ConnectionManager."""
         self.device = device
         self.conn_mgr = conn_mgr
-        self._append_log(f"[INFO] Połączono z {device.host}")
 
     def set_logger(self, log_message):
         self._log_message = log_message or (lambda _text: None)
