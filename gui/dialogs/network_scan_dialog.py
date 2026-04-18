@@ -65,13 +65,18 @@ class NetworkScanDialog(QDialog):
 
         # checkbox szczegółowego skanu
         self.checkbox_detailed = QCheckBox(
-            "Szczegółowy skan (dłużej, wymaga uprawnień)"
+            "Szczegółowy skan usług (dłużej, pomaga wykryć producenta i typ)"
         )
-        privileged = is_privileged_user()
-        self.checkbox_detailed.setEnabled(privileged)
-        if not privileged:
-            self.checkbox_detailed.setToolTip(
-                "Szczegółowy skan wymaga uprawnień administratora/root."
+        self.privileged = is_privileged_user()
+        self.checkbox_detailed.setToolTip(
+            "Bez uprawnień administratora/root używany jest skan usług. "
+            "Z uprawnieniami aplikacja dodatkowo używa fingerprintingu OS."
+        )
+        if not self.privileged:
+            layout.addWidget(
+                QLabel(
+                    "Wykrywanie OS jest niedostępne bez uprawnień administratora/root."
+                )
             )
         layout.addWidget(self.checkbox_detailed)
 
@@ -125,6 +130,7 @@ class NetworkScanDialog(QDialog):
         self.worker = NetworkScanner(
             subnet=subnet,
             detailed=self.checkbox_detailed.isChecked(),
+            os_detection=self.checkbox_detailed.isChecked() and self.privileged,
             exclude_hosts=list(self.exclude_hosts),
         )
         self.worker.moveToThread(self.thread)
