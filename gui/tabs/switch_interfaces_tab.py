@@ -153,10 +153,6 @@ class SwitchInterfacesTab(InterfacesTab):
         # VLANy dostępne do wyboru (uzupełniane w sync_from_config)
         self.available_vlans: dict[str, dict] = {}
 
-    # ===================================================================
-    #                    TWORZENIE WIERSZA (OVERRIDE)
-    # ===================================================================
-
     def _create_interface_row(
         self,
         name: str,
@@ -180,26 +176,22 @@ class SwitchInterfacesTab(InterfacesTab):
         row = self.table.rowCount()
         self.table.insertRow(row)
 
-        # === NAME (read-only) ===
         name_item = QTableWidgetItem(name)
         name_item.setFlags(name_item.flags() & ~Qt.ItemIsEditable)
         self.table.setItem(row, self.COL_NAME, name_item)
 
-        # === DESC ===
         edit_desc = QLineEdit(desc)
         edit_desc.setToolTip("Opis interfejsu (opcjonalny).")
         edit_desc.setProperty("iface", name)
         edit_desc.editingFinished.connect(self._on_desc_changed)
         self.table.setCellWidget(row, self.COL_DESC, edit_desc)
 
-        # === IP ===
         edit_ip = QLineEdit(ip)
         edit_ip.setToolTip("Adres IPv4 (np. 192.168.1.1).")
         edit_ip.setProperty("iface", name)
         edit_ip.editingFinished.connect(self._on_ip_changed)
         self.table.setCellWidget(row, self.COL_IP, edit_ip)
 
-        # === MASK (CIDR) ===
         spin_mask = QSpinBox()
         spin_mask.setRange(0, 32)
         try:
@@ -213,7 +205,6 @@ class SwitchInterfacesTab(InterfacesTab):
         spin_mask.valueChanged.connect(self._on_mask_changed)
         self.table.setCellWidget(row, self.COL_MASK, spin_mask)
 
-        # === MODE ===
         combo_mode = QComboBox()
         combo_mode.addItems(["access", "trunk", "routed"])
         combo_mode.setToolTip("Tryb portu: access / trunk / routed.")
@@ -224,7 +215,6 @@ class SwitchInterfacesTab(InterfacesTab):
         combo_mode.currentTextChanged.connect(self._on_mode_changed)
         self.table.setCellWidget(row, self.COL_MODE, combo_mode)
 
-        # === VLAN(s) ===
         vlan_btn = QPushButton()
         vlan_btn.setToolTip("Konfiguracja VLAN-ów dla tego portu.")
         vlan_btn.setProperty("iface", name)
@@ -233,7 +223,6 @@ class SwitchInterfacesTab(InterfacesTab):
         vlan_btn.setText(vlan_text if vlan_text else "...")
         self.table.setCellWidget(row, self.COL_VLANS, vlan_btn)
 
-        # === STATUS ===
         chk_status = QCheckBox("up")
         chk_status.setToolTip(
             "Stan interfejsu: zaznaczone = up (no shutdown), odznaczone = down (shutdown)."
@@ -242,10 +231,6 @@ class SwitchInterfacesTab(InterfacesTab):
         chk_status.setProperty("iface", name)
         chk_status.toggled.connect(self._on_status_changed)
         self.table.setCellWidget(row, self.COL_STATUS, chk_status)
-
-    # ===================================================================
-    #                       HANDLER TRYBU (MODE)
-    # ===================================================================
 
     def _on_mode_changed(self, mode: str):
         if self._loading:
@@ -278,10 +263,6 @@ class SwitchInterfacesTab(InterfacesTab):
             )
 
             self._append_log(f"[OP] set mode {mode} on {iface}")
-
-    # ===================================================================
-    #                   HANDLER PRZYCISKU VLAN(s)
-    # ===================================================================
 
     def _on_vlans_button_clicked(self):
         if self._loading:
@@ -330,7 +311,6 @@ class SwitchInterfacesTab(InterfacesTab):
 
         selected = dlg.selected_vlans()
         if not selected:
-            # na razie wymagamy co najmniej jednego VLAN-u
             from PySide6.QtWidgets import QMessageBox
 
             QMessageBox.warning(
@@ -359,10 +339,6 @@ class SwitchInterfacesTab(InterfacesTab):
                 )
             )
         self._append_log(f"[OP] set VLAN(s) {','.join(selected)} on {iface} ({mode})")
-
-    # ===================================================================
-    #                     STATE EXPORT / IMPORT
-    # ===================================================================
 
     def export_state(self) -> dict:
         rows = []
@@ -419,10 +395,6 @@ class SwitchInterfacesTab(InterfacesTab):
             self.pending_ops = list(data.get("pending_ops", []))
         finally:
             self._loading = False
-
-    # ===================================================================
-    #                       SYNC Z PARSED CONFIG
-    # ===================================================================
 
     def sync_from_config(self, conf: ParsedConfig):
         """

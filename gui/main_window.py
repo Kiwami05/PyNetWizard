@@ -460,8 +460,7 @@ class MainWindow(QMainWindow):
             else:
                 self.detail_box.clear_pending_commands_in_buffer(dev.host)
             self._append_console_for_device(
-                dev,
-                f"[APPLY] Wysłano {len(cmds)} komend do {dev.host}"
+                dev, f"[APPLY] Wysłano {len(cmds)} komend do {dev.host}"
             )
             self._store_config_for_device(dev, conf)
             QMessageBox.information(
@@ -496,7 +495,9 @@ class MainWindow(QMainWindow):
                     dev.host, dev
                 )
             except Exception as e:
-                QMessageBox.critical(self, "Błąd", f"{dev.host}: {_format_exception(e)}")
+                QMessageBox.critical(
+                    self, "Błąd", f"{dev.host}: {_format_exception(e)}"
+                )
                 return
             cmds = [c.strip() for c in cmds if c.strip()]
             if cmds:
@@ -535,8 +536,7 @@ class MainWindow(QMainWindow):
             for item in result["applied"]:
                 item_dev = item["device"]
                 self._append_console_for_device(
-                    item_dev,
-                    f"[APPLY ALL:{item_dev.host}] {item['output']}"
+                    item_dev, f"[APPLY ALL:{item_dev.host}] {item['output']}"
                 )
                 self.detail_box.clear_pending_commands_in_buffer(item_dev.host)
                 self._store_config_for_device(item_dev, item["conf"])
@@ -571,8 +571,7 @@ class MainWindow(QMainWindow):
         def on_success(conf):
             self._store_config_for_device(dev, conf)
             self._append_console_for_device(
-                dev,
-                f"[SYNC] Nazwa hosta: {conf.hostname or '-'}"
+                dev, f"[SYNC] Nazwa hosta: {conf.hostname or '-'}"
             )
             QMessageBox.information(
                 self,

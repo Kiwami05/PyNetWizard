@@ -9,10 +9,6 @@ from services.parsed_config import (
 )
 
 
-# ==========================================================
-#                     REGEXY
-# ==========================================================
-
 # hostname
 _HOSTNAME = re.compile(r"^set system host-name (\S+)", re.M)
 
