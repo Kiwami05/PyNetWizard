@@ -47,7 +47,7 @@ class ConfigHistoryDialog(QDialog):
 
         main_layout = QVBoxLayout(self)
 
-        # === Nagłówek ===
+        # Nagłówek
         header = QLabel(
             f"<h3>Historia konfiguracji dla urządzenia: "
             f"<code>{html.escape(device.host)}</code></h3>"
@@ -55,7 +55,7 @@ class ConfigHistoryDialog(QDialog):
         header.setTextFormat(Qt.RichText)
         main_layout.addWidget(header)
 
-        # === Tabela snapshotów ===
+        # Tabela snapshotów
         self.table = QTableWidget(0, 4, self)
         self.table.setHorizontalHeaderLabels(["Data", "Typ", "Rozmiar [B]", "Plik"])
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
@@ -68,7 +68,7 @@ class ConfigHistoryDialog(QDialog):
 
         main_layout.addWidget(self.table, 2)
 
-        # === Przyciski akcji nad diffem ===
+        # Przyciski akcji nad diffem
         btn_row = QHBoxLayout()
         self.btn_refresh = QPushButton("Odśwież")
         self.btn_refresh.clicked.connect(self._reload_snapshots)
@@ -92,7 +92,7 @@ class ConfigHistoryDialog(QDialog):
 
         main_layout.addLayout(btn_row)
 
-        # === Splitter z diffem side-by-side ===
+        # Splitter z diffem side-by-side
         splitter = QSplitter(Qt.Horizontal, self)
 
         self.left_view = QTextEdit(self)
@@ -129,10 +129,6 @@ class ConfigHistoryDialog(QDialog):
 
         # inicjalny load
         self._reload_snapshots()
-
-    # ==========================================================
-    #                ŁADOWANIE / LISTA SNAPSHOTÓW
-    # ==========================================================
 
     def _reload_snapshots(self):
         self.snapshots = list_snapshots(self.device)
@@ -179,10 +175,6 @@ class ConfigHistoryDialog(QDialog):
                 return f.read()
         except OSError:
             return ""
-
-    # ==========================================================
-    #                  AKCJE PRZYCISKÓW
-    # ==========================================================
 
     def _compare_two_selected(self):
         rows = self._selected_rows()
@@ -264,10 +256,6 @@ class ConfigHistoryDialog(QDialog):
                 "Niektórych plików nie udało się usunąć:\n- " + "\n- ".join(errors),
             )
 
-    # ==========================================================
-    #                DIFF SIDE-BY-SIDE + HTML
-    # ==========================================================
-
     def _show_diff(self, left_text: str, right_text: str):
         left_html, right_html = build_side_by_side_diff_html(
             left_text,
@@ -280,10 +268,6 @@ class ConfigHistoryDialog(QDialog):
         # przewiń na początek
         self.left_view.verticalScrollBar().setValue(0)
         self.right_view.verticalScrollBar().setValue(0)
-
-    # ==========================================================
-    #                  SYNCHRONIZACJA SKROLLOWANIA
-    # ==========================================================
 
     def _on_left_scroll_changed(self, value: int):
         if self._scroll_sync:
@@ -298,11 +282,6 @@ class ConfigHistoryDialog(QDialog):
         self._scroll_sync = True
         self.left_view.verticalScrollBar().setValue(value)
         self._scroll_sync = False
-
-
-# ==========================================================
-#           FUNKCJA BUDUJĄCA HTML SIDE-BY-SIDE
-# ==========================================================
 
 
 def build_side_by_side_diff_html(

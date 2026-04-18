@@ -51,7 +51,7 @@ class LogViewerDialog(QDialog):
         # flaga: czy użytkownik przewinął w górę (jeśli tak, pauzujemy auto-refresh)
         self._user_scrolled_up = False
 
-        #  Górny pasek — wybór pliku logu
+        # Górny pasek — wybór pliku logu
         top_bar = QHBoxLayout()
         main.addLayout(top_bar)
 

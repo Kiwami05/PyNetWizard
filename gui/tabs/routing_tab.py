@@ -24,11 +24,6 @@ from operations.operation_type import OperationType
 from services.parsed_config import ParsedConfig
 
 
-# ================================================================
-#                 WALIDACJA IP / MASK / WILDCARD
-# ================================================================
-
-
 def is_valid_ip(ip: str) -> bool:
     try:
         ipaddress.ip_address(ip)
@@ -88,10 +83,10 @@ class RoutingTab(QWidget):
         main_layout.setContentsMargins(20, 15, 20, 15)
         main_layout.setSpacing(10)
 
-        # === Tytuł ===
+        # Tytuł
         main_layout.addWidget(QLabel("<h2>Konfiguracja routingu</h2>"))
 
-        # === Subtaba ===
+        # Pod-zakładki
         self.subtabs = QTabWidget()
         self.static_tab = self._make_static_tab()
         self.rip_tab = self._make_rip_tab()
@@ -126,15 +121,11 @@ class RoutingTab(QWidget):
     def _append_log(self, text: str):
         self._log_message(text)
 
-    # ============================================================
-    #                         STATIC
-    # ============================================================
-
     def _make_static_tab(self):
         tab = QWidget()
         layout = QVBoxLayout(tab)
 
-        # --- Form ---
+        # Formularz
         form_box = QGroupBox("Dodaj / edytuj trasę statyczną")
         form_layout = QFormLayout(form_box)
 
@@ -162,7 +153,7 @@ class RoutingTab(QWidget):
 
         layout.addWidget(form_box)
 
-        # --- Table ---
+        # Table
         self.static_table = QTableWidget(0, 3)
         self.static_table.setHorizontalHeaderLabels(
             ["Sieć docelowa", "Maska", "Następny hop"]
@@ -175,7 +166,7 @@ class RoutingTab(QWidget):
         )
         layout.addWidget(self.static_table, 1)
 
-        # --- Delete ---
+        # Delete
         btn_delete = QPushButton("Usuń trasę")
         btn_delete.clicked.connect(self._on_static_delete)
         row = QHBoxLayout()
@@ -305,10 +296,6 @@ class RoutingTab(QWidget):
         self._append_log(f"[OP] delete static route to {dest}")
         self.static_table.removeRow(row)
 
-    # ============================================================
-    #                           RIP
-    # ============================================================
-
     def _make_rip_tab(self):
         tab = QWidget()
         layout = QVBoxLayout(tab)
@@ -336,7 +323,6 @@ class RoutingTab(QWidget):
         self.rip_table.setSelectionMode(QTableWidget.SingleSelection)
         layout.addWidget(self.rip_table, 1)
 
-        # Form add
         form = QGroupBox("Dodaj sieć RIP")
         f = QFormLayout(form)
         self.rip_net = QLineEdit()
@@ -583,10 +569,6 @@ class RoutingTab(QWidget):
             return
         if self.junos_rip_iface.findText(iface) == -1:
             self.junos_rip_iface.addItem(iface)
-
-    # ============================================================
-    #                           OSPF
-    # ============================================================
 
     def _make_ospf_tab(self):
         tab = QWidget()
@@ -994,10 +976,6 @@ class RoutingTab(QWidget):
         if selected:
             self._set_junos_rip_iface(selected)
 
-    # ============================================================
-    #                     BUFORY + IMPORT / EXPORT
-    # ============================================================
-
     def get_pending_operations(self, clear=False) -> list[Operation]:
         ops = list(self.pending_ops)
         if clear:
@@ -1108,10 +1086,6 @@ class RoutingTab(QWidget):
             self.pending_ops = list(data.get("pending_ops", []))
         finally:
             self._loading = False
-
-    # ============================================================
-    #                     SYNC Z PARSED CONFIG
-    # ============================================================
 
     def sync_from_config(self, conf: ParsedConfig):
         self._loading = True

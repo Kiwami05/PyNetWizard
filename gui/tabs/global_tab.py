@@ -148,7 +148,9 @@ class GlobalTab(QWidget):
             self._append_log(output)
             QMessageBox.information(self, "Zapisano", "Konfiguracja zapisana w NVRAM.")
 
-        self._start_operation("Zapis konfiguracji w NVRAM", work, on_success, "Błąd zapisu")
+        self._start_operation(
+            "Zapis konfiguracji w NVRAM", work, on_success, "Błąd zapisu"
+        )
 
     def _action_erase(self):
         """Kasuje konfigurację (write erase)."""
@@ -187,9 +189,7 @@ class GlobalTab(QWidget):
         conn_mgr = self.conn_mgr
 
         def work():
-            return conn_mgr.send_command(
-                device, "copy startup-config running-config"
-            )
+            return conn_mgr.send_command(device, "copy startup-config running-config")
 
         def on_success(output):
             self._append_log(output)
@@ -225,7 +225,9 @@ class GlobalTab(QWidget):
             )
             self._append_log("[EXPORT] Zapisano startup-config.")
 
-        self._start_operation("Eksport startup-config", work, on_success, "Błąd eksportu")
+        self._start_operation(
+            "Eksport startup-config", work, on_success, "Błąd eksportu"
+        )
 
     def _action_export_running(self):
         """Eksportuje running-config do pliku."""
@@ -255,7 +257,9 @@ class GlobalTab(QWidget):
             )
             self._append_log("[EXPORT] Zapisano running-config.")
 
-        self._start_operation("Eksport running-config", work, on_success, "Błąd eksportu")
+        self._start_operation(
+            "Eksport running-config", work, on_success, "Błąd eksportu"
+        )
 
     def _action_merge_running(self):
         """Łączy lokalny plik konfiguracyjny z running-config."""
