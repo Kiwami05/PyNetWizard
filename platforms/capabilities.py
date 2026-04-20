@@ -11,7 +11,6 @@ class PlatformCapabilities:
     device_type: DeviceType
     tab_keys: tuple[str, ...]
     operations: frozenset[OperationType]
-    features: frozenset[str]
 
 
 GLOBAL_OPS = frozenset({OperationType.SET_HOSTNAME})
@@ -99,24 +98,8 @@ SRX_POLICY_OPS = frozenset(
 )
 
 
-def _caps(
-    vendor: Vendor,
-    device_type: DeviceType,
-    tab_keys: tuple[str, ...],
-    operations: frozenset[OperationType],
-    features: frozenset[str],
-) -> PlatformCapabilities:
-    return PlatformCapabilities(
-        vendor=vendor,
-        device_type=device_type,
-        tab_keys=tab_keys,
-        operations=operations,
-        features=features,
-    )
-
-
 PLATFORM_CAPABILITIES = {
-    (Vendor.CISCO, DeviceType.ROUTER): _caps(
+    (Vendor.CISCO, DeviceType.ROUTER): PlatformCapabilities(
         Vendor.CISCO,
         DeviceType.ROUTER,
         ("GLOBAL", "ROUTING", "INTERFACES"),
@@ -125,9 +108,8 @@ PLATFORM_CAPABILITIES = {
         | STATIC_ROUTING_OPS
         | CISCO_RIP_OPS
         | CISCO_OSPF_OPS,
-        frozenset({"global", "interfaces", "static-routing", "rip", "ospf"}),
     ),
-    (Vendor.JUNIPER, DeviceType.ROUTER): _caps(
+    (Vendor.JUNIPER, DeviceType.ROUTER): PlatformCapabilities(
         Vendor.JUNIPER,
         DeviceType.ROUTER,
         ("GLOBAL", "ROUTING", "INTERFACES"),
@@ -136,45 +118,39 @@ PLATFORM_CAPABILITIES = {
         | STATIC_ROUTING_OPS
         | JUNIPER_RIP_OPS
         | JUNIPER_OSPF_OPS,
-        frozenset({"global", "interfaces", "static-routing", "rip", "ospf"}),
     ),
-    (Vendor.CISCO, DeviceType.SWITCH): _caps(
+    (Vendor.CISCO, DeviceType.SWITCH): PlatformCapabilities(
         Vendor.CISCO,
         DeviceType.SWITCH,
         ("GLOBAL", "VLANs", "SWITCH_INTERFACES"),
         GLOBAL_OPS | INTERFACE_OPS | VLAN_OPS | SWITCHPORT_OPS,
-        frozenset({"global", "interfaces", "vlan", "switchport"}),
     ),
-    (Vendor.JUNIPER, DeviceType.SWITCH): _caps(
+    (Vendor.JUNIPER, DeviceType.SWITCH): PlatformCapabilities(
         Vendor.JUNIPER,
         DeviceType.SWITCH,
         ("GLOBAL", "VLANs", "SWITCH_INTERFACES"),
         GLOBAL_OPS | INTERFACE_OPS | VLAN_OPS | SWITCHPORT_OPS,
-        frozenset({"global", "interfaces", "vlan", "switchport"}),
     ),
-    (Vendor.CISCO, DeviceType.FIREWALL): _caps(
+    (Vendor.CISCO, DeviceType.FIREWALL): PlatformCapabilities(
         Vendor.CISCO,
         DeviceType.FIREWALL,
         ("GLOBAL", "INTERFACES", "ACL"),
         GLOBAL_OPS | INTERFACE_OPS | ASA_ACL_OPS,
-        frozenset({"global", "interfaces", "asa-acl"}),
     ),
-    (Vendor.JUNIPER, DeviceType.FIREWALL): _caps(
+    (Vendor.JUNIPER, DeviceType.FIREWALL): PlatformCapabilities(
         Vendor.JUNIPER,
         DeviceType.FIREWALL,
         ("GLOBAL", "INTERFACES", "SRX_POLICIES"),
         GLOBAL_OPS | INTERFACE_OPS | SRX_POLICY_OPS,
-        frozenset({"global", "interfaces", "srx-policies"}),
     ),
 }
 
 
-FALLBACK_CAPABILITIES = _caps(
+FALLBACK_CAPABILITIES = PlatformCapabilities(
     Vendor.CISCO,
     DeviceType.ROUTER,
     ("GLOBAL",),
     GLOBAL_OPS,
-    frozenset({"global"}),
 )
 
 
