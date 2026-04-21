@@ -4,6 +4,7 @@ from netmiko import (
     NetmikoAuthenticationException,
     NetmikoBaseException,
 )
+from netmiko.base_connection import BaseConnection
 from devices.device import Device
 from platforms.vendor import Vendor
 from platforms.device_type import DeviceType
@@ -23,7 +24,7 @@ class ConnectionManager:
     def __init__(
         self, connection_type="ssh", timeout=10, log_path="./logs", verbose=False
     ):
-        self.sessions: dict[str, ConnectHandler] = {}
+        self.sessions: dict[str, BaseConnection] = {}
         self.connection_type = connection_type
         self.timeout = int(timeout)
         self.verbose = verbose
