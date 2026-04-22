@@ -10,6 +10,7 @@ class GlobalCommandProfile:
     save_command: str | None
     erase_command: str | None
     load_startup_command: str | None
+    extra_read_commands: tuple[tuple[str, str], ...]
     running_label: str
     startup_label: str | None
     memory_label: str | None
@@ -21,6 +22,7 @@ CISCO_GLOBAL_COMMANDS = GlobalCommandProfile(
     save_command="write memory",
     erase_command="write erase",
     load_startup_command="copy startup-config running-config",
+    extra_read_commands=(),
     running_label="Running-config",
     startup_label="Startup-config",
     memory_label="Pamięć NVRAM",
@@ -33,6 +35,10 @@ JUNIPER_GLOBAL_COMMANDS = GlobalCommandProfile(
     save_command=None,
     erase_command=None,
     load_startup_command=None,
+    extra_read_commands=(
+        ("Eksportuj hierarchicznie...", "show configuration"),
+        ("Historia commitów", "show system commit"),
+    ),
     running_label="Konfiguracja Junos",
     startup_label=None,
     memory_label=None,

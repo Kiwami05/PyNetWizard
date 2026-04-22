@@ -20,7 +20,6 @@ from gui.tabs.acl_tab import ACLTab
 from gui.tabs.srx_policies_tab import SRXPoliciesTab
 from gui.tab_registry import tab_specs_for_device
 from operations.operation import Operation
-from operations.operation_type import OperationType
 from operations.operation_support import validate_operations_supported_for_device
 from renderers.factory import RendererFactory
 from services.parsed_config import ParsedConfig
@@ -238,11 +237,6 @@ class DeviceDetailWidget(QWidget):
             elif hasattr(w, "get_pending_commands"):
                 legacy_cmds.extend(w.get_pending_commands(clear=False))
 
-        # GlobalTab → OPERACJE
-        g = self.pages.get("GLOBAL")
-        if g and hasattr(g, "build_pending_from_form"):
-            pending_ops.extend(g.build_pending_from_form(conf))
-
         # Renderowanie operacji → CLI
         rendered_cmds: list[str] = []
         if pending_ops:
@@ -295,15 +289,6 @@ class DeviceDetailWidget(QWidget):
             ):
                 legacy_cmds.extend(
                     c for c in data["pending_cmds"] if isinstance(c, str)
-                )
-
-        conf = buf.config
-        global_state = tabs_data.get("GLOBAL")
-        if conf and isinstance(global_state, dict):
-            ui_host = (global_state.get("hostname") or "").strip()
-            if ui_host and ui_host != (conf.hostname or ""):
-                pending_ops.append(
-                    Operation(OperationType.SET_HOSTNAME, hostname=ui_host)
                 )
 
         rendered_cmds: list[str] = []
