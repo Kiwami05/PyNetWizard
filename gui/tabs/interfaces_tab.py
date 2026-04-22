@@ -1,8 +1,6 @@
 from PySide6.QtWidgets import (
     QVBoxLayout,
-    QHBoxLayout,
     QLabel,
-    QPushButton,
     QTableWidget,
     QTableWidgetItem,
     QHeaderView,
@@ -92,20 +90,6 @@ class InterfacesTab(BaseConfigTab):
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
 
         main_layout.addWidget(self.table, 4)
-
-        # Przyciski operacyjne (Enable/Disable)
-        btns = QHBoxLayout()
-        self.btn_enable = QPushButton("Włącz")
-        self.btn_disable = QPushButton("Wyłącz")
-
-        self.btn_enable.clicked.connect(lambda: self._cmd_on_selected("no shutdown"))
-        self.btn_disable.clicked.connect(lambda: self._cmd_on_selected("shutdown"))
-
-        for b in (self.btn_enable, self.btn_disable):
-            btns.addWidget(b)
-        btns.addStretch()
-
-        main_layout.addLayout(btns)
 
     def set_logger(self, log_message):
         self._log_message = log_message or (lambda _text: None)
@@ -259,25 +243,6 @@ class InterfacesTab(BaseConfigTab):
         )
 
         self._append_log(f"[OP] {'Włączono' if is_up else 'Wyłączono'} {iface}")
-
-    def _cmd_on_selected(self, cmd: str):
-        row = self.table.currentRow()
-        if row == -1:
-            self._append_log(f"[WARN] Brak zaznaczonego interfejsu ({cmd}).")
-            return
-
-        iface = self.table.item(row, self.COL_NAME).text()
-        self.pending_ops.append(
-            Operation(
-                OperationType.SET_INTERFACE_STATUS,
-                iface=iface,
-                enabled=(cmd == "no shutdown"),
-            )
-        )
-
-        self._append_log(
-            f"[OP] {'Włączono' if cmd == 'no shutdown' else 'Wyłączono'} {iface}"
-        )
 
     def get_pending_operations(self, clear=False) -> list[Operation]:
         ops = list(self.pending_ops)
