@@ -38,6 +38,10 @@ class GlobalTab(QWidget):
         self._log_message = lambda _text: None
         self._operation_runner = None
         self._profile: GlobalCommandProfile = global_commands_for_device(None)
+        self.pending_ops: list[Operation] = []
+        self._loading = False
+        self._baseline_hostname = ""
+        self._last_logged_hostname = ""
 
         main_layout = QVBoxLayout(self)
         main_layout.setAlignment(Qt.AlignTop)
@@ -52,6 +56,7 @@ class GlobalTab(QWidget):
         form = QFormLayout()
         self.hostname = QLineEdit()
         self.hostname.setPlaceholderText("np. Router1")
+        self.hostname.editingFinished.connect(self._on_hostname_changed)
         form.addRow(QLabel("Nazwa hosta:"), self.hostname)
         main_layout.addLayout(form)
 
@@ -84,6 +89,15 @@ class GlobalTab(QWidget):
             ],
         )
         main_layout.addWidget(self.running_box)
+
+        self.extra_box = self._make_box(
+            "Dodatkowe informacje",
+            [
+                (label, self._make_extra_read_action(label, command))
+                for label, command in self._profile.extra_read_commands
+            ],
+        )
+        main_layout.addWidget(self.extra_box)
 
         # Spacer
         spacer = QSpacerItem(10, 10, QSizePolicy.Minimum, QSizePolicy.Expanding)
@@ -276,6 +290,41 @@ class GlobalTab(QWidget):
 
         self._start_operation("Scalanie running-config", work, on_success, "Błąd merge")
 
+    def _make_extra_read_action(self, label: str, command: str):
+        def action():
+            if not self._check_ready():
+                return
+            device = self.device
+            conn_mgr = self.conn_mgr
+
+            def work():
+                return conn_mgr.send_command(device, command)
+
+            def on_success(output):
+                filename, _ = QFileDialog.getSaveFileName(
+                    self, label, self._default_extra_filename(label)
+                )
+                if not filename:
+                    return
+                try:
+                    with open(filename, "w") as f:
+                        f.write(output)
+                except OSError as e:
+                    self._append_log(f"[ERROR] {e}")
+                    QMessageBox.critical(self, "Błąd eksportu", str(e))
+                    return
+                self._append_log(f"[EXPORT] {label}: zapisano do {filename}")
+                QMessageBox.information(self, "Zapisano", f"Zapisano do {filename}")
+
+            self._start_operation(label, work, on_success, label)
+
+        return action
+
+    def _default_extra_filename(self, label: str) -> str:
+        if "commit" in label.lower():
+            return "commit-history.txt"
+        return "configuration.txt"
+
     def _make_box(self, title: str, buttons: list[tuple[str, callable]]) -> QGroupBox:
         """Pomocniczy konstruktor sekcji (grup z przyciskami)."""
         box = QGroupBox(title)
@@ -298,12 +347,55 @@ class GlobalTab(QWidget):
 
         self.running_box.setTitle(self._profile.running_label)
 
+        layout = self.extra_box.layout()
+        while layout.count() > 1:
+            item = layout.takeAt(0)
+            widget = item.widget()
+            if widget:
+                widget.deleteLater()
+
+        for label, command in self._profile.extra_read_commands:
+            btn = QPushButton(label)
+            btn.setMinimumWidth(220)
+            btn.clicked.connect(self._make_extra_read_action(label, command))
+            layout.insertWidget(layout.count() - 1, btn)
+
+        self.extra_box.setVisible(bool(self._profile.extra_read_commands))
+
     def _show_unsupported_action(self, action: str):
         QMessageBox.information(
             self,
             "Niedostępne",
             f"{action} nie jest dostępne dla tej platformy.",
         )
+
+    def _on_hostname_changed(self):
+        if self._loading:
+            return
+
+        hostname = self.hostname.text().strip()
+        self._replace_hostname_operation(hostname)
+
+        if not hostname:
+            return
+        if hostname == self._baseline_hostname:
+            return
+        if hostname == self._last_logged_hostname:
+            return
+
+        self._last_logged_hostname = hostname
+        self._append_log(f"[OP] Zmieniono hostname na {hostname}")
+
+    def _replace_hostname_operation(self, hostname: str):
+        self.pending_ops = [
+            op
+            for op in self.pending_ops
+            if op.operation_type != OperationType.SET_HOSTNAME
+        ]
+        if hostname and hostname != self._baseline_hostname:
+            self.pending_ops.append(
+                Operation(OperationType.SET_HOSTNAME, hostname=hostname)
+            )
 
     def _check_ready(self) -> bool:
         if not self.device or not self.conn_mgr:
@@ -335,15 +427,31 @@ class GlobalTab(QWidget):
     def export_state(self) -> dict:
         return {
             "hostname": self.hostname.text(),
+            "baseline_hostname": self._baseline_hostname,
+            "pending_ops": list(self.pending_ops),
         }
 
     def import_state(self, data: dict):
-        self.hostname.setText(data.get("hostname", ""))
+        self._loading = True
+        try:
+            self.hostname.setText(data.get("hostname", ""))
+            self._baseline_hostname = data.get("baseline_hostname", "")
+            self._last_logged_hostname = ""
+            self.pending_ops = list(data.get("pending_ops", []))
+        finally:
+            self._loading = False
 
     def sync_from_config(self, conf: ParsedConfig):
         # Ustaw hostname
         if conf.hostname:
-            self.hostname.setText(conf.hostname)
+            self._loading = True
+            try:
+                self.hostname.setText(conf.hostname)
+                self._baseline_hostname = conf.hostname
+                self._last_logged_hostname = ""
+                self.pending_ops.clear()
+            finally:
+                self._loading = False
         # Podgląd — kilka pierwszych linii jako log
         if conf.raw_running:
             head_len = 10
@@ -353,9 +461,16 @@ class GlobalTab(QWidget):
                 + head
             )
 
-    def build_pending_from_form(self, conf) -> list[Operation]:
-        ops: list[Operation] = []
-        ui_host = (self.hostname.text() or "").strip()
-        if ui_host and ui_host != (conf.hostname or ""):
-            ops.append(Operation(OperationType.SET_HOSTNAME, hostname=ui_host))
+    def get_pending_operations(self, clear=False) -> list[Operation]:
+        self._replace_hostname_operation(self.hostname.text().strip())
+        ops = list(self.pending_ops)
+        if clear:
+            self.pending_ops.clear()
+            self._baseline_hostname = self.hostname.text().strip()
+            self._last_logged_hostname = ""
         return ops
+
+    def clear_pending_operations(self):
+        self.pending_ops.clear()
+        self._baseline_hostname = self.hostname.text().strip()
+        self._last_logged_hostname = ""
