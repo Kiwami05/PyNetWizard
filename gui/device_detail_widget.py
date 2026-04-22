@@ -211,13 +211,13 @@ class DeviceDetailWidget(QWidget):
         self.append_console("[RESET] Przywracanie konfiguracji z ostatniego synca...")
         self.sync_tabs_from_config(buf.config)
 
-    def collect_pending_commands_current(self, conf: ParsedConfig) -> list[str]:
+    def render_pending_operations_current(self, conf: ParsedConfig) -> list[str]:
         preview = self.preview_pending_changes_current(conf)
         return preview["commands"]
 
     def preview_pending_changes_current(self, conf: ParsedConfig) -> dict:
         if not self.current_device:
-            return {"commands": [], "operation_count": 0, "legacy_count": 0}
+            return {"commands": [], "operation_count": 0}
 
         # zapisz aktualny stan tabów
         self.save_tab_state(self.current_device)
@@ -241,15 +241,14 @@ class DeviceDetailWidget(QWidget):
         return {
             "commands": final_cmds,
             "operation_count": len(pending_ops),
-            "legacy_count": 0,
         }
 
-    def clear_pending_commands_current(self):
+    def clear_pending_operations_current(self):
         for idx in range(self.stack.count()):
             w = self.stack.widget(idx)
             w.clear_pending_operations()
 
-    def collect_pending_commands_from_buffer(self, host: str, device=None) -> list[str]:
+    def render_pending_operations_from_buffer(self, host: str, device=None) -> list[str]:
         buf = self.buffers.get(host)
         if not buf:
             return []
@@ -280,7 +279,7 @@ class DeviceDetailWidget(QWidget):
 
         return final_cmds
 
-    def clear_pending_commands_in_buffer(self, host: str):
+    def clear_pending_operations_in_buffer(self, host: str):
         buf = self.buffers.get(host)
         if not buf:
             return

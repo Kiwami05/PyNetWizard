@@ -429,7 +429,7 @@ class MainWindow(QMainWindow):
 
         try:
             # Zbierz pending z aktualnych tabów w wątku GUI.
-            cmds = self.detail_box.collect_pending_commands_current(buf.config)
+            cmds = self.detail_box.render_pending_operations_current(buf.config)
             cmds = [c.strip() for c in cmds if c.strip()]
         except UnsupportedOperationsError as e:
             QMessageBox.warning(self, "Nieobsługiwana funkcja", _format_exception(e))
@@ -456,9 +456,9 @@ class MainWindow(QMainWindow):
             conf = result["conf"]
             self._append_console_for_device(dev, output)
             if dev == self.current_device:
-                self.detail_box.clear_pending_commands_current()
+                self.detail_box.clear_pending_operations_current()
             else:
-                self.detail_box.clear_pending_commands_in_buffer(dev.host)
+                self.detail_box.clear_pending_operations_in_buffer(dev.host)
             self._append_console_for_device(
                 dev, f"[APPLY] Wysłano {len(cmds)} komend do {dev.host}"
             )
@@ -491,7 +491,7 @@ class MainWindow(QMainWindow):
                 continue
 
             try:
-                cmds = self.detail_box.collect_pending_commands_from_buffer(
+                cmds = self.detail_box.render_pending_operations_from_buffer(
                     dev.host, dev
                 )
             except Exception as e:
@@ -538,7 +538,7 @@ class MainWindow(QMainWindow):
                 self._append_console_for_device(
                     item_dev, f"[APPLY ALL:{item_dev.host}] {item['output']}"
                 )
-                self.detail_box.clear_pending_commands_in_buffer(item_dev.host)
+                self.detail_box.clear_pending_operations_in_buffer(item_dev.host)
                 self._store_config_for_device(item_dev, item["conf"])
 
             msg = f"Zastosowano zmiany na {len(result['applied'])} urządzeniach."
