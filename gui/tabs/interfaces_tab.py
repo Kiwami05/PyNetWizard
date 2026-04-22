@@ -1,5 +1,4 @@
 from PySide6.QtWidgets import (
-    QWidget,
     QVBoxLayout,
     QHBoxLayout,
     QLabel,
@@ -17,6 +16,7 @@ import ipaddress
 
 from operations.operation import Operation
 from operations.operation_type import OperationType
+from gui.tabs.base_config_tab import BaseConfigTab
 from services.parsed_config import ParsedConfig
 
 
@@ -57,7 +57,7 @@ def mask_to_cidr(mask: str) -> int:
         return 0
 
 
-class InterfacesTab(QWidget):
+class InterfacesTab(BaseConfigTab):
     """
     Bazowy tab interfejsów (bez trybu portu).
     - tabela jest jedynym miejscem edycji,

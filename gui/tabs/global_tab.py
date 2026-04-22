@@ -1,5 +1,4 @@
 from PySide6.QtWidgets import (
-    QWidget,
     QVBoxLayout,
     QHBoxLayout,
     QLabel,
@@ -18,6 +17,7 @@ from devices.device import Device
 from operations.operation import Operation
 
 from operations.operation_type import OperationType
+from gui.tabs.base_config_tab import BaseConfigTab
 from platforms.global_commands import (
     GlobalCommandProfile,
     global_commands_for_device,
@@ -25,7 +25,7 @@ from platforms.global_commands import (
 from services.parsed_config import ParsedConfig
 
 
-class GlobalTab(QWidget):
+class GlobalTab(BaseConfigTab):
     """
     Zakładka 'GLOBAL' — zintegrowana z ConnectionManager.
     Pozwala synchronizować hostname, zapisywać i eksportować konfiguracje.

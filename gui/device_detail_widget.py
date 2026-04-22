@@ -69,8 +69,7 @@ class DeviceDetailWidget(QWidget):
         }
 
         for page in self.pages.values():
-            if hasattr(page, "set_logger"):
-                page.set_logger(self.append_console)
+            page.set_logger(self.append_console)
 
         # Po kliknięciu na liscie zmieniamy stronę
         self.category_list.currentRowChanged.connect(self.stack.setCurrentIndex)
@@ -102,8 +101,7 @@ class DeviceDetailWidget(QWidget):
 
         self.current_device = device
         for page in self.pages.values():
-            if hasattr(page, "set_device_context"):
-                page.set_device_context(device)
+            page.set_device_context(device)
 
         self.category_list.clear()
         self.clear_stack()
@@ -159,11 +157,10 @@ class DeviceDetailWidget(QWidget):
             return
         buf = self.buffers.setdefault(device.host, DeviceBuffer())
         for name, tab in self.pages.items():
-            if hasattr(tab, "export_state"):
-                try:
-                    buf.tabs[name] = tab.export_state()
-                except Exception as e:
-                    print(f"[WARN] Nie zapisano stanu {name}: {e}")
+            try:
+                buf.tabs[name] = tab.export_state()
+            except Exception as e:
+                print(f"[WARN] Nie zapisano stanu {name}: {e}")
 
     def load_tab_state(self, device):
         """Wczytuje stan zakładek z bufora lub resetuje zakładki, jeśli bufora brak."""
@@ -174,16 +171,15 @@ class DeviceDetailWidget(QWidget):
         if not buf:
             # Brak bufora — wyczyść wszystkie taby
             for name, tab in self.pages.items():
-                if hasattr(tab, "import_state"):
-                    try:
-                        tab.import_state({})  # pusta struktura
-                    except Exception:
-                        pass
+                try:
+                    tab.import_state({})  # pusta struktura
+                except Exception:
+                    pass
             return
 
         # bufor istnieje — przywróć stan
         for name, tab in self.pages.items():
-            if name in buf.tabs and hasattr(tab, "import_state"):
+            if name in buf.tabs:
                 try:
                     tab.import_state(buf.tabs[name])
                 except Exception as e:
@@ -199,11 +195,10 @@ class DeviceDetailWidget(QWidget):
         # Rozsyłanie do aktywnych tabów, tylko tych, które istnieją teraz na stosie
         for idx in range(self.stack.count()):
             widget = self.stack.widget(idx)
-            if hasattr(widget, "sync_from_config"):
-                try:
-                    widget.sync_from_config(conf)
-                except Exception as e:
-                    self.append_console(f"[WARN] Tab sync failed: {e}")
+            try:
+                widget.sync_from_config(conf)
+            except Exception as e:
+                self.append_console(f"[WARN] Tab sync failed: {e}")
 
     def restore_from_snapshot(self):
         """Przywraca stan tabów z ostatniego pobranego configu (buf.config)."""
@@ -227,15 +222,11 @@ class DeviceDetailWidget(QWidget):
         # zapisz aktualny stan tabów
         self.save_tab_state(self.current_device)
 
-        legacy_cmds: list[str] = []
         pending_ops: list[Operation] = []
 
         for idx in range(self.stack.count()):
             w = self.stack.widget(idx)
-            if hasattr(w, "get_pending_operations"):
-                pending_ops.extend(w.get_pending_operations(clear=False))
-            elif hasattr(w, "get_pending_commands"):
-                legacy_cmds.extend(w.get_pending_commands(clear=False))
+            pending_ops.extend(w.get_pending_operations(clear=False))
 
         # Renderowanie operacji → CLI
         rendered_cmds: list[str] = []
@@ -246,28 +237,23 @@ class DeviceDetailWidget(QWidget):
 
         # Finalna lista
         final_cmds = []
-        final_cmds.extend(c.strip() for c in legacy_cmds if c.strip())
         final_cmds.extend(c.strip() for c in rendered_cmds if c.strip())
         return {
             "commands": final_cmds,
             "operation_count": len(pending_ops),
-            "legacy_count": len([c for c in legacy_cmds if c.strip()]),
+            "legacy_count": 0,
         }
 
     def clear_pending_commands_current(self):
         for idx in range(self.stack.count()):
             w = self.stack.widget(idx)
-            if hasattr(w, "clear_pending_operations"):
-                w.clear_pending_operations()
-            elif hasattr(w, "clear_pending_commands"):
-                w.clear_pending_commands()
+            w.clear_pending_operations()
 
     def collect_pending_commands_from_buffer(self, host: str, device=None) -> list[str]:
         buf = self.buffers.get(host)
         if not buf:
             return []
 
-        legacy_cmds: list[str] = []
         pending_ops: list[Operation] = []
 
         tabs_data = buf.tabs or {}
@@ -282,15 +268,6 @@ class DeviceDetailWidget(QWidget):
                     op for op in data["pending_ops"] if isinstance(op, Operation)
                 )
 
-            if (
-                isinstance(data, dict)
-                and "pending_cmds" in data
-                and isinstance(data["pending_cmds"], list)
-            ):
-                legacy_cmds.extend(
-                    c for c in data["pending_cmds"] if isinstance(c, str)
-                )
-
         rendered_cmds: list[str] = []
         if pending_ops:
             target_device = device or self.current_device
@@ -299,7 +276,6 @@ class DeviceDetailWidget(QWidget):
             rendered_cmds = renderer.render(pending_ops)
 
         final_cmds: list[str] = []
-        final_cmds.extend(c.strip() for c in legacy_cmds if c.strip())
         final_cmds.extend(c.strip() for c in rendered_cmds if c.strip())
 
         return final_cmds
@@ -311,5 +287,3 @@ class DeviceDetailWidget(QWidget):
         for name, data in (buf.tabs or {}).items():
             if isinstance(data, dict) and "pending_ops" in data:
                 data["pending_ops"] = []
-            if isinstance(data, dict) and "pending_cmds" in data:
-                data["pending_cmds"] = []

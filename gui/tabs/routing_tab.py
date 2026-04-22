@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
 )
 import ipaddress
 
+from gui.tabs.base_config_tab import BaseConfigTab
 from platforms.vendor import Vendor
 from operations.operation import Operation
 from operations.operation_type import OperationType
@@ -61,7 +62,7 @@ def wildcard_to_mask(w: str) -> str:
     return ".".join(str(p) for p in parts)
 
 
-class RoutingTab(QWidget):
+class RoutingTab(BaseConfigTab):
     """
     Pełna, działająca implementacja RoutingTab:
     - Static routing
