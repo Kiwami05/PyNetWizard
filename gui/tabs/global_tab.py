@@ -18,6 +18,10 @@ from devices.device import Device
 from operations.operation import Operation
 
 from operations.operation_type import OperationType
+from platforms.global_commands import (
+    GlobalCommandProfile,
+    global_commands_for_device,
+)
 from services.parsed_config import ParsedConfig
 
 
@@ -33,6 +37,7 @@ class GlobalTab(QWidget):
         self.conn_mgr = None  # przypisane z MainWindow
         self._log_message = lambda _text: None
         self._operation_runner = None
+        self._profile: GlobalCommandProfile = global_commands_for_device(None)
 
         main_layout = QVBoxLayout(self)
         main_layout.setAlignment(Qt.AlignTop)
@@ -51,42 +56,34 @@ class GlobalTab(QWidget):
         main_layout.addLayout(form)
 
         # NVRAM
-        nvram_box = self._make_box(
-            "Pamięć NVRAM",
+        self.memory_box = self._make_box(
+            self._profile.memory_label or "Pamięć konfiguracji",
             [
                 ("Wyczyść", self._action_erase),
                 ("Zapisz", self._action_save),
             ],
         )
-        main_layout.addWidget(nvram_box)
+        main_layout.addWidget(self.memory_box)
 
         # Startup-config
-        startup_box = self._make_box(
-            "Startup-config",
+        self.startup_box = self._make_box(
+            self._profile.startup_label or "Startup-config",
             [
                 ("Wczytaj...", self._action_load_startup),
                 ("Eksportuj...", self._action_export_startup),
             ],
         )
-        main_layout.addWidget(startup_box)
+        main_layout.addWidget(self.startup_box)
 
         # Running-config
-        running_box = self._make_box(
-            "Running-config",
+        self.running_box = self._make_box(
+            self._profile.running_label,
             [
                 ("Eksportuj...", self._action_export_running),
                 ("Scal...", self._action_merge_running),
             ],
         )
-        main_layout.addWidget(running_box)
-
-        # Sync Configuration
-        self.btn_sync = QPushButton("🔄 Synchronizuj konfigurację")
-        self.btn_sync.setToolTip(
-            "Pobiera konfigurację z urządzenia i aktualizuje nazwę hosta."
-        )
-        self.btn_sync.clicked.connect(self._action_sync)
-        main_layout.addWidget(self.btn_sync)
+        main_layout.addWidget(self.running_box)
 
         # Spacer
         spacer = QSpacerItem(10, 10, QSizePolicy.Minimum, QSizePolicy.Expanding)
@@ -96,6 +93,8 @@ class GlobalTab(QWidget):
         """Podpina aktualne urządzenie i ConnectionManager."""
         self.device = device
         self.conn_mgr = conn_mgr
+        self._profile = global_commands_for_device(device)
+        self._update_profile_ui()
 
     def set_logger(self, log_message):
         self._log_message = log_message or (lambda _text: None)
@@ -103,50 +102,23 @@ class GlobalTab(QWidget):
     def set_operation_runner(self, runner):
         self._operation_runner = runner
 
-    def _action_sync(self):
-        """Pobiera konfigurację i aktualizuje hostname."""
-        if not self._check_ready():
-            return
-        device = self.device
-        conn_mgr = self.conn_mgr
-
-        def work():
-            return conn_mgr.send_command(
-                device, "show running-config | include hostname"
-            )
-
-        def on_success(output):
-            # przykład: "hostname s1"
-            for line in output.splitlines():
-                if line.strip().startswith("hostname"):
-                    _, name = line.strip().split(maxsplit=1)
-                    self.hostname.setText(name)
-                    break
-            self._append_log(output)
-            QMessageBox.information(
-                self, "Sukces", "Pobrano konfigurację i zaktualizowano hostname."
-            )
-
-        self._start_operation(
-            "Synchronizacja hostname",
-            work,
-            on_success,
-            "Błąd synchronizacji",
-        )
-
     def _action_save(self):
         """Zapisuje konfigurację w NVRAM (write memory)."""
         if not self._check_ready():
             return
+        command = self._profile.save_command
+        if not command:
+            self._show_unsupported_action("Zapis konfiguracji")
+            return
         device = self.device
         conn_mgr = self.conn_mgr
 
         def work():
-            return conn_mgr.send_command(device, "write memory")
+            return conn_mgr.send_command(device, command)
 
         def on_success(output):
             self._append_log(output)
-            QMessageBox.information(self, "Zapisano", "Konfiguracja zapisana w NVRAM.")
+            QMessageBox.information(self, "Zapisano", "Konfiguracja została zapisana.")
 
         self._start_operation(
             "Zapis konfiguracji w NVRAM", work, on_success, "Błąd zapisu"
@@ -156,10 +128,14 @@ class GlobalTab(QWidget):
         """Kasuje konfigurację (write erase)."""
         if not self._check_ready():
             return
+        command = self._profile.erase_command
+        if not command:
+            self._show_unsupported_action("Kasowanie konfiguracji")
+            return
         reply = QMessageBox.question(
             self,
             "Potwierdzenie",
-            "Czy na pewno chcesz wykonać 'write erase'?",
+            f"Czy na pewno chcesz wykonać '{command}'?",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No,
         )
@@ -169,7 +145,7 @@ class GlobalTab(QWidget):
         conn_mgr = self.conn_mgr
 
         def work():
-            return conn_mgr.send_command(device, "write erase")
+            return conn_mgr.send_command(device, command)
 
         def on_success(output):
             self._append_log(output)
@@ -185,11 +161,15 @@ class GlobalTab(QWidget):
         """Wczytuje startup-config (copy startup-config running-config)."""
         if not self._check_ready():
             return
+        command = self._profile.load_startup_command
+        if not command:
+            self._show_unsupported_action("Wczytywanie startup-config")
+            return
         device = self.device
         conn_mgr = self.conn_mgr
 
         def work():
-            return conn_mgr.send_command(device, "copy startup-config running-config")
+            return conn_mgr.send_command(device, command)
 
         def on_success(output):
             self._append_log(output)
@@ -201,6 +181,10 @@ class GlobalTab(QWidget):
         """Eksportuje startup-config do pliku."""
         if not self._check_ready():
             return
+        command = self._profile.startup_config_command
+        if not command:
+            self._show_unsupported_action("Eksport startup-config")
+            return
         device = self.device
         conn_mgr = self.conn_mgr
         filename, _ = QFileDialog.getSaveFileName(
@@ -210,7 +194,7 @@ class GlobalTab(QWidget):
             return
 
         def work():
-            return conn_mgr.send_command(device, "show startup-config")
+            return conn_mgr.send_command(device, command)
 
         def on_success(output):
             try:
@@ -233,6 +217,7 @@ class GlobalTab(QWidget):
         """Eksportuje running-config do pliku."""
         if not self._check_ready():
             return
+        command = self._profile.running_config_command
         device = self.device
         conn_mgr = self.conn_mgr
         filename, _ = QFileDialog.getSaveFileName(
@@ -242,7 +227,7 @@ class GlobalTab(QWidget):
             return
 
         def work():
-            return conn_mgr.send_command(device, "show running-config")
+            return conn_mgr.send_command(device, command)
 
         def on_success(output):
             try:
@@ -303,6 +288,22 @@ class GlobalTab(QWidget):
             layout.addWidget(btn)
         layout.addStretch()
         return box
+
+    def _update_profile_ui(self):
+        self.memory_box.setTitle(self._profile.memory_label or "Pamięć konfiguracji")
+        self.memory_box.setVisible(self._profile.memory_label is not None)
+
+        self.startup_box.setTitle(self._profile.startup_label or "Startup-config")
+        self.startup_box.setVisible(self._profile.startup_label is not None)
+
+        self.running_box.setTitle(self._profile.running_label)
+
+    def _show_unsupported_action(self, action: str):
+        QMessageBox.information(
+            self,
+            "Niedostępne",
+            f"{action} nie jest dostępne dla tej platformy.",
+        )
 
     def _check_ready(self) -> bool:
         if not self.device or not self.conn_mgr:
