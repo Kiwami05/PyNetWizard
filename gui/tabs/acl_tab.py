@@ -15,13 +15,14 @@ from PySide6.QtWidgets import (
     QScrollArea,
 )
 
+from gui.tabs.base_config_tab import BaseConfigTab
 from operations.operation import Operation
 from operations.operation_type import OperationType
 from services.parsed_config import ParsedConfig
 import re
 
 
-class ACLTab(QWidget):
+class ACLTab(BaseConfigTab):
     """
     Zakłada ASA ACL.
 

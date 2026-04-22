@@ -1,5 +1,4 @@
 from PySide6.QtWidgets import (
-    QWidget,
     QVBoxLayout,
     QHBoxLayout,
     QLabel,
@@ -14,19 +13,20 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
+from gui.tabs.base_config_tab import BaseConfigTab
 from operations.operation import Operation
 from operations.operation_type import OperationType
 from services.parsed_config import ParsedConfig
 
 
-class VLANsTab(QWidget):
+class VLANsTab(BaseConfigTab):
     """
     Tab VLAN-ów
     - tylko dodawanie / modyfikacja / usuwanie VLANów,
     - przypisywanie portów odbywa się w SwitchInterfacesTab,
     - kliknięcie w wiersz wypełnia pola VLAN ID / Name,
     - zmiana ID realizowana jako: no vlan OLD + vlan NEW (+ name ...),
-    - generuje pending_cmds oraz log w dolnej konsoli.
+    - generuje pending_ops oraz log w dolnej konsoli.
     """
 
     COL_ID = 0
