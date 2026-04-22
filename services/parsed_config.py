@@ -35,6 +35,12 @@ class ParsedACLs:
 
 
 @dataclass
+class ParsedSRXPolicies:
+    # [{"name":"ALLOW-HTTPS","from_zone":"untrust","to_zone":"trust","src":"any","dst":"WEB-SRV","application":"junos-https","action":"permit"}]
+    policies: List[Dict[str, str]] = field(default_factory=list)
+
+
+@dataclass
 class ParsedConfig:
     vendor: str
     hostname: Optional[str] = None
@@ -44,3 +50,4 @@ class ParsedConfig:
     vlans: ParsedVLANs = field(default_factory=ParsedVLANs)
     routing: ParsedRouting = field(default_factory=ParsedRouting)
     acls: ParsedACLs = field(default_factory=ParsedACLs)
+    srx_policies: ParsedSRXPolicies = field(default_factory=ParsedSRXPolicies)

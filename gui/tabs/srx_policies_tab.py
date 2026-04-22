@@ -22,7 +22,7 @@ from services.parsed_config import ParsedConfig
 
 class SRXPoliciesTab(QWidget):
     """
-    Minimalny, labowy widok polityk Juniper SRX.
+    Widok polityk Juniper SRX.
 
     Zakladamy, ze strefy, adresy i aplikacje moga juz istniec na urzadzeniu
     albo zostana podane jako standardowe wartosci Junos, np. `any` lub
@@ -59,13 +59,8 @@ class SRXPoliciesTab(QWidget):
         layout.setSpacing(10)
 
         layout.addWidget(QLabel("<h2>Polityki bezpieczeństwa Juniper SRX</h2>"))
-        layout.addWidget(
-            QLabel(
-                "Minimalny tryb labowy: polityka między strefami z adresami i aplikacją."
-            )
-        )
 
-        form_box = QGroupBox("Dodaj politykę")
+        form_box = QGroupBox("Dodaj / edytuj politykę")
         form = QFormLayout(form_box)
 
         self.policy_name = QLineEdit()
@@ -92,8 +87,8 @@ class SRXPoliciesTab(QWidget):
         form.addRow("Application:", self.application)
         form.addRow("Akcja:", self.action)
 
-        btn_add = QPushButton("Dodaj politykę")
-        btn_add.clicked.connect(self._add_policy)
+        btn_add = QPushButton("Dodaj / aktualizuj politykę")
+        btn_add.clicked.connect(self._add_or_update_policy)
         form.addRow(btn_add)
         layout.addWidget(form_box)
 
@@ -112,6 +107,7 @@ class SRXPoliciesTab(QWidget):
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QTableWidget.SingleSelection)
+        self.table.itemSelectionChanged.connect(self._on_table_selection_changed)
         layout.addWidget(self.table, 1)
 
         row = QHBoxLayout()
@@ -131,56 +127,155 @@ class SRXPoliciesTab(QWidget):
         rows = self.table.selectionModel().selectedRows()
         return rows[0].row() if rows else None
 
-    def _add_policy(self):
-        name = self.policy_name.text().strip()
-        from_zone = self.from_zone.text().strip()
-        to_zone = self.to_zone.text().strip()
-        src = self.src_addr.text().strip() or "any"
-        dst = self.dst_addr.text().strip() or "any"
-        application = self.application.text().strip() or "any"
-        action = self.action.currentText()
+    def _table_text(self, row: int, col: int) -> str:
+        item = self.table.item(row, col)
+        return item.text() if item else ""
 
-        if not name or not from_zone or not to_zone:
+    def _row_policy(self, row: int) -> dict[str, str]:
+        return {
+            "name": self._table_text(row, self.COL_NAME),
+            "from_zone": self._table_text(row, self.COL_FROM),
+            "to_zone": self._table_text(row, self.COL_TO),
+            "src": self._table_text(row, self.COL_SRC),
+            "dst": self._table_text(row, self.COL_DST),
+            "application": self._table_text(row, self.COL_APP),
+            "action": self._table_text(row, self.COL_ACTION),
+        }
+
+    def _form_policy(self) -> dict[str, str] | None:
+        policy = {
+            "name": self.policy_name.text().strip(),
+            "from_zone": self.from_zone.text().strip(),
+            "to_zone": self.to_zone.text().strip(),
+            "src": self.src_addr.text().strip() or "any",
+            "dst": self.dst_addr.text().strip() or "any",
+            "application": self.application.text().strip() or "any",
+            "action": self.action.currentText(),
+        }
+
+        if not policy["name"] or not policy["from_zone"] or not policy["to_zone"]:
             QMessageBox.warning(
                 self,
                 "Błąd",
                 "Podaj nazwę polityki oraz strefy from/to.",
             )
-            return
+            return None
 
+        return policy
+
+    def _find_policy_row(
+        self, name: str, from_zone: str, to_zone: str, exclude_row: int | None = None
+    ) -> int | None:
         for row in range(self.table.rowCount()):
-            if (
-                self.table.item(row, self.COL_NAME).text() == name
-                and self.table.item(row, self.COL_FROM).text() == from_zone
-                and self.table.item(row, self.COL_TO).text() == to_zone
-            ):
-                QMessageBox.information(
-                    self,
-                    "Informacja",
-                    "Taka polityka już istnieje dla tych stref.",
-                )
-                return
+            if exclude_row is not None and row == exclude_row:
+                continue
+            if self._table_text(row, self.COL_NAME) != name:
+                continue
+            if self._table_text(row, self.COL_FROM) != from_zone:
+                continue
+            if self._table_text(row, self.COL_TO) != to_zone:
+                continue
+            return row
+        return None
 
-        row = self.table.rowCount()
-        self.table.insertRow(row)
-        values = [name, from_zone, to_zone, src, dst, application, action]
+    def _set_policy_row(self, row: int, policy: dict[str, str]):
+        values = [
+            policy["name"],
+            policy["from_zone"],
+            policy["to_zone"],
+            policy["src"],
+            policy["dst"],
+            policy["application"],
+            policy["action"],
+        ]
         for col, value in enumerate(values):
             self.table.setItem(row, col, QTableWidgetItem(value))
 
+    def _append_add_policy_operation(self, policy: dict[str, str]):
         self.pending_ops.append(
             Operation(
                 OperationType.ADD_SRX_POLICY,
-                name=name,
-                from_zone=from_zone,
-                to_zone=to_zone,
-                src=src,
-                dst=dst,
-                application=application,
-                action=action,
+                name=policy["name"],
+                from_zone=policy["from_zone"],
+                to_zone=policy["to_zone"],
+                src=policy["src"],
+                dst=policy["dst"],
+                application=policy["application"],
+                action=policy["action"],
             )
         )
+
+    def _append_delete_policy_operation(self, policy: dict[str, str]):
+        self.pending_ops.append(
+            Operation(
+                OperationType.DEL_SRX_POLICY,
+                name=policy["name"],
+                from_zone=policy["from_zone"],
+                to_zone=policy["to_zone"],
+            )
+        )
+
+    def _on_table_selection_changed(self):
+        if self._loading:
+            return
+
+        row = self._selected_row()
+        if row is None:
+            return
+
+        policy = self._row_policy(row)
+        self.policy_name.setText(policy["name"])
+        self.from_zone.setText(policy["from_zone"])
+        self.to_zone.setText(policy["to_zone"])
+        self.src_addr.setText(policy["src"])
+        self.dst_addr.setText(policy["dst"])
+        self.application.setText(policy["application"])
+
+        action_index = self.action.findText(policy["action"])
+        if action_index >= 0:
+            self.action.setCurrentIndex(action_index)
+
+    def _add_or_update_policy(self):
+        policy = self._form_policy()
+        if policy is None:
+            return
+
+        selected_row = self._selected_row()
+        duplicate_row = self._find_policy_row(
+            policy["name"],
+            policy["from_zone"],
+            policy["to_zone"],
+            exclude_row=selected_row,
+        )
+        if duplicate_row is not None:
+            QMessageBox.information(
+                self,
+                "Informacja",
+                "Taka polityka już istnieje dla tych stref.",
+            )
+            return
+
+        if selected_row is None:
+            row = self.table.rowCount()
+            self.table.insertRow(row)
+            self._set_policy_row(row, policy)
+            self._append_add_policy_operation(policy)
+            self._append_log(
+                f"[OP] add SRX policy {policy['name']}: "
+                f"{policy['from_zone']} -> {policy['to_zone']} ({policy['action']})"
+            )
+            return
+
+        old_policy = self._row_policy(selected_row)
+        if old_policy == policy:
+            return
+
+        self._append_delete_policy_operation(old_policy)
+        self._append_add_policy_operation(policy)
+        self._set_policy_row(selected_row, policy)
         self._append_log(
-            f"[OP] add SRX policy {name}: {from_zone} -> {to_zone} ({action})"
+            f"[OP] update SRX policy {old_policy['name']}: "
+            f"{old_policy['from_zone']} -> {old_policy['to_zone']}"
         )
 
     def _delete_policy(self):
@@ -191,20 +286,14 @@ class SRXPoliciesTab(QWidget):
             )
             return
 
-        name = self.table.item(row, self.COL_NAME).text()
-        from_zone = self.table.item(row, self.COL_FROM).text()
-        to_zone = self.table.item(row, self.COL_TO).text()
+        policy = self._row_policy(row)
 
-        self.pending_ops.append(
-            Operation(
-                OperationType.DEL_SRX_POLICY,
-                name=name,
-                from_zone=from_zone,
-                to_zone=to_zone,
-            )
-        )
+        self._append_delete_policy_operation(policy)
         self.table.removeRow(row)
-        self._append_log(f"[OP] delete SRX policy {name}: {from_zone} -> {to_zone}")
+        self._append_log(
+            f"[OP] delete SRX policy {policy['name']}: "
+            f"{policy['from_zone']} -> {policy['to_zone']}"
+        )
 
     def get_pending_operations(self, clear=False) -> list[Operation]:
         ops = list(self.pending_ops)
@@ -243,7 +332,27 @@ class SRXPoliciesTab(QWidget):
             self._loading = False
 
     def sync_from_config(self, conf: ParsedConfig):
-        self.pending_ops.clear()
+        self._loading = True
+        try:
+            self.pending_ops.clear()
+            self.table.setRowCount(0)
+            for policy in conf.srx_policies.policies:
+                row = self.table.rowCount()
+                self.table.insertRow(row)
+                values = [
+                    policy.get("name", ""),
+                    policy.get("from_zone", ""),
+                    policy.get("to_zone", ""),
+                    policy.get("src", ""),
+                    policy.get("dst", ""),
+                    policy.get("application", ""),
+                    policy.get("action", ""),
+                ]
+                for col, value in enumerate(values):
+                    self.table.setItem(row, col, QTableWidgetItem(value))
+        finally:
+            self._loading = False
+
         self._append_log(
-            "[SYNC] SRX policies: parser polityk nie jest jeszcze częścią MVP."
+            f"[SYNC] SRX policies: wczytano {self.table.rowCount()} polityk."
         )
