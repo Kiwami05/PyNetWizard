@@ -6,6 +6,7 @@ from services.parsed_config import (
     ParsedVLANs,
     ParsedRouting,
     ParsedACLs,
+    ParsedSRXPolicies,
 )
 
 
@@ -83,6 +84,15 @@ _RIP_INTERFACE = re.compile(
     re.M,
 )
 
+# SRX security policies
+# set security policies from-zone untrust to-zone trust policy ALLOW match source-address any
+# set security policies from-zone untrust to-zone trust policy ALLOW then permit
+_SRX_POLICY = re.compile(
+    r"^set security policies from-zone (\S+) to-zone (\S+) policy (\S+) "
+    r"(match|then) (.+)$",
+    re.M,
+)
+
 
 def cidr_to_mask(cidr: int) -> str:
     cidr = int(cidr)
@@ -125,6 +135,10 @@ def parse_junos_list(value: str) -> list[str]:
 
 def vlan_member_to_id(member: str, vlan_name_to_id: dict[str, str]) -> str:
     return vlan_name_to_id.get(member, member)
+
+
+def clean_policy_value(value: str) -> str:
+    return " ".join(parse_junos_list(value))
 
 
 def parse(raw_config: str) -> ParsedConfig:
@@ -266,5 +280,44 @@ def parse(raw_config: str) -> ParsedConfig:
 
     # ACLe (puste)
     cfg.acls = ParsedACLs()
+
+    # Polityki SRX
+    policies: dict[tuple[str, str, str], dict[str, str]] = {}
+    for m in _SRX_POLICY.finditer(raw_config):
+        from_zone, to_zone, name, section, detail = m.groups()
+        key = (from_zone, to_zone, name)
+        policy = policies.setdefault(
+            key,
+            {
+                "name": name,
+                "from_zone": from_zone,
+                "to_zone": to_zone,
+                "src": "",
+                "dst": "",
+                "application": "",
+                "action": "",
+            },
+        )
+
+        if section == "match":
+            field, _, value = detail.partition(" ")
+            value = clean_policy_value(value)
+            if field == "source-address":
+                policy["src"] = value
+            elif field == "destination-address":
+                policy["dst"] = value
+            elif field == "application":
+                policy["application"] = value
+        elif section == "then":
+            action = detail.split()[0] if detail.split() else ""
+            if action in {"permit", "deny", "reject"}:
+                policy["action"] = action
+
+    cfg.srx_policies = ParsedSRXPolicies(
+        policies=sorted(
+            policies.values(),
+            key=lambda item: (item["from_zone"], item["to_zone"], item["name"]),
+        )
+    )
 
     return cfg
