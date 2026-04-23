@@ -248,7 +248,9 @@ class DeviceDetailWidget(QWidget):
             w = self.stack.widget(idx)
             w.clear_pending_operations()
 
-    def render_pending_operations_from_buffer(self, host: str, device=None) -> list[str]:
+    def render_pending_operations_from_buffer(
+        self, host: str, device=None
+    ) -> list[str]:
         buf = self.buffers.get(host)
         if not buf:
             return []
