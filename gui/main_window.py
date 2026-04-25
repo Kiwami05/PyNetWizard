@@ -145,6 +145,9 @@ class MainWindow(QMainWindow):
             timeout=int(self.settings.value("timeout", 10)),
             verbose=(self.settings.value("verbose", "false") == "true"),
             log_path=self.settings.value("log_path", "./logs"),
+            persist_cisco_config=(
+                self.settings.value("persist_cisco_config", "true") == "true"
+            ),
         )
 
         self.config_sync = ConfigSyncService(self.connection_manager)

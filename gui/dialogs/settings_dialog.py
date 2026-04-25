@@ -43,17 +43,19 @@ class SettingsDialog(QDialog):
         self.chk_autosync.setChecked(self.settings.value("autosync", "false") == "true")
         layout.addWidget(self.chk_autosync)
 
-        self.chk_save_passwords = QCheckBox("Zapamiętuj hasła w bieżącej sesji")
-        self.chk_save_passwords.setChecked(
-            self.settings.value("save_passwords", "false") == "true"
-        )
-        layout.addWidget(self.chk_save_passwords)
-
         # Netmiko / logi
         layout.addWidget(QLabel("<b>Netmiko / logi</b>"))
         self.chk_verbose = QCheckBox("Tryb debugowania (verbose output)")
         self.chk_verbose.setChecked(self.settings.value("verbose", "false") == "true")
         layout.addWidget(self.chk_verbose)
+
+        self.chk_persist_cisco = QCheckBox(
+            "Cisco: zapisuj zmiany także do startup-config"
+        )
+        self.chk_persist_cisco.setChecked(
+            self.settings.value("persist_cisco_config", "true") == "true"
+        )
+        layout.addWidget(self.chk_persist_cisco)
 
         log_layout = QHBoxLayout()
         self.edit_log_path = QLineEdit(self.settings.value("log_path", "./logs"))
@@ -63,13 +65,6 @@ class SettingsDialog(QDialog):
         log_layout.addWidget(self.edit_log_path)
         log_layout.addWidget(btn_browse)
         layout.addLayout(log_layout)
-
-        # Wygląd
-        layout.addWidget(QLabel("<b>Wygląd</b>"))
-        self.combo_theme = QComboBox()
-        self.combo_theme.addItems(["Jasny", "Ciemny"])
-        self.combo_theme.setCurrentText(self.settings.value("theme", "Jasny"))
-        layout.addWidget(self.combo_theme)
 
         # Przyciski
         btn_row = QHBoxLayout()
@@ -92,9 +87,8 @@ class SettingsDialog(QDialog):
         self.combo_type.setCurrentText("ssh")
         self.spin_timeout.setValue(10)
         self.chk_autosync.setChecked(False)
-        self.chk_save_passwords.setChecked(False)
         self.chk_verbose.setChecked(False)
-        self.combo_theme.setCurrentText("Jasny")
+        self.chk_persist_cisco.setChecked(True)
 
     def save_and_close(self):
         """Zapisuje ustawienia w QSettings"""
@@ -104,12 +98,12 @@ class SettingsDialog(QDialog):
             "autosync", "true" if self.chk_autosync.isChecked() else "false"
         )
         self.settings.setValue(
-            "save_passwords", "true" if self.chk_save_passwords.isChecked() else "false"
-        )
-        self.settings.setValue(
             "verbose", "true" if self.chk_verbose.isChecked() else "false"
         )
-        self.settings.setValue("theme", self.combo_theme.currentText())
+        self.settings.setValue(
+            "persist_cisco_config",
+            "true" if self.chk_persist_cisco.isChecked() else "false",
+        )
         self.settings.setValue("log_path", self.edit_log_path.text())
 
         self.accept()

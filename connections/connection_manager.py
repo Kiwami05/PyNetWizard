@@ -22,12 +22,18 @@ class ConnectionManager:
     """
 
     def __init__(
-        self, connection_type="ssh", timeout=10, log_path="./logs", verbose=False
+        self,
+        connection_type="ssh",
+        timeout=10,
+        log_path="./logs",
+        verbose=False,
+        persist_cisco_config=True,
     ):
         self.sessions: dict[str, BaseConnection] = {}
         self.connection_type = connection_type
         self.timeout = int(timeout)
         self.verbose = verbose
+        self.persist_cisco_config = persist_cisco_config
         self._lock = threading.RLock()
 
         # Tworzenie katalogu logów
@@ -194,10 +200,11 @@ class ConnectionManager:
                     delay_factor=2,
                     exit_config_mode=False,  # ASA nie zawsze ma "end"
                 )
-                try:
-                    conn.save_config()
-                except NetmikoBaseException:
-                    pass
+                if self.persist_cisco_config:
+                    try:
+                        conn.save_config()
+                    except NetmikoBaseException:
+                        pass
             else:
                 try:
                     output = conn.send_config_set(
@@ -205,7 +212,8 @@ class ConnectionManager:
                         read_timeout=60,
                         cmd_verify=False,
                     )
-                    conn.save_config()
+                    if self.persist_cisco_config:
+                        conn.save_config()
                 except NetmikoBaseException:
                     self.disconnect(device)
                     raise
