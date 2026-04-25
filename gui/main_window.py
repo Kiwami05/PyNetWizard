@@ -199,6 +199,8 @@ class MainWindow(QMainWindow):
             if new_dev.host:
                 self.device_list.add_device(new_dev)
                 self.refresh_device_buttons()
+                if self._is_autosync_enabled():
+                    self._autosync_devices([new_dev])
 
     def remove_device(self, host: str):
         reply = QMessageBox.question(
@@ -256,11 +258,15 @@ class MainWindow(QMainWindow):
             res_dialog = ScanResultsDialog(results, self)
             if res_dialog.exec() == QDialog.Accepted:
                 new_devices = res_dialog.get_selected_devices()
+                added_devices = []
                 for dev in new_devices.devices:
                     if any(d.host == dev.host for d in self.device_list.devices):
                         continue
                     self.device_list.add_device(dev)
+                    added_devices.append(dev)
                 self.refresh_device_buttons()
+                if added_devices and self._is_autosync_enabled():
+                    self._autosync_devices(added_devices)
 
     def save_inventory(self):
         filename, _ = QFileDialog.getSaveFileName(
@@ -293,6 +299,87 @@ class MainWindow(QMainWindow):
         dialog = SettingsDialog(self, self.connection_type)
         if dialog.exec() == QDialog.Accepted:
             self.connection_type = dialog.get_connection_type()
+
+    def _is_autosync_enabled(self) -> bool:
+        return self.settings.value("autosync", "false") == "true"
+
+    def _sync_device_work(self, dev: Device):
+        if not self.connection_manager.connect(dev):
+            raise ConnectionError("Nie udało się połączyć.")
+        conf = self.config_sync.fetch_and_parse(dev)
+        if conf.raw_running:
+            save_snapshot(dev, conf.raw_running, kind="running")
+        return conf
+
+    def _autosync_devices(self, devices: list[Device]):
+        if not devices:
+            return
+
+        if len(devices) == 1:
+            dev = devices[0]
+
+            def work():
+                return self._sync_device_work(dev)
+
+            def on_success(conf):
+                self._store_config_for_device(dev, conf)
+                self._append_console_for_device(
+                    dev, f"[SYNC] Nazwa hosta: {conf.hostname or '-'}"
+                )
+                QMessageBox.information(
+                    self,
+                    "Pobrano",
+                    f"Konfiguracja {dev.host} zsynchronizowana po dodaniu urządzenia.",
+                )
+
+            self._run_device_operation(
+                f"Synchronizacja konfiguracji {dev.host}",
+                work,
+                on_success,
+                lambda message: QMessageBox.critical(self, "Błąd autosync", message),
+            )
+            return
+
+        def work():
+            synced = []
+            errors = []
+            for dev in devices:
+                try:
+                    conf = self._sync_device_work(dev)
+                    synced.append((dev, conf))
+                except Exception as exc:
+                    errors.append(f"{dev.host}: {_format_exception(exc)}")
+            return {"synced": synced, "errors": errors}
+
+        def on_success(result):
+            synced = result["synced"]
+            errors = result["errors"]
+            for dev, conf in synced:
+                self._store_config_for_device(dev, conf)
+                self._append_console_for_device(
+                    dev, f"[SYNC] Nazwa hosta: {conf.hostname or '-'}"
+                )
+
+            synced_count = len(synced)
+            if errors:
+                msg = (
+                    f"Autosync zakończony częściowo. Zsynchronizowano: {synced_count}/{len(devices)}.\n\n"
+                    + "\n".join(errors)
+                )
+                QMessageBox.warning(self, "Autosync", msg)
+            elif synced_count:
+                QMessageBox.information(
+                    self,
+                    "Autosync",
+                    f"Zsynchronizowano {synced_count} nowych urządzeń.",
+                )
+
+        self._run_device_operation(
+            "Synchronizacja konfiguracji nowych urządzeń",
+            work,
+            on_success,
+            lambda message: QMessageBox.critical(self, "Błąd autosync", message),
+        )
 
     def update_status_bar(self):
         """Odświeża pasek statusu bez wykonywania I/O w wątku GUI."""
@@ -564,12 +651,7 @@ class MainWindow(QMainWindow):
         dev = self.current_device
 
         def work():
-            if not self.connection_manager.connect(dev):
-                raise ConnectionError("Nie udało się połączyć.")
-            conf = self.config_sync.fetch_and_parse(dev)
-            if conf.raw_running:
-                save_snapshot(dev, conf.raw_running, kind="running")
-            return conf
+            return self._sync_device_work(dev)
 
         def on_success(conf):
             self._store_config_for_device(dev, conf)
