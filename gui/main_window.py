@@ -298,7 +298,15 @@ class MainWindow(QMainWindow):
     def open_settings_dialog(self):
         dialog = SettingsDialog(self, self.connection_type)
         if dialog.exec() == QDialog.Accepted:
-            self.connection_type = dialog.get_connection_type()
+            self._apply_runtime_settings()
+
+    def _apply_runtime_settings(self):
+        self.connection_type = self.settings.value("connection_type", "ssh")
+        self.connection_manager.connection_type = self.connection_type
+        self.connection_manager.timeout = int(self.settings.value("timeout", 10))
+        self.connection_manager.persist_cisco_config = (
+            self.settings.value("persist_cisco_config", "true") == "true"
+        )
 
     def _is_autosync_enabled(self) -> bool:
         return self.settings.value("autosync", "false") == "true"
