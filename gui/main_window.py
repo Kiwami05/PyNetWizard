@@ -557,7 +557,9 @@ class MainWindow(QMainWindow):
             )
             self._store_config_for_device(dev, conf)
             QMessageBox.information(
-                self, "Zatwierdzono", f"Konfiguracja zapisana na {dev.host}."
+                self,
+                "Zatwierdzono",
+                f"Pomyślne zaktualizowano konfigurację dla {dev.host}.",
             )
 
         self._run_device_operation(
