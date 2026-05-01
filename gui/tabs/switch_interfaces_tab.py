@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
+from gui.localization import localize_button_box
 from gui.tabs.interfaces_tab import InterfacesTab, mask_to_cidr
 from operations.operation import Operation
 from operations.operation_type import OperationType
@@ -89,6 +90,7 @@ class VLANSelectDialog(QDialog):
             layout.addWidget(scroll)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        localize_button_box(buttons)
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)

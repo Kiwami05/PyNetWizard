@@ -1,6 +1,8 @@
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QTextEdit, QDialogButtonBox
 import json
 
+from gui.localization import localize_button_box
+
 
 class RawDataDialog(QDialog):
     def __init__(self, raw_info, parent=None):
@@ -21,5 +23,6 @@ class RawDataDialog(QDialog):
         layout.addWidget(text)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok)
+        localize_button_box(buttons)
         buttons.accepted.connect(self.accept)
         layout.addWidget(buttons)

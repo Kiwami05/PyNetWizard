@@ -7,10 +7,11 @@ from PySide6.QtWidgets import (
     QPushButton,
     QCheckBox,
     QSpinBox,
-    QFileDialog,
     QLineEdit,
 )
 from PySide6.QtCore import QSettings
+
+from gui.localization import get_existing_directory
 
 
 class SettingsDialog(QDialog):
@@ -78,7 +79,7 @@ class SettingsDialog(QDialog):
         layout.addLayout(btn_row)
 
     def choose_log_folder(self):
-        folder = QFileDialog.getExistingDirectory(self, "Wybierz folder logów")
+        folder = get_existing_directory(self, "Wybierz folder logów")
         if folder:
             self.edit_log_path.setText(folder)
 

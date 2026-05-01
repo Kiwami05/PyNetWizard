@@ -13,8 +13,9 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QLineEdit,
     QTextEdit,
-    QFileDialog,
 )
+
+from gui.localization import get_open_file_name
 
 
 class LogEntry:
@@ -143,7 +144,7 @@ class LogViewerDialog(QDialog):
             self._load_current_file()
 
     def _open_log_folder(self):
-        QFileDialog.getOpenFileName(self, "Folder logów", str(self.LOG_DIR))
+        get_open_file_name(self, "Folder logów", str(self.LOG_DIR))
 
     def _on_file_changed(self, index: int):
         # zmiana pliku = reset pauzy i normalny tail-f

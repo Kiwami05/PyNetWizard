@@ -72,12 +72,12 @@ class NetworkScanDialog(QDialog):
             "Bez uprawnień administratora/root używany jest skan usług. "
             "Z uprawnieniami aplikacja dodatkowo używa fingerprintingu OS."
         )
-        if not self.privileged:
-            layout.addWidget(
-                QLabel(
-                    "Wykrywanie OS jest niedostępne bez uprawnień administratora/root."
-                )
-            )
+        # if not self.privileged:
+        #     layout.addWidget(
+        #         QLabel(
+        #             "Wykrywanie OS jest niedostępne bez uprawnień administratora/root."
+        #         )
+        #     )
         layout.addWidget(self.checkbox_detailed)
 
         # spinner

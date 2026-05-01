@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 
+from gui.localization import question_yes_no
 from gui.tabs.base_config_tab import BaseConfigTab
 from operations.operation import Operation
 from operations.operation_type import OperationType
@@ -254,13 +255,13 @@ class VLANsTab(BaseConfigTab):
             return
 
         # Potwierdzenie
-        reply = QMessageBox.question(
+        reply = question_yes_no(
             self,
             "Potwierdzenie",
             f"Czy na pewno chcesz usunąć VLAN {vlan_id}?",
-            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.StandardButton.No,
         )
-        if reply != QMessageBox.Yes:
+        if reply != QMessageBox.StandardButton.Yes:
             return
 
         self.pending_ops.append(

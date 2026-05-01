@@ -8,7 +8,6 @@ from PySide6.QtWidgets import (
     QScrollArea,
     QLabel,
     QDialog,
-    QFileDialog,
     QMessageBox,
     QStatusBar,
 )
@@ -24,6 +23,7 @@ from gui.dialogs.log_viewer_dialog import LogViewerDialog
 from gui.dialogs.queued_changes_dialog import QueuedChangesDialog
 from gui.dialogs.settings_dialog import SettingsDialog
 from gui.device_detail_widget import DeviceDetailWidget
+from gui.localization import get_open_file_name, get_save_file_name, question_yes_no
 from operations.operation_support import UnsupportedOperationsError
 from services.config_history import save_snapshot
 from services.config_sync import ConfigSyncService
@@ -203,28 +203,26 @@ class MainWindow(QMainWindow):
                     self._autosync_devices([new_dev])
 
     def remove_device(self, host: str):
-        reply = QMessageBox.question(
+        reply = question_yes_no(
             self,
             "Potwierdzenie",
             f"Czy na pewno chcesz usunąć urządzenie „{host}”?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            QMessageBox.StandardButton.No,
         )
-        if reply == QMessageBox.Yes:
+        if reply == QMessageBox.StandardButton.Yes:
             self.device_list.remove_device(host)
             self.clear_device_buffer(host)
             self.refresh_device_buttons()
             self.show_device_details(None)
 
     def clear_device_list(self):
-        reply = QMessageBox.question(
+        reply = question_yes_no(
             self,
             "Potwierdzenie",
             "Czy na pewno chcesz wyczyścić listę urządzeń?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            QMessageBox.StandardButton.No,
         )
-        if reply == QMessageBox.Yes:
+        if reply == QMessageBox.StandardButton.Yes:
             self.device_list.clear()
             self.clear_device_buffer()
             self.refresh_device_buttons()
@@ -269,7 +267,7 @@ class MainWindow(QMainWindow):
                     self._autosync_devices(added_devices)
 
     def save_inventory(self):
-        filename, _ = QFileDialog.getSaveFileName(
+        filename, _ = get_save_file_name(
             self, "Zapisz listę urządzeń", "inventory.json", "Pliki JSON (*.json)"
         )
         if filename:
@@ -279,7 +277,7 @@ class MainWindow(QMainWindow):
             )
 
     def load_inventory(self):
-        filename, _ = QFileDialog.getOpenFileName(
+        filename, _ = get_open_file_name(
             self, "Wczytaj listę urządzeń", "", "Pliki JSON (*.json)"
         )
         if filename:
@@ -697,14 +695,13 @@ class MainWindow(QMainWindow):
             )
             return
 
-        reply = QMessageBox.question(
+        reply = question_yes_no(
             self,
             "Potwierdzenie",
             f"Czy na pewno chcesz odrzucić zmiany dla {dev.host} i przywrócić ostatni snapshot?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            QMessageBox.StandardButton.No,
         )
-        if reply == QMessageBox.No:
+        if reply == QMessageBox.StandardButton.No:
             return
 
         self.detail_box.current_device = dev
@@ -720,14 +717,13 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "Brak urządzeń", "Lista urządzeń jest pusta.")
             return
 
-        reply = QMessageBox.question(
+        reply = question_yes_no(
             self,
             "Potwierdzenie",
             "Czy na pewno chcesz przywrócić snapshoty dla wszystkich urządzeń?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            QMessageBox.StandardButton.No,
         )
-        if reply == QMessageBox.No:
+        if reply == QMessageBox.StandardButton.No:
             return
 
         count = 0

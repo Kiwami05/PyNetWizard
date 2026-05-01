@@ -8,12 +8,12 @@ from PySide6.QtWidgets import (
     QFormLayout,
     QSpacerItem,
     QSizePolicy,
-    QFileDialog,
     QMessageBox,
 )
 from PySide6.QtCore import Qt
 
 from devices.device import Device
+from gui.localization import get_open_file_name, get_save_file_name, question_yes_no
 from operations.operation import Operation
 
 from operations.operation_type import OperationType
@@ -146,14 +146,13 @@ class GlobalTab(BaseConfigTab):
         if not command:
             self._show_unsupported_action("Kasowanie konfiguracji")
             return
-        reply = QMessageBox.question(
+        reply = question_yes_no(
             self,
             "Potwierdzenie",
             f"Czy na pewno chcesz wykonać '{command}'?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
+            QMessageBox.StandardButton.No,
         )
-        if reply == QMessageBox.No:
+        if reply == QMessageBox.StandardButton.No:
             return
         device = self.device
         conn_mgr = self.conn_mgr
@@ -201,7 +200,7 @@ class GlobalTab(BaseConfigTab):
             return
         device = self.device
         conn_mgr = self.conn_mgr
-        filename, _ = QFileDialog.getSaveFileName(
+        filename, _ = get_save_file_name(
             self, "Zapisz startup-config", "startup-config.txt"
         )
         if not filename:
@@ -234,7 +233,7 @@ class GlobalTab(BaseConfigTab):
         command = self._profile.running_config_command
         device = self.device
         conn_mgr = self.conn_mgr
-        filename, _ = QFileDialog.getSaveFileName(
+        filename, _ = get_save_file_name(
             self, "Zapisz running-config", "running-config.txt"
         )
         if not filename:
@@ -266,7 +265,7 @@ class GlobalTab(BaseConfigTab):
             return
         device = self.device
         conn_mgr = self.conn_mgr
-        filename, _ = QFileDialog.getOpenFileName(
+        filename, _ = get_open_file_name(
             self, "Wybierz plik konfiguracyjny", "", "Text Files (*.txt)"
         )
         if not filename:
@@ -301,7 +300,7 @@ class GlobalTab(BaseConfigTab):
                 return conn_mgr.send_command(device, command)
 
             def on_success(output):
-                filename, _ = QFileDialog.getSaveFileName(
+                filename, _ = get_save_file_name(
                     self, label, self._default_extra_filename(label)
                 )
                 if not filename:

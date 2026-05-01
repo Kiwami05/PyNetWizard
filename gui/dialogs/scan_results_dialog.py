@@ -16,12 +16,13 @@ from PySide6.QtWidgets import (
 )
 
 from gui.dialogs.raw_data_dialog import RawDataDialog
+from gui.localization import localize_button_box
 from devices.device import Device
 from devices.device_list import DeviceList
 from platforms.vendor import Vendor
 from platforms.device_type import DeviceType
 
-DEBUG = True  # ustaw True, jeśli chcesz zobaczyć raw_data
+DEBUG = False  # ustaw True, jeśli chcesz zobaczyć raw_data
 
 
 class ScanResultsDialog(QDialog):
@@ -102,8 +103,9 @@ class ScanResultsDialog(QDialog):
         self.table.customContextMenuRequested.connect(self.show_context_menu)
         layout.addWidget(self.table)
 
-        # przyciski OK/Cancel
+        # przyciski OK/Anuluj
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        localize_button_box(buttons)
         buttons.accepted.connect(self.validate_and_accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)

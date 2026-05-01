@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 from devices.device import Device
+from gui.localization import localize_button_box
 from platforms.device_type import DeviceType
 from platforms.vendor import Vendor
 
@@ -56,10 +57,11 @@ class AddDeviceDialog(QDialog):
 
         layout.addLayout(form)
 
-        # OK / Cancel
+        # OK / Anuluj
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
         )
+        localize_button_box(buttons)
         buttons.accepted.connect(self.validate_and_accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
