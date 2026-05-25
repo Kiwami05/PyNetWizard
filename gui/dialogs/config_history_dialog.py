@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from devices.device import Device
+from gui.dialogs.message_box import ask_yes_no
 from services.config_history import list_snapshots, ConfigSnapshot
 
 
@@ -229,12 +230,10 @@ class ConfigHistoryDialog(QDialog):
             )
             return
 
-        reply = QMessageBox.question(
+        reply = ask_yes_no(
             self,
             "Potwierdzenie",
             f"Czy na pewno chcesz usunąć {len(rows)} wybranych plików z historii?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
             return

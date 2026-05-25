@@ -21,5 +21,6 @@ class RawDataDialog(QDialog):
         layout.addWidget(text)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok)
+        buttons.button(QDialogButtonBox.Ok).setText("OK")
         buttons.accepted.connect(self.accept)
         layout.addWidget(buttons)
