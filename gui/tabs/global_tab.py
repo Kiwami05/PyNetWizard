@@ -18,6 +18,7 @@ from operations.operation import Operation
 
 from operations.operation_type import OperationType
 from gui.tabs.base_config_tab import BaseConfigTab
+from gui.dialogs.message_box import ask_yes_no
 from platforms.global_commands import (
     GlobalCommandProfile,
     global_commands_for_device,
@@ -146,12 +147,10 @@ class GlobalTab(BaseConfigTab):
         if not command:
             self._show_unsupported_action("Kasowanie konfiguracji")
             return
-        reply = QMessageBox.question(
+        reply = ask_yes_no(
             self,
             "Potwierdzenie",
             f"Czy na pewno chcesz wykonać '{command}'?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
         )
         if reply == QMessageBox.No:
             return

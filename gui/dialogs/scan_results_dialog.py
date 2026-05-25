@@ -104,6 +104,8 @@ class ScanResultsDialog(QDialog):
 
         # przyciski OK/Cancel
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.button(QDialogButtonBox.Ok).setText("OK")
+        buttons.button(QDialogButtonBox.Cancel).setText("Anuluj")
         buttons.accepted.connect(self.validate_and_accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)

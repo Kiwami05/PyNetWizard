@@ -89,6 +89,8 @@ class VLANSelectDialog(QDialog):
             layout.addWidget(scroll)
 
         buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        buttons.button(QDialogButtonBox.Ok).setText("OK")
+        buttons.button(QDialogButtonBox.Cancel).setText("Anuluj")
         buttons.accepted.connect(self.accept)
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)

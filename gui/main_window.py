@@ -19,6 +19,7 @@ from devices.device_buffer import DeviceBuffer
 from devices.device_list import DeviceList
 from devices.device import Device
 from gui.dialogs.config_history_dialog import ConfigHistoryDialog
+from gui.dialogs.message_box import ask_yes_no
 from gui.device_operation_worker import DeviceOperationWorker
 from gui.dialogs.log_viewer_dialog import LogViewerDialog
 from gui.dialogs.queued_changes_dialog import QueuedChangesDialog
@@ -203,12 +204,10 @@ class MainWindow(QMainWindow):
                     self._autosync_devices([new_dev])
 
     def remove_device(self, host: str):
-        reply = QMessageBox.question(
+        reply = ask_yes_no(
             self,
             "Potwierdzenie",
             f"Czy na pewno chcesz usunąć urządzenie „{host}”?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
         )
         if reply == QMessageBox.Yes:
             self.device_list.remove_device(host)
@@ -217,12 +216,10 @@ class MainWindow(QMainWindow):
             self.show_device_details(None)
 
     def clear_device_list(self):
-        reply = QMessageBox.question(
+        reply = ask_yes_no(
             self,
             "Potwierdzenie",
             "Czy na pewno chcesz wyczyścić listę urządzeń?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
         )
         if reply == QMessageBox.Yes:
             self.device_list.clear()
@@ -541,8 +538,6 @@ class MainWindow(QMainWindow):
             return
 
         def work():
-            if not self.connection_manager.connect(dev):
-                raise ConnectionError("Nie udało się nawiązać połączenia.")
             output = self.connection_manager.send_config(dev, cmds)
             conf = self.config_sync.fetch_and_parse(dev)
             if conf.raw_running:
@@ -612,8 +607,6 @@ class MainWindow(QMainWindow):
             errors = []
             for job_dev, cmds in jobs:
                 try:
-                    if not self.connection_manager.connect(job_dev):
-                        raise ConnectionError("Nie udało się nawiązać połączenia.")
                     output = self.connection_manager.send_config(job_dev, cmds)
                     conf = self.config_sync.fetch_and_parse(job_dev)
                     if conf.raw_running:
@@ -659,7 +652,10 @@ class MainWindow(QMainWindow):
         dev = self.current_device
 
         def work():
-            return self._sync_device_work(dev)
+            conf = self.config_sync.fetch_and_parse(dev)
+            if conf.raw_running:
+                save_snapshot(dev, conf.raw_running, kind="running")
+            return conf
 
         def on_success(conf):
             self._store_config_for_device(dev, conf)
@@ -695,12 +691,10 @@ class MainWindow(QMainWindow):
             )
             return
 
-        reply = QMessageBox.question(
+        reply = ask_yes_no(
             self,
             "Potwierdzenie",
             f"Czy na pewno chcesz odrzucić zmiany dla {dev.host} i przywrócić ostatni snapshot?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
         )
         if reply == QMessageBox.No:
             return
@@ -718,12 +712,10 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "Brak urządzeń", "Lista urządzeń jest pusta.")
             return
 
-        reply = QMessageBox.question(
+        reply = ask_yes_no(
             self,
             "Potwierdzenie",
             "Czy na pewno chcesz przywrócić snapshoty dla wszystkich urządzeń?",
-            QMessageBox.Yes | QMessageBox.No,
-            QMessageBox.No,
         )
         if reply == QMessageBox.No:
             return
