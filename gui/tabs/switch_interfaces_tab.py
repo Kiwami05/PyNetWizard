@@ -180,6 +180,17 @@ class SwitchInterfacesTab(InterfacesTab):
 
         name_item = QTableWidgetItem(name)
         name_item.setFlags(name_item.flags() & ~Qt.ItemIsEditable)
+        name_item.setData(
+            self._BASELINE_ROLE,
+            {
+                "description": desc,
+                "ip": ip,
+                "cidr": int(cidr_str) if str(cidr_str).isdigit() else 0,
+                "status": status.lower() != "down",
+                "mode": mode,
+                "vlans": list(vlans or []),
+            },
+        )
         self.table.setItem(row, self.COL_NAME, name_item)
 
         edit_desc = QLineEdit(desc)
@@ -204,7 +215,7 @@ class SwitchInterfacesTab(InterfacesTab):
             "Maska w formacie CIDR (0–32). Do IOS trafia maska kropkowa."
         )
         spin_mask.setProperty("iface", name)
-        spin_mask.valueChanged.connect(self._on_mask_changed)
+        spin_mask.editingFinished.connect(self._on_mask_changed)
         self.table.setCellWidget(row, self.COL_MASK, spin_mask)
 
         combo_mode = QComboBox()
@@ -241,30 +252,49 @@ class SwitchInterfacesTab(InterfacesTab):
         w = self.sender()
         iface = w.property("iface")
         mode = (mode or "").lower()
+        baseline = self._baseline_for_iface(iface)
+        mode_ops = {
+            OperationType.SET_SWITCHPORT_MODE_ACCESS,
+            OperationType.SET_SWITCHPORT_MODE_TRUNK,
+            OperationType.SET_SWITCHPORT_MODE_ROUTED,
+        }
+
+        if mode == baseline.get("mode", ""):
+            self._replace_pending_operation(iface, mode_ops)
+            return
 
         if mode == "access":
-            self.pending_ops.append(
-                Operation(
-                    OperationType.SET_SWITCHPORT_MODE_ACCESS,
-                    iface=iface,
-                )
+            new_op = Operation(
+                OperationType.SET_SWITCHPORT_MODE_ACCESS,
+                iface=iface,
+            )
+            self._replace_pending_operation(
+                iface,
+                self._conflicting_operation_types(OperationType.SET_SWITCHPORT_MODE_ACCESS),
+                new_op,
             )
         elif mode == "trunk":
-            self.pending_ops.append(
-                Operation(
-                    OperationType.SET_SWITCHPORT_MODE_TRUNK,
-                    iface=iface,
-                )
+            new_op = Operation(
+                OperationType.SET_SWITCHPORT_MODE_TRUNK,
+                iface=iface,
+            )
+            self._replace_pending_operation(
+                iface,
+                self._conflicting_operation_types(OperationType.SET_SWITCHPORT_MODE_TRUNK),
+                new_op,
             )
         elif mode == "routed":
-            self.pending_ops.append(
-                Operation(
-                    OperationType.SET_SWITCHPORT_MODE_ROUTED,
-                    iface=iface,
-                )
+            new_op = Operation(
+                OperationType.SET_SWITCHPORT_MODE_ROUTED,
+                iface=iface,
+            )
+            self._replace_pending_operation(
+                iface,
+                self._conflicting_operation_types(OperationType.SET_SWITCHPORT_MODE_ROUTED),
+                new_op,
             )
 
-            self._append_log(f"[OP] set mode {mode} on {iface}")
+        self._append_log(f"[OP] set mode {mode} on {iface}")
 
     def _on_vlans_button_clicked(self):
         if self._loading:
@@ -324,21 +354,36 @@ class SwitchInterfacesTab(InterfacesTab):
 
         # zaktualizuj przycisk
         btn.setText(", ".join(selected))
+        vlan_ops = {
+            OperationType.SET_ACCESS_VLAN,
+            OperationType.CLEAR_ACCESS_VLAN,
+            OperationType.SET_TRUNK_ALLOWED_VLANS,
+            OperationType.CLEAR_TRUNK_ALLOWED_VLANS,
+        }
+        baseline = self._baseline_for_iface(iface)
+        baseline_vlans = [str(v) for v in baseline.get("vlans", [])]
+        baseline_mode = baseline.get("mode", "")
 
         # wygeneruj komendy
-        if mode == "access":
+        if mode == baseline_mode and selected == baseline_vlans:
+            self._replace_pending_operation(iface, vlan_ops)
+        elif mode == "access":
             # zakładamy jeden VLAN
             vid = selected[0]
-            self.pending_ops.append(
-                Operation(OperationType.SET_ACCESS_VLAN, iface=iface, vlan_id=vid)
+            self._replace_pending_operation(
+                iface,
+                vlan_ops,
+                Operation(OperationType.SET_ACCESS_VLAN, iface=iface, vlan_id=vid),
             )
         else:  # trunk
-            self.pending_ops.append(
+            self._replace_pending_operation(
+                iface,
+                vlan_ops,
                 Operation(
                     OperationType.SET_TRUNK_ALLOWED_VLANS,
                     iface=iface,
                     vlans=[int(v) for v in selected],
-                )
+                ),
             )
         self._append_log(f"[OP] set VLAN(s) {','.join(selected)} on {iface} ({mode})")
 
