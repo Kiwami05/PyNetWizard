@@ -20,6 +20,7 @@ from gui.tabs.acl_tab import ACLTab
 from gui.tabs.srx_policies_tab import SRXPoliciesTab
 from gui.tab_registry import tab_specs_for_device
 from operations.operation import Operation
+from operations.normalizer import normalize_operations
 from operations.operation_support import validate_operations_supported_for_device
 from renderers.factory import RendererFactory
 from services.parsed_config import ParsedConfig
@@ -227,6 +228,7 @@ class DeviceDetailWidget(QWidget):
         for idx in range(self.stack.count()):
             w = self.stack.widget(idx)
             pending_ops.extend(w.get_pending_operations(clear=False))
+        pending_ops = normalize_operations(pending_ops)
 
         # Renderowanie operacji → CLI
         rendered_cmds: list[str] = []
@@ -268,6 +270,7 @@ class DeviceDetailWidget(QWidget):
                 pending_ops.extend(
                     op for op in data["pending_ops"] if isinstance(op, Operation)
                 )
+        pending_ops = normalize_operations(pending_ops)
 
         rendered_cmds: list[str] = []
         if pending_ops:

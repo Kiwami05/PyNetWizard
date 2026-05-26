@@ -46,35 +46,51 @@ class JuniperJunosRenderer(OperationRenderer):
             elif op.operation_type == OperationType.SET_INTERFACE_DESCRIPTION:
                 iface = op.args["iface"]
                 desc = op.args.get("description")
+                iface_path = _junos_interface_path(iface)
 
                 if desc:
-                    cmds.append(f'set interfaces {iface} description "{desc}"')
+                    cmds.append(f'set interfaces {iface_path} description "{desc}"')
                 else:
-                    cmds.append(f"delete interfaces {iface} description")
+                    cmds.append(f"delete interfaces {iface_path} description")
 
             elif op.operation_type == OperationType.SET_INTERFACE_IP:
                 iface = op.args["iface"]
                 ip = op.args["ip"]
                 mask = op.args["mask"]
+                base_iface, unit = _junos_interface_base_unit(iface)
+                old_ip = op.args.get("old_ip")
+                old_mask = op.args.get("old_mask")
 
                 cidr = IPv4Network(f"0.0.0.0/{mask}").prefixlen
-                cmds.append(f"delete interfaces {iface} unit 0 family inet address")
+                delete_cmd = _junos_delete_interface_ip_command(
+                    base_iface, unit, old_ip, old_mask
+                )
+                if delete_cmd:
+                    cmds.append(delete_cmd)
                 cmds.append(
-                    f"set interfaces {iface} unit 0 family inet address {ip}/{cidr}"
+                    f"set interfaces {base_iface} unit {unit} family inet address {ip}/{cidr}"
                 )
 
             elif op.operation_type == OperationType.CLEAR_INTERFACE_IP:
                 iface = op.args["iface"]
-                cmds.append(f"delete interfaces {iface} unit 0 family inet address")
+                base_iface, unit = _junos_interface_base_unit(iface)
+                old_ip = op.args.get("old_ip")
+                old_mask = op.args.get("old_mask")
+                delete_cmd = _junos_delete_interface_ip_command(
+                    base_iface, unit, old_ip, old_mask
+                )
+                if delete_cmd:
+                    cmds.append(delete_cmd)
 
             elif op.operation_type == OperationType.SET_INTERFACE_STATUS:
                 iface = op.args["iface"]
                 enabled = op.args["enabled"]
+                iface_path = _junos_interface_path(iface)
 
                 if enabled:
-                    cmds.append(f"delete interfaces {iface} disable")
+                    cmds.append(f"delete interfaces {iface_path} disable")
                 else:
-                    cmds.append(f"set interfaces {iface} disable")
+                    cmds.append(f"set interfaces {iface_path} disable")
             # Interfejsy switcha
             elif op.operation_type == OperationType.SET_SWITCHPORT_MODE_ACCESS:
                 iface = op.args["iface"]
@@ -221,6 +237,34 @@ def _ipv4_prefix(address: str, mask: str) -> str:
 def _junos_vlan_name(vlan_id) -> str:
     """Zgodne z aktualnymi zasadami nazewnictwa obiektów VLAN w systemie Junos stosowanymi przez aplikację"""
     return f"vlan-{vlan_id}"
+
+
+def _junos_interface_base_unit(iface: str) -> tuple[str, str]:
+    if "." not in iface:
+        return iface, "0"
+    base, unit = iface.rsplit(".", 1)
+    if unit.isdigit():
+        return base, unit
+    return iface, "0"
+
+
+def _junos_interface_path(iface: str) -> str:
+    base, unit = _junos_interface_base_unit(iface)
+    if unit == "0" and base == iface:
+        return iface
+    return f"{base} unit {unit}"
+
+
+def _junos_delete_interface_ip_command(
+    base_iface: str, unit: str, old_ip: str | None, old_mask: str | None
+) -> str | None:
+    if old_ip and old_mask:
+        cidr = IPv4Network(f"0.0.0.0/{old_mask}").prefixlen
+        return (
+            f"delete interfaces {base_iface} unit {unit} family inet address "
+            f"{old_ip}/{cidr}"
+        )
+    return None
 
 
 def _dedupe_adjacent(commands: list[str]) -> list[str]:

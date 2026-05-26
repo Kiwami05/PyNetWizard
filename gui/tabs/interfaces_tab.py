@@ -68,6 +68,7 @@ class InterfacesTab(BaseConfigTab):
     COL_IP = 2
     COL_MASK = 3
     COL_STATUS = 4
+    _BASELINE_ROLE = Qt.UserRole
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -104,6 +105,15 @@ class InterfacesTab(BaseConfigTab):
         # Nazwa interfejsu
         item_name = QTableWidgetItem(name)
         item_name.setFlags(item_name.flags() & ~Qt.ItemIsEditable)
+        item_name.setData(
+            self._BASELINE_ROLE,
+            {
+                "description": desc,
+                "ip": ip,
+                "cidr": int(cidr_str),
+                "status": status.lower() != "down",
+            },
+        )
         self.table.setItem(row, self.COL_NAME, item_name)
 
         # Opis
@@ -128,7 +138,7 @@ class InterfacesTab(BaseConfigTab):
             "Maska w formacie CIDR (0–32). Do IOS trafia maska kropkowa."
         )
         spin_mask.setProperty("iface", name)
-        spin_mask.valueChanged.connect(self._on_mask_changed)
+        spin_mask.editingFinished.connect(self._on_mask_changed)
         self.table.setCellWidget(row, self.COL_MASK, spin_mask)
 
         # Status
@@ -148,6 +158,85 @@ class InterfacesTab(BaseConfigTab):
                 return r
         return -1
 
+    def _baseline_for_iface(self, iface: str) -> dict:
+        row = self._find_row(iface)
+        if row == -1:
+            return {}
+        item = self.table.item(row, self.COL_NAME)
+        if not item:
+            return {}
+        baseline = item.data(self._BASELINE_ROLE)
+        return baseline if isinstance(baseline, dict) else {}
+
+    def _replace_pending_operation(self, iface: str, types: set[OperationType], new_op=None):
+        self.pending_ops = [
+            op
+            for op in self.pending_ops
+            if not (op.args.get("iface") == iface and op.operation_type in types)
+        ]
+        if new_op is not None:
+            self.pending_ops.append(new_op)
+
+    def _normalize_pending_operations(self, ops: list[Operation]) -> list[Operation]:
+        normalized: list[Operation] = []
+        for op in ops:
+            iface = op.args.get("iface")
+            if iface:
+                conflict_types = self._conflicting_operation_types(op.operation_type)
+                if conflict_types:
+                    normalized = [
+                        existing
+                        for existing in normalized
+                        if not (
+                            existing.args.get("iface") == iface
+                            and existing.operation_type in conflict_types
+                        )
+                    ]
+            normalized.append(op)
+        return normalized
+
+    @staticmethod
+    def _conflicting_operation_types(op_type: OperationType) -> set[OperationType]:
+        if op_type == OperationType.SET_INTERFACE_DESCRIPTION:
+            return {OperationType.SET_INTERFACE_DESCRIPTION}
+        if op_type == OperationType.SET_INTERFACE_STATUS:
+            return {OperationType.SET_INTERFACE_STATUS}
+        if op_type in (
+            OperationType.SET_INTERFACE_IP,
+            OperationType.CLEAR_INTERFACE_IP,
+        ):
+            return {
+                OperationType.SET_INTERFACE_IP,
+                OperationType.CLEAR_INTERFACE_IP,
+            }
+        if op_type in (
+            OperationType.SET_SWITCHPORT_MODE_ACCESS,
+            OperationType.SET_SWITCHPORT_MODE_TRUNK,
+            OperationType.SET_SWITCHPORT_MODE_ROUTED,
+        ):
+            return {
+                OperationType.SET_SWITCHPORT_MODE_ACCESS,
+                OperationType.SET_SWITCHPORT_MODE_TRUNK,
+                OperationType.SET_SWITCHPORT_MODE_ROUTED,
+                OperationType.SET_ACCESS_VLAN,
+                OperationType.CLEAR_ACCESS_VLAN,
+                OperationType.SET_TRUNK_ALLOWED_VLANS,
+                OperationType.CLEAR_TRUNK_ALLOWED_VLANS,
+            }
+        if op_type in (
+            OperationType.SET_ACCESS_VLAN,
+            OperationType.CLEAR_ACCESS_VLAN,
+            OperationType.SET_TRUNK_ALLOWED_VLANS,
+            OperationType.CLEAR_TRUNK_ALLOWED_VLANS,
+        ):
+            return {
+                OperationType.SET_ACCESS_VLAN,
+                OperationType.CLEAR_ACCESS_VLAN,
+                OperationType.SET_TRUNK_ALLOWED_VLANS,
+                OperationType.CLEAR_TRUNK_ALLOWED_VLANS,
+            }
+        return set()
+
     def _on_desc_changed(self):
         if self._loading:
             return
@@ -155,13 +244,21 @@ class InterfacesTab(BaseConfigTab):
         w = self.sender()
         iface = w.property("iface")
         desc = w.text().strip()
+        baseline = self._baseline_for_iface(iface)
+        if desc == baseline.get("description", ""):
+            self._replace_pending_operation(
+                iface, {OperationType.SET_INTERFACE_DESCRIPTION}
+            )
+            return
 
-        self.pending_ops.append(
+        self._replace_pending_operation(
+            iface,
+            {OperationType.SET_INTERFACE_DESCRIPTION},
             Operation(
                 OperationType.SET_INTERFACE_DESCRIPTION,
                 iface=iface,
                 description=desc or None,
-            )
+            ),
         )
 
         self._append_log(
@@ -185,7 +282,7 @@ class InterfacesTab(BaseConfigTab):
 
         self._update_ip_mask(iface)
 
-    def _on_mask_changed(self, _val):
+    def _on_mask_changed(self):
         if self._loading:
             return
         w = self.sender()
@@ -205,25 +302,49 @@ class InterfacesTab(BaseConfigTab):
 
         ip = ip_w.text().strip()
         cidr = mask_w.value()
+        baseline = self._baseline_for_iface(iface)
+        ip_ops = {
+            OperationType.SET_INTERFACE_IP,
+            OperationType.CLEAR_INTERFACE_IP,
+        }
+        baseline_ip = baseline.get("ip", "")
+        baseline_cidr = baseline.get("cidr", 0)
+
+        if ip == baseline_ip and cidr == baseline_cidr:
+            self._replace_pending_operation(iface, ip_ops)
+            return
 
         if not ip or cidr == 0:
-            self.pending_ops.append(
+            if not baseline_ip and baseline_cidr == 0:
+                self._replace_pending_operation(iface, ip_ops)
+                return
+
+        if not ip or cidr == 0:
+            self._replace_pending_operation(
+                iface,
+                ip_ops,
                 Operation(
                     OperationType.CLEAR_INTERFACE_IP,
                     iface=iface,
-                )
+                    old_ip=baseline_ip or None,
+                    old_mask=cidr_to_mask(baseline_cidr) if baseline_cidr else None,
+                ),
             )
             self._append_log(f"[OP] Wyczyszczono adres IP na {iface}")
 
         else:
             mask = cidr_to_mask(cidr)
-            self.pending_ops.append(
+            self._replace_pending_operation(
+                iface,
+                ip_ops,
                 Operation(
                     OperationType.SET_INTERFACE_IP,
                     iface=iface,
                     ip=ip,
                     mask=mask,
-                )
+                    old_ip=baseline_ip or None,
+                    old_mask=cidr_to_mask(baseline_cidr) if baseline_cidr else None,
+                ),
             )
             self._append_log(f"[OP] Ustawiono adres IP na {iface}: {ip}/{cidr}")
 
@@ -233,18 +354,25 @@ class InterfacesTab(BaseConfigTab):
 
         w = self.sender()
         iface = w.property("iface")
+        baseline = self._baseline_for_iface(iface)
+        if is_up == baseline.get("status", True):
+            self._replace_pending_operation(iface, {OperationType.SET_INTERFACE_STATUS})
+            return
 
-        self.pending_ops.append(
+        self._replace_pending_operation(
+            iface,
+            {OperationType.SET_INTERFACE_STATUS},
             Operation(
                 OperationType.SET_INTERFACE_STATUS,
                 iface=iface,
                 enabled=is_up,
-            )
+            ),
         )
 
         self._append_log(f"[OP] {'Włączono' if is_up else 'Wyłączono'} {iface}")
 
     def get_pending_operations(self, clear=False) -> list[Operation]:
+        self.pending_ops = self._normalize_pending_operations(list(self.pending_ops))
         ops = list(self.pending_ops)
         if clear:
             self.pending_ops.clear()
@@ -271,7 +399,7 @@ class InterfacesTab(BaseConfigTab):
 
         return {
             "rows": rows,
-            "pending_ops": list(self.pending_ops),
+            "pending_ops": self._normalize_pending_operations(list(self.pending_ops)),
         }
 
     def import_state(self, data: dict):
@@ -282,7 +410,9 @@ class InterfacesTab(BaseConfigTab):
                 name, desc, ip, cidr, status = row
                 self._create_interface_row(name, desc, ip, cidr, status)
 
-            self.pending_ops = list(data.get("pending_ops", []))
+            self.pending_ops = self._normalize_pending_operations(
+                list(data.get("pending_ops", []))
+            )
         finally:
             self._loading = False
 
