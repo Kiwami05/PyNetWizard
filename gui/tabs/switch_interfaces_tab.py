@@ -18,7 +18,7 @@ from PySide6.QtCore import Qt
 from gui.tabs.interfaces_tab import InterfacesTab, mask_to_cidr
 from operations.operation import Operation
 from operations.operation_type import OperationType
-from services.parsed_config import ParsedConfig
+from services.parsed_config import ParsedConfig, iter_user_visible_interfaces
 
 
 class VLANSelectDialog(QDialog):
@@ -412,7 +412,7 @@ class SwitchInterfacesTab(InterfacesTab):
             self.table.setRowCount(0)
             self.available_vlans = dict(conf.vlans.items)
 
-            for name, data in conf.interfaces.items.items():
+            for name, data in iter_user_visible_interfaces(conf):
                 desc = data.get("description", "")
                 ip = data.get("ip", "")
                 mask = data.get("mask", "")

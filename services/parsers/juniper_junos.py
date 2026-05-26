@@ -125,6 +125,10 @@ def ensure_iface(ifaces: ParsedInterfaces, iface: str) -> dict:
     return ifaces.items[iface]
 
 
+def interface_name_with_unit(iface: str, unit: str) -> str:
+    return iface if unit == "0" else f"{iface}.{unit}"
+
+
 def parse_junos_list(value: str) -> list[str]:
     value = value.strip()
     if value.startswith("[") and value.endswith("]"):
@@ -182,14 +186,10 @@ def parse(raw_config: str, raw_terse: str | None = None) -> ParsedConfig:
     # adresy IP
     for m in _IFACE_INET.finditer(raw_config):
         iface, unit, addr = m.groups()
-
-        if unit != "0":
-            continue
-
         ip, cidr = addr.split("/")
         mask = cidr_to_mask(int(cidr))
 
-        info = ensure_iface(ifaces, iface)
+        info = ensure_iface(ifaces, interface_name_with_unit(iface, unit))
         info["ip"] = ip
         info["mask"] = mask
 
@@ -200,9 +200,7 @@ def parse(raw_config: str, raw_terse: str | None = None) -> ParsedConfig:
 
     for m in _IFACE_UNIT_DESC.finditer(raw_config):
         iface, unit, desc = m.groups()
-        if unit != "0":
-            continue
-        info = ensure_iface(ifaces, iface)
+        info = ensure_iface(ifaces, interface_name_with_unit(iface, unit))
         if not info.get("description"):
             info["description"] = clean_junos_value(desc)
 
