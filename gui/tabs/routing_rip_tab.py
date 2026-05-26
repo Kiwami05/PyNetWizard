@@ -21,7 +21,11 @@ from gui.tabs.routing_validators import is_valid_ip
 from operations.operation import Operation
 from operations.operation_type import OperationType
 from platforms.vendor import Vendor
-from services.parsed_config import ParsedConfig
+from services.parsed_config import (
+    ParsedConfig,
+    iter_user_visible_interfaces,
+    is_user_visible_interface,
+)
 
 
 class RIPRoutingTab(BaseConfigTab):
@@ -318,7 +322,7 @@ class RIPRoutingTab(BaseConfigTab):
     def _refresh_junos_rip_interfaces(self, conf: ParsedConfig):
         selected = self._current_junos_rip_iface()
         interfaces: list[str] = []
-        for name in sorted(conf.interfaces.items.keys()):
+        for name, _data in sorted(iter_user_visible_interfaces(conf), key=lambda item: item[0]):
             candidates = [name]
             if "." not in name:
                 candidates.append(f"{name}.0")
@@ -328,7 +332,11 @@ class RIPRoutingTab(BaseConfigTab):
 
         for row in range(self.junos_rip_table.rowCount()):
             item = self.junos_rip_table.item(row, 1)
-            if item and item.text() not in interfaces:
+            if (
+                item
+                and item.text() not in interfaces
+                and is_user_visible_interface(conf, item.text())
+            ):
                 interfaces.append(item.text())
 
         self._rip_interfaces = interfaces

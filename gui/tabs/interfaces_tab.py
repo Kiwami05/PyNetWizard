@@ -15,7 +15,7 @@ import ipaddress
 from operations.operation import Operation
 from operations.operation_type import OperationType
 from gui.tabs.base_config_tab import BaseConfigTab
-from services.parsed_config import ParsedConfig
+from services.parsed_config import ParsedConfig, iter_user_visible_interfaces
 
 
 def is_valid_ip(addr: str) -> bool:
@@ -291,7 +291,7 @@ class InterfacesTab(BaseConfigTab):
         try:
             self.table.setRowCount(0)
 
-            for name, data in conf.interfaces.items.items():
+            for name, data in iter_user_visible_interfaces(conf):
                 desc = data.get("description", "")
                 ip = data.get("ip", "")
                 mask = data.get("mask", "")
