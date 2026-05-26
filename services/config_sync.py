@@ -11,7 +11,8 @@ class ConfigSyncService:
     def fetch_and_parse(self, device: Device) -> ParsedConfig:
         if device.vendor == Vendor.JUNIPER:
             raw = self.cm.send_command(device, "show configuration | display set")
-            conf = parse_config(device, raw)
+            raw_interfaces = self.cm.send_command(device, "show interfaces terse")
+            conf = parse_config(device, raw_running=raw, raw_interfaces=raw_interfaces)
 
         else:
             # CISCO

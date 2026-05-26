@@ -93,6 +93,8 @@ _SRX_POLICY = re.compile(
     re.M,
 )
 
+_INTERFACE_TERSE_LINE = re.compile(r"^(\S+)\s+(up|down)\s+(up|down)\b")
+
 
 def cidr_to_mask(cidr: int) -> str:
     cidr = int(cidr)
@@ -141,7 +143,18 @@ def clean_policy_value(value: str) -> str:
     return " ".join(parse_junos_list(value))
 
 
-def parse(raw_config: str) -> ParsedConfig:
+def merge_interfaces_terse(ifaces: ParsedInterfaces, raw_terse: str) -> None:
+    for line in raw_terse.splitlines():
+        match = _INTERFACE_TERSE_LINE.match(line.strip())
+        if not match:
+            continue
+
+        iface, admin, _link = match.groups()
+        info = ensure_iface(ifaces, iface)
+        info["status"] = "up" if admin == "up" else "down"
+
+
+def parse(raw_config: str, raw_terse: str | None = None) -> ParsedConfig:
     cfg = ParsedConfig(vendor="JUNIPER", raw_running=raw_config)
 
     # hostname
@@ -238,6 +251,9 @@ def parse(raw_config: str) -> ParsedConfig:
             vlan = vlans.items.get(member)
             if vlan is not None and iface not in vlan["ports"]:
                 vlan["ports"].append(iface)
+
+    if raw_terse:
+        merge_interfaces_terse(ifaces, raw_terse)
 
     cfg.interfaces = ifaces
 
