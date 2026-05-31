@@ -217,5 +217,4 @@ class CiscoIOSRenderer(OperationRenderer):
                     f"{self.__class__.__name__} does not this operation"
                 )
 
-        cmds.append("end")
         return cmds

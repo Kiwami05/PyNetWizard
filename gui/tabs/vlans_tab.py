@@ -211,6 +211,7 @@ class VLANsTab(BaseConfigTab):
                 Operation(
                     OperationType.DELETE_VLAN,
                     vlan_id=int(old_id),
+                    vlan_name=old_name or None,
                 )
             )
             self.pending_ops.append(
@@ -236,6 +237,7 @@ class VLANsTab(BaseConfigTab):
                     OperationType.RENAME_VLAN,
                     vlan_id=int(old_id),
                     name=new_name or None,
+                    old_name=old_name or None,
                 )
             )
 
@@ -267,6 +269,7 @@ class VLANsTab(BaseConfigTab):
             Operation(
                 OperationType.DELETE_VLAN,
                 vlan_id=int(vlan_id),
+                vlan_name=(self.table.item(row, self.COL_NAME).text() if self.table.item(row, self.COL_NAME) else None) or None,
             )
         )
 
