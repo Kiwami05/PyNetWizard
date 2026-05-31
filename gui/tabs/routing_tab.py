@@ -5,6 +5,7 @@ from gui.tabs.routing_ospf_tab import OSPFRoutingTab
 from gui.tabs.routing_rip_tab import RIPRoutingTab
 from gui.tabs.routing_static_tab import StaticRoutingTab
 from operations.operation import Operation
+from operations.normalizer import normalize_operations
 from services.parsed_config import ParsedConfig
 
 
@@ -56,6 +57,11 @@ class RoutingTab(BaseConfigTab):
         static_state = self.static_tab.export_state()
         rip_state = self.rip_tab.export_state()
         ospf_state = self.ospf_tab.export_state()
+        pending_ops: list[Operation] = []
+        pending_ops.extend(static_state.get("pending_ops", []))
+        pending_ops.extend(rip_state.get("pending_ops", []))
+        pending_ops.extend(ospf_state.get("pending_ops", []))
+        pending_ops = normalize_operations(pending_ops)
 
         return {
             "static": static_state.get("routes", []),
@@ -67,7 +73,7 @@ class RoutingTab(BaseConfigTab):
             "ospf": ospf_state.get("ospf", []),
             "junos_ospf": ospf_state.get("junos_ospf", []),
             "ospf_state": ospf_state,
-            "pending_ops": ospf_state.get("pending_ops", []),
+            "pending_ops": pending_ops,
         }
 
     def import_state(self, data):

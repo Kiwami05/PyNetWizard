@@ -26,22 +26,25 @@ class JuniperJunosRenderer(OperationRenderer):
             elif op.operation_type == OperationType.CREATE_VLAN:
                 vid = op.args["vlan_id"]
                 name = op.args.get("name")
+                vlan_name = _junos_vlan_name(vid, name)
 
-                cmds.append(f"set vlans vlan-{vid} vlan-id {vid}")
-                if name:
-                    cmds.append(f'set vlans vlan-{vid} description "{name}"')
+                cmds.append(f"set vlans {vlan_name} vlan-id {vid}")
 
             elif op.operation_type == OperationType.DELETE_VLAN:
-                cmds.append(f"delete vlans vlan-{op.args['vlan_id']}")
+                vid = op.args["vlan_id"]
+                vlan_name = _junos_vlan_name(vid, op.args.get("vlan_name"))
+                cmds.append(f"delete vlans {vlan_name}")
 
             elif op.operation_type == OperationType.RENAME_VLAN:
                 vid = op.args["vlan_id"]
                 name = op.args.get("name")
+                old_name = op.args.get("old_name")
+                old_vlan_name = _junos_vlan_name(vid, old_name)
+                new_vlan_name = _junos_vlan_name(vid, name)
 
-                if name:
-                    cmds.append(f'set vlans vlan-{vid} description "{name}"')
-                else:
-                    cmds.append(f"delete vlans vlan-{vid} description")
+                if old_vlan_name != new_vlan_name:
+                    cmds.append(f"delete vlans {old_vlan_name}")
+                cmds.append(f"set vlans {new_vlan_name} vlan-id {vid}")
             # Interfejsy
             elif op.operation_type == OperationType.SET_INTERFACE_DESCRIPTION:
                 iface = op.args["iface"]
@@ -111,7 +114,7 @@ class JuniperJunosRenderer(OperationRenderer):
                 )
             elif op.operation_type == OperationType.SET_ACCESS_VLAN:
                 iface = op.args["iface"]
-                vlan = _junos_vlan_name(op.args["vlan_id"])
+                vlan = _junos_vlan_name(op.args["vlan_id"], op.args.get("vlan_name"))
                 cmds.append(
                     f"set interfaces {iface} unit 0 family ethernet-switching "
                     f"interface-mode access"
@@ -132,7 +135,11 @@ class JuniperJunosRenderer(OperationRenderer):
                 )
             elif op.operation_type == OperationType.SET_TRUNK_ALLOWED_VLANS:
                 iface = op.args["iface"]
-                vlans = [_junos_vlan_name(vlan) for vlan in op.args["vlans"]]
+                vlan_names = op.args.get("vlan_names") or {}
+                vlans = [
+                    _junos_vlan_name(vlan, vlan_names.get(int(vlan)))
+                    for vlan in op.args["vlans"]
+                ]
                 cmds.append(
                     f"set interfaces {iface} unit 0 family ethernet-switching "
                     f"interface-mode trunk"
@@ -234,8 +241,10 @@ def _ipv4_prefix(address: str, mask: str) -> str:
     return str(IPv4Network(f"{address}/{mask}", strict=False))
 
 
-def _junos_vlan_name(vlan_id) -> str:
+def _junos_vlan_name(vlan_id, configured_name: str | None = None) -> str:
     """Zgodne z aktualnymi zasadami nazewnictwa obiektów VLAN w systemie Junos stosowanymi przez aplikację"""
+    if configured_name:
+        return configured_name
     return f"vlan-{vlan_id}"
 
 

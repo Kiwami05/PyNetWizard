@@ -370,12 +370,22 @@ class SwitchInterfacesTab(InterfacesTab):
         elif mode == "access":
             # zakładamy jeden VLAN
             vid = selected[0]
+            vlan_info = self.available_vlans.get(str(vid), {})
             self._replace_pending_operation(
                 iface,
                 vlan_ops,
-                Operation(OperationType.SET_ACCESS_VLAN, iface=iface, vlan_id=vid),
+                Operation(
+                    OperationType.SET_ACCESS_VLAN,
+                    iface=iface,
+                    vlan_id=vid,
+                    vlan_name=vlan_info.get("name") or None,
+                ),
             )
         else:  # trunk
+            vlan_names = {
+                int(v): (self.available_vlans.get(str(v), {}) or {}).get("name") or None
+                for v in selected
+            }
             self._replace_pending_operation(
                 iface,
                 vlan_ops,
@@ -383,6 +393,7 @@ class SwitchInterfacesTab(InterfacesTab):
                     OperationType.SET_TRUNK_ALLOWED_VLANS,
                     iface=iface,
                     vlans=[int(v) for v in selected],
+                    vlan_names=vlan_names,
                 ),
             )
         self._append_log(f"[OP] set VLAN(s) {','.join(selected)} on {iface} ({mode})")
