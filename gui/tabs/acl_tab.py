@@ -20,6 +20,7 @@ from operations.operation import Operation
 from operations.operation_type import OperationType
 from services.parsed_config import ParsedConfig
 import re
+import ipaddress
 
 
 class ACLTab(BaseConfigTab):
@@ -196,8 +197,8 @@ class ACLTab(BaseConfigTab):
 
         action = self.action_combo.currentText()
         proto = self.proto_input.text().strip() or "ip"
-        src = self.src_input.text().strip() or "any"
-        dest = self.dest_input.text().strip() or "any"
+        src = _normalize_asa_acl_endpoint(self.src_input.text().strip() or "any")
+        dest = _normalize_asa_acl_endpoint(self.dest_input.text().strip() or "any")
         port = self.port_input.text().strip()
 
         # Dodawanie do tabeli reguł
@@ -296,7 +297,7 @@ class ACLTab(BaseConfigTab):
         # Dodawanie nowego wiązania
         self.pending_ops.append(
             Operation(
-                OperationType.UNBIND_ACL,
+                OperationType.BIND_ACL,
                 acl_name=self.current_acl_name,
                 direction=direction,
                 interface=nameif,
@@ -481,3 +482,32 @@ class ACLTab(BaseConfigTab):
             if self.current_acl_name is None:
                 self.current_acl_name = acl
                 self.input_acl_name.setText(acl)
+
+
+def _normalize_asa_acl_endpoint(value: str) -> str:
+    text = value.strip()
+    if not text:
+        return "any"
+
+    lowered = text.lower()
+    if lowered == "any":
+        return "any"
+    if lowered.startswith(("host ", "object ", "object-group ", "interface ")):
+        return text
+
+    try:
+        ip = ipaddress.ip_address(text)
+        if ip.version == 4:
+            return f"host {ip}"
+        return text
+    except ValueError:
+        pass
+
+    try:
+        network = ipaddress.ip_network(text, strict=False)
+        if network.version == 4:
+            return f"{network.network_address} {network.netmask}"
+    except ValueError:
+        pass
+
+    return text

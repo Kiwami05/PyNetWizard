@@ -1,4 +1,5 @@
 from typing import Iterable, List
+import ipaddress
 
 from operations.operation import Operation
 
@@ -181,23 +182,27 @@ class CiscoIOSRenderer(OperationRenderer):
                 )
             # ACLe
             elif op.operation_type == OperationType.ADD_ACL_RULE:
+                src = _normalize_asa_acl_endpoint(op.args["src"])
+                dest = _normalize_asa_acl_endpoint(op.args["dest"])
                 cmd = (
                     f"access-list {op.args['acl_name']} extended "
                     f"{op.args['action']} "
                     f"{op.args['protocol']} "
-                    f"{op.args['src']} "
-                    f"{op.args['dest']}"
+                    f"{src} "
+                    f"{dest}"
                 )
                 if op.args.get("port"):
                     cmd += f" {op.args['port']}"
                 cmds.append(cmd)
             elif op.operation_type == OperationType.DEL_ACL_RULE:
+                src = _normalize_asa_acl_endpoint(op.args["src"])
+                dest = _normalize_asa_acl_endpoint(op.args["dest"])
                 cmd = (
                     f"no access-list {op.args['acl_name']} extended "
                     f"{op.args['action']} "
                     f"{op.args['protocol']} "
-                    f"{op.args['src']} "
-                    f"{op.args['dest']}"
+                    f"{src} "
+                    f"{dest}"
                 )
                 if op.args.get("port"):
                     cmd += f" {op.args['port']}"
@@ -218,3 +223,32 @@ class CiscoIOSRenderer(OperationRenderer):
                 )
 
         return cmds
+
+
+def _normalize_asa_acl_endpoint(value: str) -> str:
+    text = (value or "").strip()
+    if not text:
+        return "any"
+
+    lowered = text.lower()
+    if lowered == "any":
+        return "any"
+    if lowered.startswith(("host ", "object ", "object-group ", "interface ")):
+        return text
+
+    try:
+        ip = ipaddress.ip_address(text)
+        if ip.version == 4:
+            return f"host {ip}"
+        return text
+    except ValueError:
+        pass
+
+    try:
+        network = ipaddress.ip_network(text, strict=False)
+        if network.version == 4:
+            return f"{network.network_address} {network.netmask}"
+    except ValueError:
+        pass
+
+    return text
