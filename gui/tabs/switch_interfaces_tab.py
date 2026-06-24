@@ -270,7 +270,9 @@ class SwitchInterfacesTab(InterfacesTab):
             )
             self._replace_pending_operation(
                 iface,
-                self._conflicting_operation_types(OperationType.SET_SWITCHPORT_MODE_ACCESS),
+                self._conflicting_operation_types(
+                    OperationType.SET_SWITCHPORT_MODE_ACCESS
+                ),
                 new_op,
             )
         elif mode == "trunk":
@@ -280,7 +282,9 @@ class SwitchInterfacesTab(InterfacesTab):
             )
             self._replace_pending_operation(
                 iface,
-                self._conflicting_operation_types(OperationType.SET_SWITCHPORT_MODE_TRUNK),
+                self._conflicting_operation_types(
+                    OperationType.SET_SWITCHPORT_MODE_TRUNK
+                ),
                 new_op,
             )
         elif mode == "routed":
@@ -290,11 +294,13 @@ class SwitchInterfacesTab(InterfacesTab):
             )
             self._replace_pending_operation(
                 iface,
-                self._conflicting_operation_types(OperationType.SET_SWITCHPORT_MODE_ROUTED),
+                self._conflicting_operation_types(
+                    OperationType.SET_SWITCHPORT_MODE_ROUTED
+                ),
                 new_op,
             )
 
-        self._append_log(f"[OP] set mode {mode} on {iface}")
+        self._append_log(f"[OP] Ustawiono tryb {mode} na {iface}")
 
     def _on_vlans_button_clicked(self):
         if self._loading:
@@ -396,7 +402,9 @@ class SwitchInterfacesTab(InterfacesTab):
                     vlan_names=vlan_names,
                 ),
             )
-        self._append_log(f"[OP] set VLAN(s) {','.join(selected)} on {iface} ({mode})")
+        self._append_log(
+            f"[OP] Ustawiono VLAN-y {','.join(selected)} na {iface} ({mode})"
+        )
 
     def export_state(self) -> dict:
         rows = []
@@ -499,6 +507,8 @@ class SwitchInterfacesTab(InterfacesTab):
                 )
 
             self.pending_ops.clear()
-            self._append_log("[SYNC] Switch interfaces updated from running-config.")
+            self._append_log(
+                "[SYNC] Interfejsy przełącznika zaktualizowane z bieżącą konfiguracją."
+            )
         finally:
             self._loading = False

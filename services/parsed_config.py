@@ -103,7 +103,9 @@ def _junos_split_interface_name(name: str) -> tuple[str, str | None]:
     return base, unit
 
 
-def _junos_has_meaningful_config(conf: "ParsedConfig", name: str, data: Dict[str, Any]) -> bool:
+def _junos_has_meaningful_config(
+    conf: "ParsedConfig", name: str, data: Dict[str, Any]
+) -> bool:
     if data.get("description") or data.get("ip") or data.get("mask"):
         return True
     if data.get("mode") in {"access", "trunk"}:
@@ -149,7 +151,8 @@ def is_user_visible_interface(
 
     has_visible_logical_child = any(
         child_name.startswith(f"{name}.")
-        and (child_unit := _junos_split_interface_name(child_name)[1]) not in (None, "0")
+        and (child_unit := _junos_split_interface_name(child_name)[1])
+        not in (None, "0")
         and _junos_has_meaningful_config(conf, child_name, child_data)
         for child_name, child_data in conf.interfaces.items.items()
     )
@@ -163,7 +166,9 @@ def is_user_visible_interface(
     return meaningful
 
 
-def iter_user_visible_interfaces(conf: "ParsedConfig") -> List[tuple[str, Dict[str, Any]]]:
+def iter_user_visible_interfaces(
+    conf: "ParsedConfig",
+) -> List[tuple[str, Dict[str, Any]]]:
     return [
         (name, data)
         for name, data in conf.interfaces.items.items()
