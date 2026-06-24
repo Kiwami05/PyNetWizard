@@ -56,7 +56,7 @@ class DeviceDetailWidget(QWidget):
 
         # Prawy panel: zawartość zakładek
         self.stack = QStackedWidget()
-        content_layout.addWidget(self.stack, 3)
+        content_layout.addWidget(self.stack, 6)
 
         # Strony (tworzone raz, ale dodawane dynamicznie)
         self.pages = {

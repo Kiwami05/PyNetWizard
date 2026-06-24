@@ -66,7 +66,7 @@ class MainWindow(QMainWindow):
 
         # Prawy panel: rozwinięcie tabów
         self.detail_box = DeviceDetailWidget()
-        main_layout.addWidget(self.detail_box, 2)
+        main_layout.addWidget(self.detail_box, 5)
 
         # Pasek menu
         menubar = self.menuBar()
