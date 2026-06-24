@@ -156,7 +156,7 @@ class RIPRoutingTab(BaseConfigTab):
             self.pending_ops.append(Operation(OperationType.ENABLE_RIP))
         else:
             self.pending_ops.append(Operation(OperationType.DISABLE_RIP))
-        self._append_log(f"[OP] turn RIP {'ON' if enabled else 'OFF'}")
+        self._append_log(f"[OP] {'WŁĄCZONO' if enabled else 'WYŁĄCZONO'} RIP")
 
     def _rip_add(self):
         net = self.rip_net.text().strip()
@@ -183,7 +183,7 @@ class RIPRoutingTab(BaseConfigTab):
                 network=net,
             )
         )
-        self._append_log(f"[OP] add {net} to RIP")
+        self._append_log(f"[OP] Dodano {net} do RIP")
         self.rip_table.selectRow(row)
         self.rip_net.clear()
 
@@ -199,7 +199,7 @@ class RIPRoutingTab(BaseConfigTab):
                 network=net,
             )
         )
-        self._append_log(f"[OP] delete {net} to RIP")
+        self._append_log(f"[OP] Usunięto {net} z RIP")
         self.rip_table.removeRow(row)
 
     def _junos_rip_selected_row(self):
@@ -243,7 +243,7 @@ class RIPRoutingTab(BaseConfigTab):
                 interface=iface,
             )
         )
-        self._append_log(f"[OP] add {iface} to RIP group {group}")
+        self._append_log(f"[OP] Dodano {iface} do grupy RIP {group}")
         self.junos_rip_table.selectRow(row)
 
     def _on_junos_rip_update(self):
@@ -281,7 +281,7 @@ class RIPRoutingTab(BaseConfigTab):
         )
         self.junos_rip_table.setItem(row, 0, QTableWidgetItem(group))
         self.junos_rip_table.setItem(row, 1, QTableWidgetItem(iface))
-        self._append_log(f"[OP] update RIP interface {iface}")
+        self._append_log(f"[OP] Zaktualizowano interfejs RIP {iface}")
 
     def _junos_rip_delete(self):
         row = self._junos_rip_selected_row()
@@ -300,7 +300,7 @@ class RIPRoutingTab(BaseConfigTab):
                 interface=iface,
             )
         )
-        self._append_log(f"[OP] delete {iface} from RIP group {group}")
+        self._append_log(f"[OP] Usunięto {iface} z grupy RIP {group}")
         self.junos_rip_table.removeRow(row)
 
     def _current_junos_rip_iface(self) -> str:
@@ -322,7 +322,9 @@ class RIPRoutingTab(BaseConfigTab):
     def _refresh_junos_rip_interfaces(self, conf: ParsedConfig):
         selected = self._current_junos_rip_iface()
         interfaces: list[str] = []
-        for name, _data in sorted(iter_user_visible_interfaces(conf), key=lambda item: item[0]):
+        for name, _data in sorted(
+            iter_user_visible_interfaces(conf), key=lambda item: item[0]
+        ):
             candidates = [name]
             if "." not in name:
                 candidates.append(f"{name}.0")

@@ -128,7 +128,7 @@ class StaticRoutingTab(BaseConfigTab):
                 nh=nh,
             )
         )
-        self._append_log(f"[OP] add static route to {dest}")
+        self._append_log(f"[OP] Dodano trasę statyczną do {dest}")
         self.static_table.selectRow(row)
 
     def _on_static_update(self):
@@ -172,7 +172,7 @@ class StaticRoutingTab(BaseConfigTab):
                 nh=nh,
             )
         )
-        self._append_log(f"[OP] update static route to {dest}")
+        self._append_log(f"[OP] Zaktualizowano trasę statyczną do {dest}")
 
         self.static_table.setItem(row, 0, QTableWidgetItem(dest))
         self.static_table.setItem(row, 1, QTableWidgetItem(mask))
@@ -196,7 +196,7 @@ class StaticRoutingTab(BaseConfigTab):
                 nh=nh,
             )
         )
-        self._append_log(f"[OP] delete static route to {dest}")
+        self._append_log(f"[OP] Usunięto trasę statyczną do {dest}")
         self.static_table.removeRow(row)
 
     def get_pending_operations(self, clear=False) -> list[Operation]:

@@ -456,8 +456,7 @@ class GlobalTab(BaseConfigTab):
             head_len = 10
             head = "\n".join(conf.raw_running.splitlines()[:head_len])
             self._append_log(
-                f"[SYNC] Snapshot running-config (pierwsze {head_len} linijek):\n"
-                + head
+                f"[SYNC] Migawka konfiguracji (pierwsze {head_len} linijek):\n" + head
             )
 
     def get_pending_operations(self, clear=False) -> list[Operation]:

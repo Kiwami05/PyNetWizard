@@ -55,8 +55,7 @@ def normalize_operations(operations: list[Operation]) -> list[Operation]:
                 existing
                 for existing in normalized
                 if not (
-                    existing.operation_type in group
-                    and _operation_key(existing) == key
+                    existing.operation_type in group and _operation_key(existing) == key
                 )
             ]
             normalized.append(op)
@@ -68,10 +67,16 @@ def normalize_operations(operations: list[Operation]) -> list[Operation]:
             removed_opposite = False
             kept: list[Operation] = []
             for existing in normalized:
-                if existing.operation_type == opposite and _operation_key(existing) == key:
+                if (
+                    existing.operation_type == opposite
+                    and _operation_key(existing) == key
+                ):
                     removed_opposite = True
                     continue
-                if existing.operation_type == op.operation_type and _operation_key(existing) == key:
+                if (
+                    existing.operation_type == op.operation_type
+                    and _operation_key(existing) == key
+                ):
                     continue
                 kept.append(existing)
             normalized = kept

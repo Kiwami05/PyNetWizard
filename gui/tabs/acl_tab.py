@@ -386,7 +386,7 @@ class ACLTab(BaseConfigTab):
             self._parse_access_groups(text)
 
             self._append_log(
-                "[SYNC] Listy kontrolne ACL ASA i powiązania zaczytane z running-config."
+                "[SYNC] Listy kontrolne ACL ASA i powiązania zaczytane z bieżącej konfiguracji."
             )
 
             # auto-select pierwszego ACL, jeśli żadna nie ustawiona

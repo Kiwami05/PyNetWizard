@@ -262,7 +262,7 @@ class SRXPoliciesTab(BaseConfigTab):
             self._set_policy_row(row, policy)
             self._append_add_policy_operation(policy)
             self._append_log(
-                f"[OP] add SRX policy {policy['name']}: "
+                f"[OP] Dodano politykę SRX {policy['name']}: "
                 f"{policy['from_zone']} -> {policy['to_zone']} ({policy['action']})"
             )
             return
@@ -275,7 +275,7 @@ class SRXPoliciesTab(BaseConfigTab):
         self._append_add_policy_operation(policy)
         self._set_policy_row(selected_row, policy)
         self._append_log(
-            f"[OP] update SRX policy {old_policy['name']}: "
+            f"[OP] Zaktualizowano politykę SRX {old_policy['name']}: "
             f"{old_policy['from_zone']} -> {old_policy['to_zone']}"
         )
 
@@ -292,7 +292,7 @@ class SRXPoliciesTab(BaseConfigTab):
         self._append_delete_policy_operation(policy)
         self.table.removeRow(row)
         self._append_log(
-            f"[OP] delete SRX policy {policy['name']}: "
+            f"[OP] Usunięto politykę SRX {policy['name']}: "
             f"{policy['from_zone']} -> {policy['to_zone']}"
         )
 
@@ -355,5 +355,5 @@ class SRXPoliciesTab(BaseConfigTab):
             self._loading = False
 
         self._append_log(
-            f"[SYNC] SRX policies: wczytano {self.table.rowCount()} polityk."
+            f"[SYNC] Polityki SRX: wczytano {self.table.rowCount()} polityk."
         )

@@ -269,7 +269,12 @@ class VLANsTab(BaseConfigTab):
             Operation(
                 OperationType.DELETE_VLAN,
                 vlan_id=int(vlan_id),
-                vlan_name=(self.table.item(row, self.COL_NAME).text() if self.table.item(row, self.COL_NAME) else None) or None,
+                vlan_name=(
+                    self.table.item(row, self.COL_NAME).text()
+                    if self.table.item(row, self.COL_NAME)
+                    else None
+                )
+                or None,
             )
         )
 
@@ -335,4 +340,4 @@ class VLANsTab(BaseConfigTab):
             self.table.setItem(r, self.COL_PORTS, ports_item)
 
         self.pending_ops.clear()
-        self._append_console("[SYNC] VLANy zaktualizowane z running-config.")
+        self._append_console("[SYNC] VLANy zaktualizowane z bieżącą konfiguracją.")

@@ -168,7 +168,9 @@ class InterfacesTab(BaseConfigTab):
         baseline = item.data(self._BASELINE_ROLE)
         return baseline if isinstance(baseline, dict) else {}
 
-    def _replace_pending_operation(self, iface: str, types: set[OperationType], new_op=None):
+    def _replace_pending_operation(
+        self, iface: str, types: set[OperationType], new_op=None
+    ):
         self.pending_ops = [
             op
             for op in self.pending_ops
@@ -437,6 +439,6 @@ class InterfacesTab(BaseConfigTab):
                 )
 
             self.pending_ops.clear()
-            self._append_log("[SYNC] Interfejsy zaktualizowane z running-config.")
+            self._append_log("[SYNC] Interfejsy zaktualizowane z bieżącą konfiguracją.")
         finally:
             self._loading = False

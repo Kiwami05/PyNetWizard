@@ -212,7 +212,7 @@ class OSPFRoutingTab(BaseConfigTab):
                 area=area,
             )
         )
-        self._append_log(f"[OP] add {net} to OSPF")
+        self._append_log(f"[OP] Dodano {net} do OSPF")
         self.ospf_table.selectRow(row)
 
     def _on_ospf_update(self):
@@ -260,7 +260,7 @@ class OSPFRoutingTab(BaseConfigTab):
                 area=area,
             )
         )
-        self._append_log(f"[OP] update {net} to OSPF")
+        self._append_log(f"[OP] Zaktualizowano {net} w OSPF")
 
         self.ospf_table.setItem(row, 0, QTableWidgetItem(net))
         self.ospf_table.setItem(row, 1, QTableWidgetItem(wildcard))
@@ -287,7 +287,7 @@ class OSPFRoutingTab(BaseConfigTab):
                 area=area,
             )
         )
-        self._append_log(f"[OP] delete {net} from OSPF")
+        self._append_log(f"[OP] Usunięto {net} z OSPF")
         self.ospf_table.removeRow(row)
 
     def _junos_ospf_selected_row(self):
@@ -333,7 +333,7 @@ class OSPFRoutingTab(BaseConfigTab):
                 interface=iface,
             )
         )
-        self._append_log(f"[OP] add {iface} to OSPF area {area}")
+        self._append_log(f"[OP] Dodano {iface} do obszaru OSPF {area}")
         self.junos_ospf_table.selectRow(row)
 
     def _on_junos_ospf_update(self):
@@ -372,7 +372,7 @@ class OSPFRoutingTab(BaseConfigTab):
 
         self.junos_ospf_table.setItem(row, 0, QTableWidgetItem(area))
         self.junos_ospf_table.setItem(row, 1, QTableWidgetItem(iface))
-        self._append_log(f"[OP] update OSPF interface {iface}")
+        self._append_log(f"[OP] Zaktualizowano interfejs OSPF {iface}")
 
     def _junos_ospf_delete(self):
         row = self._junos_ospf_selected_row()
@@ -391,7 +391,7 @@ class OSPFRoutingTab(BaseConfigTab):
                 interface=iface,
             )
         )
-        self._append_log(f"[OP] delete {iface} from OSPF area {area}")
+        self._append_log(f"[OP] Usunięto {iface} z obszaru OSPF {area}")
         self.junos_ospf_table.removeRow(row)
 
     def _current_junos_ospf_iface(self) -> str:
@@ -413,7 +413,9 @@ class OSPFRoutingTab(BaseConfigTab):
     def _refresh_junos_ospf_interfaces(self, conf: ParsedConfig):
         selected = self._current_junos_ospf_iface()
         interfaces: list[str] = []
-        for name, _data in sorted(iter_user_visible_interfaces(conf), key=lambda item: item[0]):
+        for name, _data in sorted(
+            iter_user_visible_interfaces(conf), key=lambda item: item[0]
+        ):
             candidates = [name]
             if "." not in name:
                 candidates.append(f"{name}.0")
