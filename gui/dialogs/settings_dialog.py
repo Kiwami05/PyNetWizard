@@ -5,7 +5,6 @@ from PySide6.QtWidgets import (
     QComboBox,
     QLabel,
     QPushButton,
-    QCheckBox,
     QSpinBox,
     QFileDialog,
     QLineEdit,
@@ -37,29 +36,29 @@ class SettingsDialog(QDialog):
         layout.addWidget(QLabel("Timeout (sekundy):"))
         layout.addWidget(self.spin_timeout)
 
-        self.chk_autosync = QCheckBox(
-            "Automatycznie pobieraj konfigurację po dodaniu urządzenia"
-        )
-        self.chk_autosync.setChecked(self.settings.value("autosync", "false") == "true")
-        layout.addWidget(self.chk_autosync)
+        # self.chk_autosync = QCheckBox(
+        #     "Automatycznie pobieraj konfigurację po dodaniu urządzenia"
+        # )
+        # self.chk_autosync.setChecked(self.settings.value("autosync", "false") == "true")
+        # layout.addWidget(self.chk_autosync)
 
-        # Netmiko / logi
-        layout.addWidget(QLabel("<b>Netmiko / logi</b>"))
-        self.chk_verbose = QCheckBox("Tryb debugowania (verbose output)")
-        self.chk_verbose.setChecked(self.settings.value("verbose", "false") == "true")
-        layout.addWidget(self.chk_verbose)
-
-        self.chk_persist_cisco = QCheckBox(
-            "Cisco: zapisuj zmiany także do startup-config"
-        )
-        self.chk_persist_cisco.setChecked(
-            self.settings.value("persist_cisco_config", "true") == "true"
-        )
-        layout.addWidget(self.chk_persist_cisco)
+        # # Netmiko / logi
+        # layout.addWidget(QLabel("<b>Netmiko / logi</b>"))
+        # self.chk_verbose = QCheckBox("Tryb debugowania (verbose output)")
+        # self.chk_verbose.setChecked(self.settings.value("verbose", "false") == "true")
+        # layout.addWidget(self.chk_verbose)
+        #
+        # self.chk_persist_cisco = QCheckBox(
+        #     "Cisco: zapisuj zmiany także do startup-config"
+        # )
+        # self.chk_persist_cisco.setChecked(
+        #     self.settings.value("persist_cisco_config", "true") == "true"
+        # )
+        # layout.addWidget(self.chk_persist_cisco)
 
         log_layout = QHBoxLayout()
         self.edit_log_path = QLineEdit(self.settings.value("log_path", "./logs"))
-        btn_browse = QPushButton("📂")
+        btn_browse = QPushButton("Przeglądaj")
         btn_browse.clicked.connect(self.choose_log_folder)
         log_layout.addWidget(QLabel("Folder logów:"))
         log_layout.addWidget(self.edit_log_path)
@@ -94,16 +93,16 @@ class SettingsDialog(QDialog):
         """Zapisuje ustawienia w QSettings"""
         self.settings.setValue("connection_type", self.combo_type.currentText())
         self.settings.setValue("timeout", self.spin_timeout.value())
-        self.settings.setValue(
-            "autosync", "true" if self.chk_autosync.isChecked() else "false"
-        )
-        self.settings.setValue(
-            "verbose", "true" if self.chk_verbose.isChecked() else "false"
-        )
-        self.settings.setValue(
-            "persist_cisco_config",
-            "true" if self.chk_persist_cisco.isChecked() else "false",
-        )
+        # self.settings.setValue(
+        #     "autosync", "true" if self.chk_autosync.isChecked() else "false"
+        # )
+        # self.settings.setValue(
+        #     "verbose", "true" if self.chk_verbose.isChecked() else "false"
+        # )
+        # self.settings.setValue(
+        #     "persist_cisco_config",
+        #     "true" if self.chk_persist_cisco.isChecked() else "false",
+        # )
         self.settings.setValue("log_path", self.edit_log_path.text())
 
         self.accept()
