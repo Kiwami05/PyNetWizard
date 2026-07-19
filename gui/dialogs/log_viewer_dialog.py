@@ -1,7 +1,6 @@
 from pathlib import Path
 import re
 
-from PySide6.QtCore import QTimer
 from PySide6.QtGui import QColor, QPalette
 from PySide6.QtWidgets import (
     QDialog,
@@ -47,9 +46,6 @@ class LogViewerDialog(QDialog):
         self.resize(1000, 700)
 
         main = QVBoxLayout(self)
-
-        # flaga: czy użytkownik przewinął w górę (jeśli tak, pauzujemy auto-refresh)
-        self._user_scrolled_up = False
 
         # Górny pasek — wybór pliku logu
         top_bar = QHBoxLayout()
@@ -112,21 +108,9 @@ class LogViewerDialog(QDialog):
         self.text.setStyleSheet("font-family: monospace; font-size: 11px;")
         main.addWidget(self.text, 10)
 
-        # Wykrywanie ręcznego scrollowania
-        self.text.verticalScrollBar().valueChanged.connect(self._on_scroll)
-
-        # Timer do auto-refresh
-        self.timer = QTimer(self)
-        self.timer.setInterval(1500)
-        self.timer.timeout.connect(self._auto_refresh)
-
         # Inicjalizacja listy plików
         self._reload_file_list()
         self.combo_files.currentIndexChanged.connect(self._on_file_changed)
-
-    def _on_scroll(self):
-        bar = self.text.verticalScrollBar()
-        self._user_scrolled_up = bar.value() < bar.maximum()
 
     def _reload_file_list(self):
         self.combo_files.blockSignals(True)
@@ -146,8 +130,6 @@ class LogViewerDialog(QDialog):
         QFileDialog.getOpenFileName(self, "Folder logów", str(self.LOG_DIR))
 
     def _on_file_changed(self, index: int):
-        # zmiana pliku = reset pauzy i normalny tail-f
-        self._user_scrolled_up = False
         self._load_current_file()
 
     def _load_current_file(self):
@@ -253,11 +235,6 @@ class LogViewerDialog(QDialog):
         html.append("</body></html>")
         self.text.setHtml("\n".join(html))
 
-        # auto-scroll tylko, gdy użytkownik NIE przewinął w górę
-        bar = self.text.verticalScrollBar()
-        if not self._user_scrolled_up:
-            bar.setValue(bar.maximum())
-
     def _extract_level(self, line: str):
         """
         Przykładowy format Netmiko:
@@ -266,25 +243,8 @@ class LogViewerDialog(QDialog):
         m = re.search(r"\[(ERROR|WARNING|INFO|DEBUG)\]", line)
         return m.group(1) if m else None
 
-    def _auto_refresh(self):
-        # jeśli użytkownik przewinął w górę – pauzujemy auto-refresh
-        if self._user_scrolled_up:
-            return
-
-        if self.combo_files.currentIndex() >= 0:
-            self._load_current_file()
-
     def _manual_reload(self):
-        # ręczne odświeżenie – trzymamy aktualną decyzję user_scrolled_up
         self._load_current_file()
-
-    def showEvent(self, event):
-        self.timer.start()
-        super().showEvent(event)
-
-    def hideEvent(self, event):
-        self.timer.stop()
-        super().hideEvent(event)
 
     def _severity_background_color(self, severity: str) -> QColor:
         pal = self.palette()
